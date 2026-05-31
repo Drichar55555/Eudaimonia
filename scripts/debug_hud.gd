@@ -18,10 +18,13 @@ func _process(_delta: float) -> void:
 	var camera_text := "camera: missing"
 	if game_camera != null:
 		var room_name = game_camera.get("active_room_name")
-		camera_text = "camera: %s current=%s room=%s zoom=%s transition=%s" % [
+		camera_text = "camera: %s current=%s room=%s profile=%s view=%s no_follow=%s zoom=%s transition=%s" % [
 			game_camera.global_position.round(),
 			game_camera.is_current(),
 			room_name,
+			game_camera.get("active_camera_profile"),
+			game_camera.get("active_camera_view_mode"),
+			game_camera.get("active_no_follow"),
 			game_camera.zoom.snapped(Vector2(0.01, 0.01)),
 			game_camera.get("is_room_transitioning")
 		]

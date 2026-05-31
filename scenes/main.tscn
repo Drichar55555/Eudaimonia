@@ -2,19 +2,30 @@
 
 [ext_resource type="Script" uid="uid://dncun1qr2i7vr" path="res://scripts/player.gd" id="1_player"]
 [ext_resource type="Script" uid="uid://bsjuh0nkimu4g" path="res://scripts/platform_camera.gd" id="2_camera"]
-[ext_resource type="Script" path="res://scripts/debug_hud.gd" id="3_debug_hud"]
-[ext_resource type="Script" path="res://scripts/player_visual.gd" id="4_player_visual"]
-[ext_resource type="Script" path="res://scripts/room.gd" id="5_room"]
-[ext_resource type="Script" path="res://scripts/room_transition_mask.gd" id="6_room_mask"]
+[ext_resource type="Script" uid="uid://dsheg3d47hxj5" path="res://scripts/debug_hud.gd" id="3_debug_hud"]
+[ext_resource type="Script" uid="uid://bptwpxybw4bh3" path="res://scripts/player_visual.gd" id="4_player_visual"]
+[ext_resource type="Script" uid="uid://db8b44vxbkjvs" path="res://scripts/room.gd" id="5_room"]
+[ext_resource type="Script" uid="uid://bq8p13iw18vod" path="res://scripts/room_transition_mask.gd" id="6_room_mask"]
+[ext_resource type="Script" path="res://scripts/camera_zone_overlay.gd" id="7_camera_zone_overlay"]
+[ext_resource type="Script" path="res://scripts/terrain_debug_visual.gd" id="8_terrain_visual"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_room_start"]
+size = Vector2(374, 232)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_room_cliff"]
+size = Vector2(711, 966)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_tipki"]
+size = Vector2(957, 399)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_85g3d"]
+size = Vector2(1100.5, 792.5)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_choun"]
+size = Vector2(961, 399)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
 size = Vector2(36, 36)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_room_start"]
-size = Vector2(1280, 720)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_room_cliff"]
-size = Vector2(880, 560)
 
 [node name="Main" type="Node2D" unique_id=1069334800]
 
@@ -31,30 +42,74 @@ color = Color(0.055, 0.062, 0.075, 1)
 
 [node name="Background" type="Polygon2D" parent="." unique_id=74526128]
 z_index = -100
+position = Vector2(-40, 0)
 color = Color(0.055, 0.062, 0.075, 1)
 polygon = PackedVector2Array(-1200, -800, 3600, -800, 3600, 1800, -1200, 1800)
 
 [node name="Rooms" type="Node2D" parent="." unique_id=808420006]
 
-[node name="StartRoom" type="Area2D" parent="Rooms" unique_id=808420007]
+[node name="1-0" type="Area2D" parent="Rooms" unique_id=808420007]
 script = ExtResource("5_room")
 room_id = "Start Room"
-camera_rect = Rect2(-180, -120, 1280, 720)
-debug_color = Color(0.95, 0.78, 0.25, 0.5)
+camera_view_mode = "no_follow"
+camera_view_width = 320.0
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/StartRoom" unique_id=808420008]
-position = Vector2(460, 240)
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-0" unique_id=808420008]
+position = Vector2(161, 378)
 shape = SubResource("RectangleShape2D_room_start")
 
-[node name="CliffRoom" type="Area2D" parent="Rooms" unique_id=808420009]
+[node name="1-1" type="Area2D" parent="Rooms" unique_id=808420009]
 script = ExtResource("5_room")
 room_id = "Cliff Room"
-camera_rect = Rect2(1020, 40, 880, 560)
+camera_profile = "platforming"
+camera_rect = Rect2(1420, -40, 1500, 760)
+camera_view_width = 664.0
+transition_mode = "fade_to_black"
 debug_color = Color(0.36, 0.76, 0.92, 0.5)
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/CliffRoom" unique_id=808420010]
-position = Vector2(1460, 320)
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-1" unique_id=808420010]
+position = Vector2(701.5, 255)
 shape = SubResource("RectangleShape2D_room_cliff")
+
+[node name="1-2" type="Area2D" parent="Rooms" unique_id=88414947]
+script = ExtResource("5_room")
+room_id = "Cliff Room"
+camera_profile = "platforming"
+camera_view_mode = "horizontal_follow"
+camera_rect = Rect2(1420, -40, 1500, 760)
+camera_view_width = 320.0
+transition_mode = "fade_to_black"
+debug_color = Color(0.36, 0.76, 0.92, 0.5)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-2" unique_id=434725420]
+position = Vector2(1526.5, 557)
+shape = SubResource("RectangleShape2D_tipki")
+
+[node name="1-3" type="Area2D" parent="Rooms" unique_id=444878778]
+script = ExtResource("5_room")
+room_id = "Cliff Room"
+camera_profile = "platforming"
+camera_rect = Rect2(1420, -40, 1500, 760)
+camera_view_width = 944.0
+transition_mode = "fade_to_black"
+debug_color = Color(0.36, 0.76, 0.92, 0.5)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-3" unique_id=202252574]
+position = Vector2(2556, 334.25)
+shape = SubResource("RectangleShape2D_85g3d")
+
+[node name="1-4" type="Area2D" parent="Rooms" unique_id=2011644398]
+script = ExtResource("5_room")
+room_id = "Cliff Room"
+camera_profile = "platforming"
+camera_rect = Rect2(1420, -40, 1500, 760)
+camera_view_width = 680.0
+transition_mode = "fade_to_black"
+debug_color = Color(0.36, 0.76, 0.92, 0.5)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-4" unique_id=456369310]
+position = Vector2(3586, 132)
+shape = SubResource("RectangleShape2D_choun")
 
 [node name="Level" type="Node2D" parent="." unique_id=1034204445]
 
@@ -64,34 +119,26 @@ width = 6.0
 default_color = Color(0.18, 0.22, 0.25, 1)
 
 [node name="Terrain" type="StaticBody2D" parent="Level" unique_id=144938748]
-
-[node name="GroundVisual" type="Polygon2D" parent="Level/Terrain" unique_id=60559880]
-color = Color(0.24, 0.28, 0.26, 1)
-polygon = PackedVector2Array(-420, 470, -240, 448, 20, 466, 260, 470, 380, 438, 520, 410, 720, 430, 900, 460, 1080, 446, 1260, 438, 1500, 454, 1700, 468, 1700, 760, -420, 760)
+script = ExtResource("8_terrain_visual")
 
 [node name="GroundCollision" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=338598706]
-polygon = PackedVector2Array(-420, 470, -240, 448, 20, 466, 260, 470, 380, 438, 520, 410, 720, 430, 900, 460, 1080, 446, 1260, 438, 1500, 454, 1700, 468, 1700, 760, -420, 760)
-
-[node name="WallVisual" type="Polygon2D" parent="Level/Terrain" unique_id=160039371]
-color = Color(0.32, 0.34, 0.32, 1)
-polygon = PackedVector2Array(1180, 438, 1220, 390, 1212, 336, 1238, 282, 1224, 226, 1260, 170, 1342, 170, 1320, 240, 1348, 304, 1326, 372, 1362, 438)
+build_mode = 1
+polygon = PackedVector2Array(-416, 320, -413, 184, 268, 180, 271, 233, 442, 235, 443, 284, 362, 282, 365, 332, 321, 333, 321, 287, 29, 297, 20, 466, 467, 471, 468, 531, 353, 536, 353, 669, 1365, 673, 2683, 693, 2887, 577, 3041, 567, 3026, 198, 2629, 191, 2625, 105, 3335, 106, 3335, 164, 3335, 165, 3332, 237, 3222, 231, 3223, 778, -420, 760)
 
 [node name="WallCollision" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=222913767]
-polygon = PackedVector2Array(1180, 438, 1220, 390, 1212, 336, 1238, 282, 1224, 226, 1260, 170, 1342, 170, 1320, 240, 1348, 304, 1326, 372, 1362, 438)
-
-[node name="FloatingRockVisual" type="Polygon2D" parent="Level/Terrain" unique_id=1540554418]
-color = Color(0.28, 0.31, 0.29, 1)
-polygon = PackedVector2Array(570, 286, 664, 266, 804, 286, 830, 340, 794, 378, 624, 370, 548, 330)
+position = Vector2(-456, -62)
+build_mode = 1
+polygon = PackedVector2Array(2307, 236, 2307, 106, 1867, -14, 2309, -25, 2312, -325, 4005, -335, 4009, -210, 2536, -244, 2536, 280, 2659, 280, 2995, 431, 2539, 428, 2539, 544, 1463, 552, 1464, 322, 1343, 309, 1349, 239)
 
 [node name="FloatingRockCollision" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=408602743]
-polygon = PackedVector2Array(570, 286, 664, 266, 804, 286, 830, 340, 794, 378, 624, 370, 548, 330)
+build_mode = 1
+polygon = PackedVector2Array(558, 493, 572, 468, 810, 477, 839, 505, 805, 543, 633, 539, 579, 536)
 
 [node name="Player" type="CharacterBody2D" parent="." unique_id=1842820891]
 z_index = 50
 z_as_relative = false
 position = Vector2(80, 420)
 script = ExtResource("1_player")
-spawn_position = Vector2(80, 420)
 
 [node name="PlayerRuntimeVisual" type="Node2D" parent="Player" unique_id=808420003]
 z_index = 100
@@ -116,23 +163,38 @@ shape = SubResource("RectangleShape2D_player")
 debug_color = Color(0.44705883, 0.60784316, 0.6509804, 0.41960785)
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1214959126]
-enabled = true
 position = Vector2(80, 390)
 limit_left = -180
 limit_top = -120
-limit_right = 1760
-limit_bottom = 760
+limit_right = 1420
+limit_bottom = 780
 script = ExtResource("2_camera")
 target_path = NodePath("../Player")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=702696265]
 layer = 100
 
-[node name="RoomTransitionMask" type="ColorRect" parent="CanvasLayer" unique_id=808420011]
+[node name="CameraZoneOverlay" type="Control" parent="CanvasLayer" unique_id=740569868]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("7_camera_zone_overlay")
+camera_path = NodePath("../../Camera2D")
+
+[node name="RoomTransitionMask" type="ColorRect" parent="CanvasLayer" unique_id=808420011]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 37.0
+offset_right = 8.0
+offset_bottom = 37.0
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 2
 color = Color(0.02, 0.025, 0.035, 0)
 script = ExtResource("6_room_mask")
