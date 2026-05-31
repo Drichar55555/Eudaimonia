@@ -1,0 +1,150 @@
+[gd_scene format=3 uid="uid://ikseqf5yeg78"]
+
+[ext_resource type="Script" uid="uid://dncun1qr2i7vr" path="res://scripts/player.gd" id="1_player"]
+[ext_resource type="Script" uid="uid://bsjuh0nkimu4g" path="res://scripts/platform_camera.gd" id="2_camera"]
+[ext_resource type="Script" path="res://scripts/debug_hud.gd" id="3_debug_hud"]
+[ext_resource type="Script" path="res://scripts/player_visual.gd" id="4_player_visual"]
+[ext_resource type="Script" path="res://scripts/room.gd" id="5_room"]
+[ext_resource type="Script" path="res://scripts/room_transition_mask.gd" id="6_room_mask"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
+size = Vector2(36, 36)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_room_start"]
+size = Vector2(1280, 720)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_room_cliff"]
+size = Vector2(880, 560)
+
+[node name="Main" type="Node2D" unique_id=1069334800]
+
+[node name="RuntimeBackgroundLayer" type="CanvasLayer" parent="." unique_id=808420001]
+layer = -100
+
+[node name="RuntimeBackground" type="ColorRect" parent="RuntimeBackgroundLayer" unique_id=808420002]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_right = 1280.0
+offset_bottom = 720.0
+color = Color(0.055, 0.062, 0.075, 1)
+
+[node name="Background" type="Polygon2D" parent="." unique_id=74526128]
+z_index = -100
+color = Color(0.055, 0.062, 0.075, 1)
+polygon = PackedVector2Array(-1200, -800, 3600, -800, 3600, 1800, -1200, 1800)
+
+[node name="Rooms" type="Node2D" parent="." unique_id=808420006]
+
+[node name="StartRoom" type="Area2D" parent="Rooms" unique_id=808420007]
+script = ExtResource("5_room")
+room_id = "Start Room"
+camera_rect = Rect2(-180, -120, 1280, 720)
+debug_color = Color(0.95, 0.78, 0.25, 0.5)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/StartRoom" unique_id=808420008]
+position = Vector2(460, 240)
+shape = SubResource("RectangleShape2D_room_start")
+
+[node name="CliffRoom" type="Area2D" parent="Rooms" unique_id=808420009]
+script = ExtResource("5_room")
+room_id = "Cliff Room"
+camera_rect = Rect2(1020, 40, 880, 560)
+debug_color = Color(0.36, 0.76, 0.92, 0.5)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/CliffRoom" unique_id=808420010]
+position = Vector2(1460, 320)
+shape = SubResource("RectangleShape2D_room_cliff")
+
+[node name="Level" type="Node2D" parent="." unique_id=1034204445]
+
+[node name="GuideLine" type="Line2D" parent="Level" unique_id=1593447185]
+points = PackedVector2Array(-420, 470, 260, 470, 520, 410, 900, 460, 1260, 438, 1700, 468)
+width = 6.0
+default_color = Color(0.18, 0.22, 0.25, 1)
+
+[node name="Terrain" type="StaticBody2D" parent="Level" unique_id=144938748]
+
+[node name="GroundVisual" type="Polygon2D" parent="Level/Terrain" unique_id=60559880]
+color = Color(0.24, 0.28, 0.26, 1)
+polygon = PackedVector2Array(-420, 470, -240, 448, 20, 466, 260, 470, 380, 438, 520, 410, 720, 430, 900, 460, 1080, 446, 1260, 438, 1500, 454, 1700, 468, 1700, 760, -420, 760)
+
+[node name="GroundCollision" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=338598706]
+polygon = PackedVector2Array(-420, 470, -240, 448, 20, 466, 260, 470, 380, 438, 520, 410, 720, 430, 900, 460, 1080, 446, 1260, 438, 1500, 454, 1700, 468, 1700, 760, -420, 760)
+
+[node name="WallVisual" type="Polygon2D" parent="Level/Terrain" unique_id=160039371]
+color = Color(0.32, 0.34, 0.32, 1)
+polygon = PackedVector2Array(1180, 438, 1220, 390, 1212, 336, 1238, 282, 1224, 226, 1260, 170, 1342, 170, 1320, 240, 1348, 304, 1326, 372, 1362, 438)
+
+[node name="WallCollision" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=222913767]
+polygon = PackedVector2Array(1180, 438, 1220, 390, 1212, 336, 1238, 282, 1224, 226, 1260, 170, 1342, 170, 1320, 240, 1348, 304, 1326, 372, 1362, 438)
+
+[node name="FloatingRockVisual" type="Polygon2D" parent="Level/Terrain" unique_id=1540554418]
+color = Color(0.28, 0.31, 0.29, 1)
+polygon = PackedVector2Array(570, 286, 664, 266, 804, 286, 830, 340, 794, 378, 624, 370, 548, 330)
+
+[node name="FloatingRockCollision" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=408602743]
+polygon = PackedVector2Array(570, 286, 664, 266, 804, 286, 830, 340, 794, 378, 624, 370, 548, 330)
+
+[node name="Player" type="CharacterBody2D" parent="." unique_id=1842820891]
+z_index = 50
+z_as_relative = false
+position = Vector2(80, 420)
+script = ExtResource("1_player")
+spawn_position = Vector2(80, 420)
+
+[node name="PlayerRuntimeVisual" type="Node2D" parent="Player" unique_id=808420003]
+z_index = 100
+script = ExtResource("4_player_visual")
+
+[node name="SpawnMarker" type="Line2D" parent="Player" unique_id=990420001]
+points = PackedVector2Array(0, -44, 0, -24, -8, -32, 0, -24, 8, -32)
+width = 4.0
+default_color = Color(1, 0.86, 0.28, 1)
+
+[node name="Body" type="Polygon2D" parent="Player" unique_id=2124436141]
+color = Color(0.42, 0.82, 1, 1)
+polygon = PackedVector2Array(-20, -22, 20, -22, 20, 20, -20, 20)
+
+[node name="BodyOutline" type="Line2D" parent="Player" unique_id=990420002]
+points = PackedVector2Array(-20, -22, 20, -22, 20, 20, -20, 20, -20, -22)
+width = 4.0
+default_color = Color(0.02, 0.03, 0.04, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=1557034633]
+shape = SubResource("RectangleShape2D_player")
+debug_color = Color(0.44705883, 0.60784316, 0.6509804, 0.41960785)
+
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1214959126]
+enabled = true
+position = Vector2(80, 390)
+limit_left = -180
+limit_top = -120
+limit_right = 1760
+limit_bottom = 760
+script = ExtResource("2_camera")
+target_path = NodePath("../Player")
+
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=702696265]
+layer = 100
+
+[node name="RoomTransitionMask" type="ColorRect" parent="CanvasLayer" unique_id=808420011]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+color = Color(0.02, 0.025, 0.035, 0)
+script = ExtResource("6_room_mask")
+camera_path = NodePath("../../Camera2D")
+
+[node name="Hint" type="Label" parent="CanvasLayer" unique_id=689025645]
+offset_left = 24.0
+offset_top = 20.0
+offset_right = 620.0
+offset_bottom = 140.0
+theme_override_colors/font_color = Color(0.9, 0.94, 0.98, 1)
+theme_override_font_sizes/font_size = 18
+script = ExtResource("3_debug_hud")
+player_path = NodePath("../../Player")
+camera_path = NodePath("../../Camera2D")
