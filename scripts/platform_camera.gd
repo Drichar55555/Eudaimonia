@@ -13,6 +13,10 @@ extends Camera2D
 @export var fade_hold_duration: float = 0.08
 @export var fade_in_duration: float = 0.2
 @export var show_camera_zone_overlay := true
+@export_group("Hit Feedback")
+@export var shake_decay: float = 7.5
+@export var max_shake_offset := Vector2(7.0, 5.0)
+@export var shake_trauma_power: float = 2.0
 
 var target: CharacterBody2D
 var desired_position: Vector2
@@ -48,11 +52,16 @@ var _pending_room_name := ""
 var _pending_room_zoom := Vector2.ONE
 var _pending_room_position := Vector2.ZERO
 var _pending_camera_settings := {}
+var _base_camera_offset := Vector2.ZERO
+var _shake_trauma := 0.0
+var _shake_rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
 	enabled = true
 	make_current()
 	add_to_group("room_cameras")
+	_base_camera_offset = offset
+	_shake_rng.randomize()
 
 	active_room_rect = default_room_rect
 	target_zoom = default_zoom
@@ -68,10 +77,14 @@ func _ready() -> void:
 		desired_position = global_position
 		call_deferred("_find_starting_room")
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_update_hit_shake(delta)
 	if not _is_room_transitioning and not _is_fade_transitioning:
 		_apply_native_camera_limits(active_room_rect)
 		global_position = _clamp_to_room(global_position)
+
+func add_hit_shake(amount: float = 0.18) -> void:
+	_shake_trauma = clampf(_shake_trauma + amount, 0.0, 1.0)
 
 func _physics_process(delta: float) -> void:
 	if target == null:
@@ -154,6 +167,10 @@ func set_room(room: Node) -> void:
 	var next_camera_settings := _camera_settings_from_room(room)
 	var next_position: Vector2 = _room_focus_position(next_room_rect, next_zoom, float(next_camera_settings["vertical_offset"]))
 
+	if active_room == null:
+		_activate_room_immediately(room, next_room_rect, next_room_name, next_zoom, next_position, next_camera_settings)
+		return
+
 	if room == active_room:
 		active_room_rect = next_room_rect
 		active_room_name = next_room_name
@@ -200,6 +217,13 @@ func _room_transition_mode(room: Node) -> String:
 
 func _update_room_from_target_position() -> void:
 	var room := _room_at_point(target.global_position)
+	if _is_room_transitioning:
+		if room == active_room:
+			_cancel_room_transition()
+		elif room != null and room != _pending_room:
+			set_room(room)
+		return
+
 	if _is_fade_transitioning:
 		if room == active_room:
 			_cancel_fade_transition()
@@ -254,11 +278,12 @@ func _room_focus_position(room_rect: Rect2, room_zoom: Vector2, vertical_offset:
 
 func _start_smooth_transition(room: Node, next_room_rect: Rect2, next_room_name: String, next_zoom: Vector2, next_position: Vector2, next_camera_settings: Dictionary) -> void:
 	var old_room_rect := active_room_rect
-	active_room_rect = next_room_rect
-	active_room_name = next_room_name
-	active_room = room
-	target_zoom = next_zoom
-	_apply_camera_settings(next_camera_settings)
+	_pending_room = room
+	_pending_room_rect = next_room_rect
+	_pending_room_name = next_room_name
+	_pending_room_zoom = next_zoom
+	_pending_room_position = next_position
+	_pending_camera_settings = next_camera_settings
 	_transition_limit_rect = old_room_rect.merge(next_room_rect)
 	_apply_native_camera_limits(_transition_limit_rect)
 	_start_room_transition(next_position, next_zoom)
@@ -276,6 +301,16 @@ func _start_room_transition(next_position: Vector2, next_zoom: Vector2) -> void:
 	_transition_to_zoom = next_zoom
 	desired_position = next_position
 
+func _cancel_room_transition() -> void:
+	_is_room_transitioning = false
+	is_room_transitioning = false
+	_pending_room = null
+	_pending_camera_settings = {}
+	transition_mask_alpha = 0.0
+	_apply_native_camera_limits(active_room_rect)
+	global_position = _clamp_to_room(global_position)
+	desired_position = global_position
+
 func _update_room_transition(delta: float) -> void:
 	_transition_elapsed += delta
 	var raw_progress := clampf(_transition_elapsed / maxf(_transition_duration, 0.001), 0.0, 1.0)
@@ -290,10 +325,25 @@ func _update_room_transition(delta: float) -> void:
 		_is_room_transitioning = false
 		is_room_transitioning = false
 		transition_mask_alpha = 0.0
+		_activate_pending_room_after_smooth_transition()
+
+func _activate_pending_room_after_smooth_transition() -> void:
+	if _pending_room == null:
 		zoom = _transition_to_zoom
-		_apply_native_camera_limits(active_room_rect)
 		global_position = _clamp_to_room(_transition_to_position)
 		desired_position = global_position
+		return
+
+	_activate_room_immediately(
+		_pending_room,
+		_pending_room_rect,
+		_pending_room_name,
+		_pending_room_zoom,
+		_transition_to_position,
+		_pending_camera_settings
+	)
+	_pending_room = null
+	_pending_camera_settings = {}
 
 func _start_fade_transition(room: Node, next_room_rect: Rect2, next_room_name: String, next_zoom: Vector2, next_position: Vector2, next_camera_settings: Dictionary) -> void:
 	_is_room_transitioning = false
@@ -344,14 +394,17 @@ func _update_fade_transition(delta: float) -> void:
 func _activate_pending_fade_room() -> void:
 	if _pending_room == null:
 		return
-	active_room = _pending_room
-	active_room_rect = _pending_room_rect
-	active_room_name = _pending_room_name
-	target_zoom = _pending_room_zoom
-	zoom = _pending_room_zoom
-	_apply_camera_settings(_pending_camera_settings)
+	_activate_room_immediately(_pending_room, _pending_room_rect, _pending_room_name, _pending_room_zoom, _pending_room_position, _pending_camera_settings)
+
+func _activate_room_immediately(room: Node, room_rect: Rect2, room_name: String, room_zoom: Vector2, room_position: Vector2, room_settings: Dictionary) -> void:
+	active_room = room
+	active_room_rect = room_rect
+	active_room_name = room_name
+	target_zoom = room_zoom
+	zoom = room_zoom
+	_apply_camera_settings(room_settings)
 	_apply_native_camera_limits(active_room_rect)
-	global_position = _clamp_to_room(_pending_room_position)
+	global_position = _clamp_to_room(room_position)
 	desired_position = global_position
 
 func _default_camera_settings() -> Dictionary:
@@ -413,6 +466,18 @@ func _apply_native_camera_limits(room_rect: Rect2) -> void:
 	limit_top = floori(room_rect.position.y)
 	limit_right = ceili(room_rect.position.x + room_rect.size.x)
 	limit_bottom = ceili(room_rect.position.y + room_rect.size.y)
+
+func _update_hit_shake(delta: float) -> void:
+	if _shake_trauma <= 0.0:
+		offset = _base_camera_offset
+		return
+
+	_shake_trauma = maxf(_shake_trauma - shake_decay * delta, 0.0)
+	var amount := pow(_shake_trauma, shake_trauma_power)
+	offset = _base_camera_offset + Vector2(
+		_shake_rng.randf_range(-max_shake_offset.x, max_shake_offset.x) * amount,
+		_shake_rng.randf_range(-max_shake_offset.y, max_shake_offset.y) * amount
+	)
 
 func _ease_in_out_cubic(value: float) -> float:
 	if value < 0.5:

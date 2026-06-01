@@ -7,9 +7,19 @@ var game_camera: Camera2D
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	visible = false
 	game_camera = get_node_or_null(camera_path) as Camera2D
 
 func _process(_delta: float) -> void:
+	if Engine.is_editor_hint():
+		visible = false
+		return
+
+	if game_camera == null or not bool(game_camera.get("show_camera_zone_overlay")):
+		visible = false
+		return
+
+	visible = true
 	queue_redraw()
 
 func _draw() -> void:

@@ -9,6 +9,8 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	color = Color(0.02, 0.025, 0.035, 0.0)
+	visible = false
+	set_process(true)
 	camera = get_node_or_null(camera_path)
 
 func _process(delta: float) -> void:

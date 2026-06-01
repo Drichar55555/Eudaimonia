@@ -16,11 +16,21 @@ Controls:
 
 - Move: `A/D` or arrow keys.
 - Jump: `W` or `Space`.
+- Throw/recall mask boomerang: `J` or `X`.
 
 Current prototype notes:
 
 - Gravity is set in `project.godot` under `physics/2d/default_gravity`.
 - Player movement lives in `scripts/player.gd`.
+- Player movement includes coyote time, jump buffering, variable jump height, faster falling, max fall speed, acceleration/deceleration, and facing-based mask boomerang throwing.
+- The mask boomerang lives in `scenes/mask_boomerang.tscn` and `scripts/mask_boomerang.gd`. It is thrown in the player's facing direction, travels outward, returns automatically, and can be recalled by pressing throw again.
+- Enemy prototypes live in `scenes/enemy.tscn` and `scripts/enemy.gd`. The scene uses a `CharacterBody2D` root with a `Hitbox` `Area2D` in the `boomerang_targets` group.
+- Enemies have `max_health = 3` by default and disappear after three mask boomerang hits.
+- `can_touch_ghost_blocks` controls whether an enemy collides with ghost blocks. `EnemyNormal` ignores ghost blocks; `EnemyGhost` can collide with ghost blocks.
+- Enemies use a finite state machine with `patrol` and `chase` states. When the player is outside their senses, enemies patrol inside `patrol_distance`; when the player enters their forward vision or close rear hearing area, they chase horizontally.
+- Enemies do not jump. If the player is above them or across a gap, they keep using ground movement and ledge checks instead of jumping.
+- Enemy AI tuning lives in the Inspector on each enemy: `vision_range` is the forward sight range, `rear_hearing_range` is the shorter rear hearing range, and `patrol_distance`, `patrol_speed`, `chase_speed`, `chase_memory_time`, `avoid_ledges`, and `require_line_of_sight` tune movement and pursuit.
+- Enable `show_ai_ranges` on an enemy to see the AI visualization: blue means patrol, red means chase, the large forward ellipse is sight, the small rear ellipse is hearing, and the line under the enemy is its patrol span.
 - Camera follow lives in `scripts/platform_camera.gd` and uses horizontal lookahead, dead zones, room bounds, and smooth room transitions.
 - Rooms live in `scenes/main.tscn` under the `Rooms` node. Each room is an `Area2D` with `scripts/room.gd`, a `camera_rect`, `camera_view_mode`, an aspect-locked camera view width control, a `transition_mode`, and a trigger collision shape.
 - By default, a room uses its `CollisionShape2D` trigger area as the camera movement bounds. Enable `manual_camera_rect` only when you need custom camera bounds different from the trigger area.
@@ -41,6 +51,7 @@ Current prototype notes:
 - The test wall/terrain in `scenes/main.tscn` uses `CollisionPolygon2D`, which is the right direction for hand-drawn, irregular wall shapes.
 - Terrain visuals are temporary and collision-driven. `Level/Terrain` uses `scripts/terrain_debug_visual.gd` to draw fill colors directly from child `CollisionPolygon2D` nodes, so you only edit the actual collision polygons.
 - The terrain collision polygons use segment build mode. This is better for complex hand-drawn outlines because it avoids convex decomposition failures from large concave solid polygons.
+- Ghost blocks use the same editing style as terrain. `Level/GhostBlocks` uses `scripts/ghost_blocks_visual.gd` to draw temporary ghost visuals from child `CollisionPolygon2D` nodes. Edit `GhostBlockCollision` polygons directly.
 
 ## Project Structure
 
@@ -50,3 +61,4 @@ Current prototype notes:
 - `scripts/platform_camera.gd`: Camera follow behavior.
 - `scripts/room.gd`: Room trigger and camera bounds definition.
 - `scripts/terrain_debug_visual.gd`: Temporary terrain color renderer based on collision polygons.
+- `scripts/ghost_blocks_visual.gd`: Temporary ghost block renderer based on collision polygons.
