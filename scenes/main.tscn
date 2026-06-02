@@ -11,9 +11,9 @@
 [ext_resource type="PackedScene" path="res://scenes/mask_boomerang.tscn" id="9_mask_boomerang"]
 [ext_resource type="Script" uid="uid://4kj43t0e0oxk" path="res://scripts/ghost_blocks_visual.gd" id="10_ghost_blocks_visual"]
 [ext_resource type="PackedScene" path="res://scenes/enemy.tscn" id="11_enemy"]
-[ext_resource type="Script" uid="uid://b6vtri0rc2yys" path="res://scripts/save_manager.gd" id="12_save_manager"]
-[ext_resource type="Script" uid="uid://bov3jsymhkf5b" path="res://scripts/save_point.gd" id="13_save_point"]
-[ext_resource type="Script" uid="uid://b2lhl6deible1" path="res://scripts/save_status_label.gd" id="14_save_status_label"]
+[ext_resource type="Script" path="res://scripts/save_manager.gd" id="12_save_manager"]
+[ext_resource type="Script" path="res://scripts/save_point.gd" id="13_save_point"]
+[ext_resource type="Script" path="res://scripts/save_status_label.gd" id="14_save_status_label"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_room_start"]
 size = Vector2(374, 232)
