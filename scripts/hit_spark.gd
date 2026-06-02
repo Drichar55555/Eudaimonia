@@ -14,6 +14,7 @@ var _rng := RandomNumberGenerator.new()
 var _sparks: Array[Dictionary] = []
 
 func _ready() -> void:
+	add_to_group("save_transients")
 	z_index = 220
 	z_as_relative = false
 	_rng.randomize()

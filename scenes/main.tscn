@@ -11,26 +11,35 @@
 [ext_resource type="PackedScene" path="res://scenes/mask_boomerang.tscn" id="9_mask_boomerang"]
 [ext_resource type="Script" uid="uid://4kj43t0e0oxk" path="res://scripts/ghost_blocks_visual.gd" id="10_ghost_blocks_visual"]
 [ext_resource type="PackedScene" path="res://scenes/enemy.tscn" id="11_enemy"]
+[ext_resource type="Script" uid="uid://b6vtri0rc2yys" path="res://scripts/save_manager.gd" id="12_save_manager"]
+[ext_resource type="Script" uid="uid://bov3jsymhkf5b" path="res://scripts/save_point.gd" id="13_save_point"]
+[ext_resource type="Script" uid="uid://b2lhl6deible1" path="res://scripts/save_status_label.gd" id="14_save_status_label"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_room_start"]
 size = Vector2(374, 232)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_room_cliff"]
-size = Vector2(711, 966)
+size = Vector2(711, 987)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_tipki"]
 size = Vector2(957, 399)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_85g3d"]
-size = Vector2(1100.5, 792.5)
+size = Vector2(1414.25, 792.5)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_choun"]
-size = Vector2(961, 399)
+size = Vector2(1084.5, 1204.5)
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_save_point"]
+radius = 96.0
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
 size = Vector2(36, 36)
 
 [node name="Main" type="Node2D" unique_id=1069334800]
+
+[node name="SaveManager" type="Node" parent="." unique_id=1547000001]
+script = ExtResource("12_save_manager")
 
 [node name="RuntimeBackgroundLayer" type="CanvasLayer" parent="." unique_id=808420001]
 layer = -100
@@ -45,9 +54,10 @@ color = Color(0.055, 0.062, 0.075, 1)
 
 [node name="Background" type="Polygon2D" parent="." unique_id=74526128]
 z_index = -100
-position = Vector2(-40, 0)
+position = Vector2(263.93747, -1137.1006)
+scale = Vector2(1.6497395, 1.5511242)
 color = Color(0.055, 0.062, 0.075, 1)
-polygon = PackedVector2Array(-1200, -800, 3600, -800, 3600, 1800, -1200, 1800)
+polygon = PackedVector2Array(-1200, -800, 3600, -800, 3600, 517.4121, 3600, 1800, -1200, 1800)
 
 [node name="Rooms" type="Node2D" parent="." unique_id=808420006]
 
@@ -70,7 +80,7 @@ camera_view_width = 664.0
 debug_color = Color(0.36, 0.76, 0.92, 0.5)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-1" unique_id=808420010]
-position = Vector2(701.5, 255)
+position = Vector2(701.5, 244.5)
 shape = SubResource("RectangleShape2D_room_cliff")
 
 [node name="1-2" type="Area2D" parent="Rooms" unique_id=88414947]
@@ -92,11 +102,10 @@ room_id = "Cliff Room"
 camera_profile = "platforming"
 camera_rect = Rect2(1420, -40, 1500, 760)
 camera_view_width = 944.0
-transition_mode = "fade_to_black"
 debug_color = Color(0.36, 0.76, 0.92, 0.5)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-3" unique_id=202252574]
-position = Vector2(2556, 334.25)
+position = Vector2(2712.875, 334.25)
 shape = SubResource("RectangleShape2D_85g3d")
 
 [node name="1-4" type="Area2D" parent="Rooms" unique_id=2011644398]
@@ -104,59 +113,180 @@ script = ExtResource("5_room")
 room_id = "Cliff Room"
 camera_profile = "platforming"
 camera_rect = Rect2(1420, -40, 1500, 760)
-camera_view_width = 680.0
-transition_mode = "fade_to_black"
+camera_view_width = 1048.0
 debug_color = Color(0.36, 0.76, 0.92, 0.5)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-4" unique_id=456369310]
-position = Vector2(3586, 132)
+position = Vector2(3962, -259)
 shape = SubResource("RectangleShape2D_choun")
 
 [node name="Level" type="Node2D" parent="." unique_id=1034204445]
 
-[node name="GuideLine" type="Line2D" parent="Level" unique_id=1593447185]
-points = PackedVector2Array(-420, 470, 260, 470, 520, 410, 900, 460, 1260, 438, 1700, 468)
-width = 6.0
-default_color = Color(0.18, 0.22, 0.25, 1)
+[node name="BirthSavePoint" type="Area2D" parent="Level" unique_id=1547000002]
+position = Vector2(80, 420)
+script = ExtResource("13_save_point")
+save_manager_path = NodePath("../../SaveManager")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Level/BirthSavePoint" unique_id=1547000003]
+shape = SubResource("CircleShape2D_save_point")
+debug_color = Color(1, 0.86, 0.28, 0.08)
 
 [node name="Terrain" type="StaticBody2D" parent="Level" unique_id=144938748]
 script = ExtResource("8_terrain_visual")
 
 [node name="GroundCollision" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=338598706]
 build_mode = 1
-polygon = PackedVector2Array(-416, 320, -413, 184, 268, 180, 271, 233, 442, 235, 443, 284, 362, 282, 365, 332, 321, 333, 321, 287, 29, 297, 20, 466, 467, 471, 468, 531, 353, 536, 353, 669, 1365, 673, 2683, 693, 2887, 577, 3041, 567, 3026, 198, 2629, 191, 2625, 105, 3335, 106, 3335, 164, 3335, 165, 3332, 237, 3222, 231, 3223, 778, -420, 760)
+polygon = PackedVector2Array(-416, 320, -413, 184, 268, 180, 266, 206, 548, 198, 549, 252, 362, 252, 365, 332, 321, 333, 321, 287, 29, 297, 20, 466, 467, 471, 468, 531, 353, 536, 353, 669, 2604, 670, 2602, 771, -420, 760)
 
 [node name="WallCollision" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=222913767]
 position = Vector2(-456, -23)
 build_mode = 1
-polygon = PackedVector2Array(2307, 236, 2307, 106, 1867, -14, 2309, -25, 2312, -325, 4005, -335, 4009, -210, 2536, -244, 2536, 280, 2659, 280, 2995, 431, 2539, 428, 2539, 544, 1463, 552, 1464, 322, 1343, 309, 1349, 239)
+polygon = PackedVector2Array(2307, 236, 2307, 106, 1867, -14, 2309, -25, 2314, -311, 4451, -301, 4451, -225, 2535, -225, 2536, 280, 2659, 280, 2995, 431, 2539, 428, 2539, 544, 1463, 552, 1464, 322, 1343, 309, 1349, 239)
 
 [node name="FloatingRockCollision" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=408602743]
 build_mode = 1
 polygon = PackedVector2Array(558, 493, 572, 468, 810, 477, 839, 505, 805, 543, 633, 539, 579, 536)
 
+[node name="GroundCollision2" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1933789124]
+position = Vector2(-3, 0)
+build_mode = 1
+polygon = PackedVector2Array(2826, 670, 2824, 771, 3492, 777, 3496, 224, 3646, 221, 3647, 142, 2404, 138, 2407, 172, 3355.3755, 209.12094, 3357, 522, 3177, 518)
+
+[node name="GroundCollision3" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1804658867]
+position = Vector2(1043, -539)
+build_mode = 1
+polygon = PackedVector2Array(2826, 670, 2824, 771, 3749, 773, 3754, 388, 3276, 386)
+
+[node name="GroundCollision4" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1987168435]
+position = Vector2(116, -259)
+build_mode = 1
+polygon = PackedVector2Array(2826, 670, 2890, 711, 2971, 707, 3027, 674)
+
+[node name="GroundCollision5" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=63434091]
+position = Vector2(-200, -275)
+build_mode = 1
+polygon = PackedVector2Array(2838, 671, 2890, 711, 2971, 707, 3008, 673)
+
+[node name="GroundCollision6" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1305695370]
+position = Vector2(-2248, -595)
+build_mode = 1
+polygon = PackedVector2Array(2838, 671, 2890, 711, 2971, 707, 3008, 673, 2952.4294, 672.3464)
+
+[node name="GroundCollision7" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=881851056]
+position = Vector2(-2470, -740)
+build_mode = 1
+polygon = PackedVector2Array(2838, 671, 2890, 711, 2971, 707, 3008, 673)
+
+[node name="GroundCollision8" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=924228847]
+position = Vector2(-2180, -859)
+build_mode = 1
+polygon = PackedVector2Array(2838, 671, 2890, 711, 2971, 707, 3008, 673)
+
+[node name="GroundCollision9" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1436830489]
+position = Vector2(-2944, -934)
+build_mode = 1
+polygon = PackedVector2Array(1932, -270, 1937, 706, 3440, 706, 3485, 671, 2129, 656, 2133, 333, 2516, 322, 2519, 280, 2132, 276, 2136, -23, 2674, -19, 2675, -63, 2138, -65, 2138, -268)
+
+[node name="GroundCollision11" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1138968350]
+position = Vector2(-3105, -1321)
+build_mode = 1
+polygon = PackedVector2Array(2815, 670, 2814, 712, 2973, 711, 3009, 671)
+
+[node name="GroundCollision12" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=795792125]
+position = Vector2(-2569, -1250)
+build_mode = 1
+polygon = PackedVector2Array(2838, 671, 2890, 711, 2971, 707, 3008, 673)
+
+[node name="GroundCollision13" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1601121876]
+position = Vector2(-2263, -1353)
+build_mode = 1
+polygon = PackedVector2Array(2838, 671, 2890, 711, 3010, 709, 3018, 907, 2822, 909, 2864, 954, 3019, 955, 3019, 1126, 3286, 1129, 3291, 1372, 3351, 1366, 3349, 1092, 3463, 1092, 3465, 1023, 3196, 1027, 3198, 668)
+
+[node name="GroundCollision14" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1897127467]
+position = Vector2(-2543, -1455)
+build_mode = 1
+polygon = PackedVector2Array(2838, 671, 2890, 711, 2971, 707, 3008, 673)
+
+[node name="GroundCollision15" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=988818799]
+position = Vector2(-2246, -1522)
+build_mode = 1
+polygon = PackedVector2Array(2838, 671, 2890, 711, 3368, 718, 3362, 669)
+
+[node name="GroundCollision16" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=944428195]
+position = Vector2(-2440, -1670)
+build_mode = 1
+polygon = PackedVector2Array(2838, 671, 2839, 712, 2988, 709, 3014, 670)
+
+[node name="GroundCollision10" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=893808560]
+position = Vector2(1136, -1022)
+build_mode = 1
+polygon = PackedVector2Array(3251, 697, 3251, 773, 3654, 776, 3652, 697)
+
 [node name="GhostBlocks" type="StaticBody2D" parent="Level" unique_id=1943537721]
 collision_layer = 8
 collision_mask = 0
 script = ExtResource("10_ghost_blocks_visual")
+normal_fill_color = null
+normal_edge_color = null
+normal_stripe_color = null
+euda_blur_color = null
+euda_edge_color = null
+euda_flicker_color = null
+euda_blur_offset = null
+euda_flicker_speed = null
 
-[node name="GhostBlockCollision" type="CollisionPolygon2D" parent="Level/GhostBlocks" unique_id=1707775544]
+[node name="GhostBlockCollision2" type="CollisionPolygon2D" parent="Level/GhostBlocks" unique_id=468144518]
 position = Vector2(620, 350)
-polygon = PackedVector2Array(-219, 27, -111, 23, -99, 95, -139, 121, -225, 113, -233, 61)
+polygon = PackedVector2Array(1984, 321, 2203, 322, 2202, 423, 1984, 421)
+
+[node name="GhostBlockCollision3" type="CollisionPolygon2D" parent="Level/GhostBlocks" unique_id=2022857144]
+position = Vector2(1661, -183)
+polygon = PackedVector2Array(1984, 321, 2203, 322, 2203, 401, 1985, 404)
+
+[node name="GhostBlockCollision4" type="CollisionPolygon2D" parent="Level/GhostBlocks" unique_id=2081258524]
+position = Vector2(-2412, -973)
+polygon = PackedVector2Array(1984, 321, 2121, 322, 2122, 363, 1985, 361)
+
+[node name="GhostBlockCollision5" type="CollisionPolygon2D" parent="Level/GhostBlocks" unique_id=6118623]
+position = Vector2(-2254, -1317)
+polygon = PackedVector2Array(1984, 321, 2652, 318, 2652, 358, 1985, 361)
+
+[node name="GhostBlockCollision6" type="CollisionPolygon2D" parent="Level/GhostBlocks" unique_id=1531047543]
+position = Vector2(-215, -649.00006)
+scale = Vector2(1.89523, 1.0000002)
+polygon = PackedVector2Array(2220.8386, 323.99997, 2428.7288, 324.99997, 2429.2566, 400.99997, 2220.8386, 401.99997)
 
 [node name="Enemies" type="Node2D" parent="Level" unique_id=1351491580]
 z_index = 80
 z_as_relative = false
 
-[node name="EnemyNormal" parent="Level/Enemies" unique_id=91565286 instance=ExtResource("11_enemy")]
-position = Vector2(674, 403)
-
 [node name="EnemyGhost" parent="Level/Enemies" unique_id=990300514 instance=ExtResource("11_enemy")]
-position = Vector2(477, 303)
+position = Vector2(1205, 171)
 collision_mask = 9
+vision_range = Vector2(360, 170)
 can_touch_ghost_blocks = true
 body_color = Color(0.42, 0.58, 1, 1)
 edge_color = Color(0.04, 0.08, 0.18, 1)
+
+[node name="EnemyNormal2" parent="Level/Enemies" unique_id=1614855823 instance=ExtResource("11_enemy")]
+position = Vector2(301, 439)
+vision_range = Vector2(360, 170)
+
+[node name="EnemyNormal3" parent="Level/Enemies" unique_id=264892934 instance=ExtResource("11_enemy")]
+position = Vector2(243, 436)
+vision_range = Vector2(360, 170)
+
+[node name="EnemyNormal4" parent="Level/Enemies" unique_id=1017113654 instance=ExtResource("11_enemy")]
+position = Vector2(268, 436)
+vision_range = Vector2(360, 170)
+
+[node name="EnemyNormal5" parent="Level/Enemies" unique_id=854015479 instance=ExtResource("11_enemy")]
+position = Vector2(290, 428)
+vision_range = Vector2(360, 170)
+
+[node name="EnemyNormal6" parent="Level/Enemies" unique_id=166228177 instance=ExtResource("11_enemy")]
+position = Vector2(252, 416)
+vision_range = Vector2(360, 170)
 
 [node name="Player" type="CharacterBody2D" parent="." unique_id=1842820891]
 z_index = 50
@@ -236,3 +366,17 @@ theme_override_font_sizes/font_size = 18
 script = ExtResource("3_debug_hud")
 player_path = NodePath("../../Player")
 camera_path = NodePath("../../Camera2D")
+
+[node name="SaveStatus" type="Label" parent="CanvasLayer" unique_id=1547000004]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = -52.0
+offset_right = 220.0
+offset_bottom = -22.0
+grow_vertical = 0
+theme_override_colors/font_color = Color(1, 0.9, 0.35, 1)
+theme_override_font_sizes/font_size = 20
+script = ExtResource("14_save_status_label")
+save_manager_path = NodePath("../../SaveManager")

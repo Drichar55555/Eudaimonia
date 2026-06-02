@@ -19,6 +19,7 @@ var _hit_pause_frames_left := 0
 var _hit_target_ids := {}
 
 func _ready() -> void:
+	add_to_group("save_transients")
 	body_entered.connect(_on_body_entered)
 	area_entered.connect(_on_area_entered)
 	start_position = global_position

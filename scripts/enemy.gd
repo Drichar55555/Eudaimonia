@@ -24,16 +24,16 @@ enum EnemyState { PATROL, CHASE }
 	set(value):
 		vision_range = Vector2(maxf(absf(value.x), 24.0), maxf(absf(value.y), 24.0))
 		queue_redraw()
-@export var rear_hearing_range := Vector2(86.0, 82.0):
+@export var hearing_range := Vector2(86.0, 82.0):
 	set(value):
-		rear_hearing_range = Vector2(maxf(absf(value.x), 16.0), maxf(absf(value.y), 16.0))
+		hearing_range = Vector2(maxf(absf(value.x), 16.0), maxf(absf(value.y), 16.0))
 		queue_redraw()
 @export_range(0.0, 2.0, 0.05) var chase_memory_time := 0.55
 @export_range(0.0, 160.0, 1.0) var stop_distance := 34.0
-@export_range(0.0, 360.0, 1.0) var patrol_speed := 82.0
-@export_range(0.0, 480.0, 1.0) var chase_speed := 156.0
-@export_range(0.0, 4000.0, 10.0) var ground_acceleration := 1300.0
-@export_range(0.0, 4000.0, 10.0) var ground_deceleration := 1600.0
+@export_range(0.0, 360.0, 1.0) var patrol_speed := 34.0
+@export_range(0.0, 480.0, 1.0) var chase_speed := 64.0
+@export_range(0.0, 4000.0, 10.0) var ground_acceleration := 560.0
+@export_range(0.0, 4000.0, 10.0) var ground_deceleration := 760.0
 @export_range(0.1, 3.0, 0.05) var gravity_scale := 1.0
 @export_range(120.0, 1800.0, 10.0) var max_fall_speed := 900.0
 @export_range(-1.0, 1.0, 1.0) var initial_patrol_direction := -1.0
@@ -42,10 +42,24 @@ enum EnemyState { PATROL, CHASE }
 @export_range(4.0, 80.0, 1.0) var floor_probe_forward := 26.0
 @export_range(8.0, 140.0, 1.0) var floor_probe_depth := 72.0
 
+@export_group("Attack")
+@export_range(1, 6, 1) var attack_damage := 1
+@export var attack_range := Vector2(44.0, 42.0)
+@export_range(0.1, 4.0, 0.05) var attack_cooldown := 0.85
+
+@export_group("Queue")
+@export var queue_enabled := true
+@export_range(24.0, 140.0, 1.0) var queue_spacing := 56.0
+@export_range(12.0, 120.0, 1.0) var queue_vertical_tolerance := 40.0
+
 @export_group("AI Debug")
 @export var show_ai_ranges := true:
 	set(value):
 		show_ai_ranges = value
+		queue_redraw()
+@export var show_runtime_ai_ranges := false:
+	set(value):
+		show_runtime_ai_ranges = value
 		queue_redraw()
 @export_range(0.02, 0.6, 0.01) var ai_visual_alpha := 0.16:
 	set(value):
@@ -96,6 +110,7 @@ var _home_position := Vector2.ZERO
 var _last_seen_position := Vector2.ZERO
 var _sight_memory_timer := 0.0
 var _patrol_direction := -1.0
+var _attack_cooldown_timer := 0.0
 var _hit_flash_timer := 0.0
 var _hit_squash_timer := 0.0
 var _hit_push_direction := Vector2.ZERO
@@ -104,6 +119,7 @@ func _ready() -> void:
 	z_index = 80
 	z_as_relative = false
 	add_to_group("enemies")
+	add_to_group("saveable")
 	_home_position = global_position
 	_last_seen_position = global_position
 	_patrol_direction = -1.0 if initial_patrol_direction < 0.0 else 1.0
@@ -127,12 +143,14 @@ func _physics_process(delta: float) -> void:
 
 	if target == null or not is_instance_valid(target):
 		_resolve_target()
+	_attack_cooldown_timer = maxf(_attack_cooldown_timer - delta, 0.0)
 
 	_update_ai_state(delta)
+	_try_attack_target()
 	_apply_gravity(delta)
 	_apply_horizontal_ai(delta)
 	move_and_slide()
-	if show_ai_ranges:
+	if show_ai_ranges and show_runtime_ai_ranges:
 		queue_redraw()
 
 func _process(delta: float) -> void:
@@ -153,6 +171,43 @@ func take_boomerang_hit(_boomerang: Node) -> void:
 	if health <= 0:
 		queue_free()
 		return
+	queue_redraw()
+
+func get_save_scene_path() -> String:
+	return "res://scenes/enemy.tscn"
+
+func get_save_state() -> Dictionary:
+	return {
+		"position": global_position,
+		"velocity": velocity,
+		"health": health,
+		"current_state": current_state,
+		"home_position": _home_position,
+		"last_seen_position": _last_seen_position,
+		"sight_memory_timer": _sight_memory_timer,
+		"patrol_direction": _patrol_direction,
+		"attack_cooldown_timer": _attack_cooldown_timer,
+		"hit_flash_timer": _hit_flash_timer,
+		"hit_squash_timer": _hit_squash_timer,
+		"visible": visible,
+	}
+
+func apply_save_state(state: Dictionary) -> void:
+	global_position = state.get("position", global_position)
+	velocity = state.get("velocity", Vector2.ZERO)
+	health = int(state.get("health", max_health))
+	current_state = int(state.get("current_state", EnemyState.PATROL))
+	_home_position = state.get("home_position", global_position)
+	_last_seen_position = state.get("last_seen_position", global_position)
+	_sight_memory_timer = float(state.get("sight_memory_timer", 0.0))
+	_patrol_direction = float(state.get("patrol_direction", initial_patrol_direction))
+	_attack_cooldown_timer = float(state.get("attack_cooldown_timer", 0.0))
+	_hit_flash_timer = float(state.get("hit_flash_timer", 0.0))
+	_hit_squash_timer = float(state.get("hit_squash_timer", 0.0))
+	visible = bool(state.get("visible", true))
+	_update_collision_layers()
+	_update_shapes()
+	_resolve_target()
 	queue_redraw()
 
 func _draw() -> void:
@@ -212,6 +267,7 @@ func _apply_horizontal_ai(delta: float) -> void:
 	var rate := ground_acceleration if absf(desired_speed) > absf(velocity.x) else ground_deceleration
 	if not is_zero_approx(desired_speed) and not is_zero_approx(velocity.x) and signf(desired_speed) != signf(velocity.x):
 		rate = ground_acceleration + ground_deceleration
+	desired_speed = _queue_adjusted_speed(desired_speed)
 	velocity.x = move_toward(velocity.x, desired_speed, rate * delta)
 
 func _patrol_desired_speed() -> float:
@@ -259,15 +315,55 @@ func _can_see_target() -> bool:
 	var forward_distance := to_target.x * facing
 	var vertical_distance := to_target.y
 	var in_forward_vision := _is_inside_forward_vision(forward_distance, vertical_distance)
-	var in_rear_hearing := _is_inside_rear_hearing(forward_distance, vertical_distance)
+	var in_hearing := _is_inside_hearing(to_target)
 
-	if not in_forward_vision and not in_rear_hearing:
+	if not in_forward_vision and not in_hearing:
 		return false
 
 	if in_forward_vision and require_line_of_sight and _line_of_sight_blocked():
 		return false
 
 	return true
+
+func _try_attack_target() -> void:
+	if _attack_cooldown_timer > 0.0 or target == null or not is_instance_valid(target):
+		return
+	if not _is_target_in_attack_range():
+		return
+	if not target.has_method("take_enemy_hit"):
+		return
+
+	var did_hit := bool(target.call("take_enemy_hit", attack_damage, self))
+	if did_hit:
+		_attack_cooldown_timer = attack_cooldown
+		velocity.x = 0.0
+
+func _is_target_in_attack_range() -> bool:
+	if target == null:
+		return false
+	var offset := target.global_position - global_position
+	var normalized := Vector2(absf(offset.x) / maxf(attack_range.x, 0.001), absf(offset.y) / maxf(attack_range.y, 0.001))
+	return normalized.length_squared() <= 1.0
+
+func _queue_adjusted_speed(desired_speed: float) -> float:
+	if not queue_enabled or is_zero_approx(desired_speed):
+		return desired_speed
+
+	var movement_direction := signf(desired_speed)
+	for other in get_tree().get_nodes_in_group("enemies"):
+		var other_enemy := other as CharacterBody2D
+		if other_enemy == null or other_enemy == self or not is_instance_valid(other_enemy):
+			continue
+		if absf(other_enemy.global_position.y - global_position.y) > queue_vertical_tolerance:
+			continue
+
+		var ahead_distance := (other_enemy.global_position.x - global_position.x) * movement_direction
+		if absf(ahead_distance) <= 2.0 and other_enemy.get_instance_id() < get_instance_id():
+			ahead_distance = 1.0
+		if ahead_distance > 0.0 and ahead_distance < queue_spacing:
+			return 0.0
+
+	return desired_speed
 
 func _is_inside_forward_vision(forward_distance: float, vertical_distance: float) -> bool:
 	if forward_distance < 0.0:
@@ -277,12 +373,8 @@ func _is_inside_forward_vision(forward_distance: float, vertical_distance: float
 	var normalized := Vector2((forward_distance - half_width) / half_width, vertical_distance / maxf(vision_range.y, 0.001))
 	return normalized.length_squared() <= 1.0
 
-func _is_inside_rear_hearing(forward_distance: float, vertical_distance: float) -> bool:
-	if forward_distance > 0.0:
-		return false
-
-	var half_width := maxf(rear_hearing_range.x * 0.5, 0.001)
-	var normalized := Vector2((forward_distance + half_width) / half_width, vertical_distance / maxf(rear_hearing_range.y, 0.001))
+func _is_inside_hearing(target_offset: Vector2) -> bool:
+	var normalized := Vector2(absf(target_offset.x) / maxf(hearing_range.x, 0.001), absf(target_offset.y) / maxf(hearing_range.y, 0.001))
 	return normalized.length_squared() <= 1.0
 
 func _facing_direction() -> float:
@@ -356,6 +448,8 @@ func get_ai_state() -> String:
 func _draw_ai_ranges() -> void:
 	if not show_ai_ranges:
 		return
+	if not Engine.is_editor_hint() and not show_runtime_ai_ranges:
+		return
 
 	var state_color := _ai_state_color()
 	var vision_fill := state_color
@@ -367,7 +461,7 @@ func _draw_ai_ranges() -> void:
 
 	var hearing_fill := Color(0.5, 0.86, 1.0, ai_visual_alpha * 0.55)
 	var hearing_outline := Color(0.5, 0.86, 1.0, minf(ai_visual_alpha + 0.2, 0.75))
-	_draw_ellipse(Vector2(-facing * rear_hearing_range.x * 0.5, 0.0), Vector2(rear_hearing_range.x * 0.5, rear_hearing_range.y), hearing_fill, hearing_outline, 1.5)
+	_draw_ellipse(Vector2.ZERO, hearing_range, hearing_fill, hearing_outline, 1.5)
 
 	var arrow_color := vision_outline
 	draw_line(Vector2.ZERO, Vector2(facing * minf(42.0, vision_range.x * 0.22), 0.0), arrow_color, 2.0, true)

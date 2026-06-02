@@ -14,6 +14,14 @@ func _process(_delta: float) -> void:
 	var player_text := "player: missing"
 	if player != null:
 		player_text = "player: %s" % player.global_position.round()
+		if player.has_method("get_mask_state_name") and player.has_method("get_current_animation_name") and player.has_method("get_current_mask_health") and player.has_method("get_max_mask_health"):
+			player_text = "player: %s mask=%s hp=%s/%s anim=%s" % [
+				player.global_position.round(),
+				player.get_mask_state_name(),
+				player.get_current_mask_health(),
+				player.get_max_mask_health(),
+				player.get_current_animation_name()
+			]
 
 	var camera_text := "camera: missing"
 	if game_camera != null:
@@ -29,4 +37,4 @@ func _process(_delta: float) -> void:
 			game_camera.get("is_room_transitioning")
 		]
 
-	text = "Eudaimonia\nA/D or arrows: move  W/Space: jump\n%s\n%s" % [player_text, camera_text]
+		text = "Eudaimonia\nA/D or arrows: move  W/Space: jump  J/X: throw mask  1/2/3 or Tab: switch mask\n%s\n%s" % [player_text, camera_text]

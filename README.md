@@ -17,20 +17,30 @@ Controls:
 - Move: `A/D` or arrow keys.
 - Jump: `W` or `Space`.
 - Throw/recall mask boomerang: `J` or `X`.
+- Switch player mask state: `1` no mask, `2` Euda mask, `3` ghost mask, or `Tab` to cycle.
 
 Current prototype notes:
 
 - Gravity is set in `project.godot` under `physics/2d/default_gravity`.
 - Player movement lives in `scripts/player.gd`.
 - Player movement includes coyote time, jump buffering, variable jump height, faster falling, max fall speed, acceleration/deceleration, and facing-based mask boomerang throwing.
+- Player mask states live in `scripts/player.gd`. `no_mask` can throw the mask boomerang, `euda_mask` reveals ghost block areas by making their wall/floor coating blur and flicker, and `ghost_mask` can stand on ghost blocks.
+- Each player mask state has its own health pool with three hearts by default. If `no_mask` has one heart left, switching to `euda_mask` still gives the Euda mask its own current health.
+- If the current mask state's health reaches zero, the game loads the current scene checkpoint snapshot. The snapshot is not only player data: it restores every `saveable` object, including player state, enemy state, enemy health, enemy positions, and enemies that were defeated after the save.
+- The bottom fall/deadline reset uses `reset_below_y`. The old top reset is disabled by default with `reset_above_enabled = false`, so vertical rooms above the starting area do not unexpectedly load the checkpoint.
+- The birth point currently has the only save point. Entering its range starts a save in the background while gameplay continues; the lower-left `SaveStatus` label shows `存储中...` during that save.
+- Staying inside a save point does not repeatedly save. After leaving, re-entering within `20` seconds also does not save again; re-entering after the cooldown captures a new scene snapshot.
+- The current temporary animator state is exposed by `get_current_animation_name()` and drawn by `scripts/player_visual.gd`. During mask switching it shows `mask_switch_cutscene`; otherwise it shows state-specific placeholders such as `no_mask_idle`, `euda_mask_run`, or `ghost_mask_fall`.
 - The mask boomerang lives in `scenes/mask_boomerang.tscn` and `scripts/mask_boomerang.gd`. It is thrown in the player's facing direction, travels outward, returns automatically, and can be recalled by pressing throw again.
 - Enemy prototypes live in `scenes/enemy.tscn` and `scripts/enemy.gd`. The scene uses a `CharacterBody2D` root with a `Hitbox` `Area2D` in the `boomerang_targets` group.
 - Enemies have `max_health = 3` by default and disappear after three mask boomerang hits.
+- Enemies move slowly by default, attack in close range for `attack_damage`, and use `attack_cooldown` to avoid draining health every frame.
+- Enemies use `queue_spacing` and `queue_vertical_tolerance` to avoid stacking on top of each other. When multiple enemies move in the same direction on the same lane, the one behind pauses and forms a queue.
 - `can_touch_ghost_blocks` controls whether an enemy collides with ghost blocks. `EnemyNormal` ignores ghost blocks; `EnemyGhost` can collide with ghost blocks.
-- Enemies use a finite state machine with `patrol` and `chase` states. When the player is outside their senses, enemies patrol inside `patrol_distance`; when the player enters their forward vision or close rear hearing area, they chase horizontally.
+- Enemies use a finite state machine with `patrol` and `chase` states. When the player is outside their senses, enemies patrol inside `patrol_distance`; when the player enters their forward vision or close all-direction hearing area, they chase horizontally.
 - Enemies do not jump. If the player is above them or across a gap, they keep using ground movement and ledge checks instead of jumping.
-- Enemy AI tuning lives in the Inspector on each enemy: `vision_range` is the forward sight range, `rear_hearing_range` is the shorter rear hearing range, and `patrol_distance`, `patrol_speed`, `chase_speed`, `chase_memory_time`, `avoid_ledges`, and `require_line_of_sight` tune movement and pursuit.
-- Enable `show_ai_ranges` on an enemy to see the AI visualization: blue means patrol, red means chase, the large forward ellipse is sight, the small rear ellipse is hearing, and the line under the enemy is its patrol span.
+- Enemy AI tuning lives in the Inspector on each enemy: `vision_range` is the large forward sight range, `hearing_range` is the smaller all-direction hearing range, and `patrol_distance`, `patrol_speed`, `chase_speed`, `chase_memory_time`, `avoid_ledges`, and `require_line_of_sight` tune movement and pursuit.
+- Enable `show_ai_ranges` on an enemy to see the AI visualization: blue means patrol, red means chase, the large forward ellipse is sight, the small centered ellipse is hearing, and the line under the enemy is its patrol span.
 - Camera follow lives in `scripts/platform_camera.gd` and uses horizontal lookahead, dead zones, room bounds, and smooth room transitions.
 - Rooms live in `scenes/main.tscn` under the `Rooms` node. Each room is an `Area2D` with `scripts/room.gd`, a `camera_rect`, `camera_view_mode`, an aspect-locked camera view width control, a `transition_mode`, and a trigger collision shape.
 - By default, a room uses its `CollisionShape2D` trigger area as the camera movement bounds. Enable `manual_camera_rect` only when you need custom camera bounds different from the trigger area.
@@ -52,6 +62,7 @@ Current prototype notes:
 - Terrain visuals are temporary and collision-driven. `Level/Terrain` uses `scripts/terrain_debug_visual.gd` to draw fill colors directly from child `CollisionPolygon2D` nodes, so you only edit the actual collision polygons.
 - The terrain collision polygons use segment build mode. This is better for complex hand-drawn outlines because it avoids convex decomposition failures from large concave solid polygons.
 - Ghost blocks use the same editing style as terrain. `Level/GhostBlocks` uses `scripts/ghost_blocks_visual.gd` to draw temporary ghost visuals from child `CollisionPolygon2D` nodes. Edit `GhostBlockCollision` polygons directly.
+- At runtime, ghost blocks normally draw as ordinary wall/floor material. When the player wears `euda_mask`, the same collision polygons switch to a blurred flickering coating effect. Collision still exists, but the player only collides with ghost blocks while in `ghost_mask`.
 
 ## Project Structure
 
