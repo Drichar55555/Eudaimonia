@@ -14,8 +14,8 @@ extends Camera2D
 @export var fade_in_duration: float = 0.2
 @export var show_camera_zone_overlay := true
 @export_group("Hit Feedback")
-@export var shake_decay: float = 7.5
-@export var max_shake_offset := Vector2(7.0, 5.0)
+@export var shake_decay: float = 5.5
+@export var max_shake_offset := Vector2(18.0, 12.0)
 @export var shake_trauma_power: float = 2.0
 
 var target: CharacterBody2D
@@ -55,6 +55,9 @@ var _pending_camera_settings := {}
 var _base_camera_offset := Vector2.ZERO
 var _shake_trauma := 0.0
 var _shake_rng := RandomNumberGenerator.new()
+var _cinematic_override_active := false
+var _cinematic_override_position := Vector2.ZERO
+var _cinematic_override_zoom := Vector2.ONE
 
 func _ready() -> void:
 	enabled = true
@@ -79,6 +82,10 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_update_hit_shake(delta)
+	if _cinematic_override_active:
+		global_position = _cinematic_override_position
+		zoom = _cinematic_override_zoom
+		return
 	if not _is_room_transitioning and not _is_fade_transitioning:
 		_apply_native_camera_limits(active_room_rect)
 		global_position = _clamp_to_room(global_position)
@@ -86,7 +93,33 @@ func _process(delta: float) -> void:
 func add_hit_shake(amount: float = 0.18) -> void:
 	_shake_trauma = clampf(_shake_trauma + amount, 0.0, 1.0)
 
+func get_hit_shake_trauma() -> float:
+	return _shake_trauma
+
+func begin_cinematic_override(position: Vector2, camera_zoom: Vector2) -> void:
+	_cinematic_override_active = true
+	_cinematic_override_position = position
+	_cinematic_override_zoom = camera_zoom
+	global_position = position
+	zoom = camera_zoom
+
+func update_cinematic_override(position: Vector2, camera_zoom: Vector2) -> void:
+	_cinematic_override_active = true
+	_cinematic_override_position = position
+	_cinematic_override_zoom = camera_zoom
+	global_position = position
+	zoom = camera_zoom
+
+func end_cinematic_override() -> void:
+	_cinematic_override_active = false
+	desired_position = global_position
+
 func _physics_process(delta: float) -> void:
+	if _cinematic_override_active:
+		global_position = _cinematic_override_position
+		zoom = _cinematic_override_zoom
+		return
+
 	if target == null:
 		return
 

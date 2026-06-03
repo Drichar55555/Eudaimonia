@@ -150,6 +150,7 @@ func _physics_process(delta: float) -> void:
 	_apply_gravity(delta)
 	_apply_horizontal_ai(delta)
 	move_and_slide()
+	_handle_mechanism_wall_collisions()
 	if show_ai_ranges and show_runtime_ai_ranges:
 		queue_redraw()
 
@@ -172,6 +173,26 @@ func take_boomerang_hit(_boomerang: Node) -> void:
 		queue_free()
 		return
 	queue_redraw()
+
+func take_environment_hit(damage: int = 1, hit_source: Node = null, hit_direction: Vector2 = Vector2.ZERO, knockback: Vector2 = Vector2(220.0, -160.0)) -> bool:
+	if damage <= 0:
+		return false
+	health -= damage
+	_hit_flash_timer = hit_flash_time
+	_hit_squash_timer = hit_flash_time
+	_update_hit_push_direction(hit_source)
+	velocity.x = absf(knockback.x) * signf(hit_direction.x if not is_zero_approx(hit_direction.x) else global_position.x - (hit_source as Node2D).global_position.x if hit_source is Node2D else 1.0)
+	velocity.y = minf(velocity.y, knockback.y)
+	_shake_camera(defeat_shake_amount if health <= 0 else hit_shake_amount)
+	set_process(not Engine.is_editor_hint())
+	if health <= 0:
+		queue_free()
+		return true
+	queue_redraw()
+	return true
+
+func take_mechanism_crush(damage: int = 1, hit_source: Node = null, hit_direction: Vector2 = Vector2.ZERO, knockback: Vector2 = Vector2(280.0, -160.0)) -> bool:
+	return take_environment_hit(damage, hit_source, hit_direction, knockback)
 
 func get_save_scene_path() -> String:
 	return "res://scenes/enemy.tscn"
@@ -572,3 +593,19 @@ func _set_rectangle_shape_size(collision_shape: CollisionShape2D, size: Vector2)
 		rectangle = RectangleShape2D.new()
 		collision_shape.shape = rectangle
 	rectangle.size = size
+
+func _handle_mechanism_wall_collisions() -> void:
+	for index in get_slide_collision_count():
+		var collision := get_slide_collision(index)
+		var collider := collision.get_collider()
+		if collider == null or not collider.is_in_group("moving_mechanism_walls"):
+			continue
+		if collider.has_method("can_apply_mechanism_crush") and not bool(collider.call("can_apply_mechanism_crush")):
+			continue
+		if collider.has_method("is_moving") and not bool(collider.call("is_moving")):
+			continue
+		var damage := int(collider.call("get_mechanism_impact_damage")) if collider.has_method("get_mechanism_impact_damage") else 1
+		var direction: Vector2 = collider.call("get_mechanism_impact_direction") if collider.has_method("get_mechanism_impact_direction") else collision.get_normal() * -1.0
+		var knockback: Vector2 = collider.call("get_mechanism_impact_knockback") if collider.has_method("get_mechanism_impact_knockback") else Vector2(280.0, -160.0)
+		take_mechanism_crush(damage, collider, direction, knockback)
+		return

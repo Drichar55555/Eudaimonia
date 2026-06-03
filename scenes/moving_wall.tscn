@@ -1,0 +1,24 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/moving_wall.gd" id="1_moving_wall"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_impact_sensor"]
+size = Vector2(86, 170)
+
+[node name="MovingWall" type="AnimatableBody2D"]
+z_index = 20
+z_as_relative = false
+script = ExtResource("1_moving_wall")
+target_offset = Vector2(0, -180)
+move_time = 1.4
+
+[node name="WallCollision" type="CollisionPolygon2D" parent="."]
+build_mode = 1
+polygon = PackedVector2Array(-24, -72, 24, -72, 24, 72, -24, 72)
+
+[node name="ImpactSensor" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 5
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ImpactSensor"]
+shape = SubResource("RectangleShape2D_impact_sensor")

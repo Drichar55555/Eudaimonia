@@ -2,6 +2,7 @@ extends CharacterBody2D
 
 signal mask_state_changed(mask_state: int, state_name: String)
 signal mask_health_changed(mask_state: int, health: int, max_health: int)
+signal mask_unlocked(mask_state: int, state_name: String)
 signal player_died(mask_state: int, checkpoint_position: Vector2)
 
 const TERRAIN_LAYER := 1 << 0
@@ -36,6 +37,8 @@ enum MaskState { NO_MASK, EUDA_MASK, GHOST_MASK }
 @export_group("Mask State")
 @export_enum("No Mask", "Euda Mask", "Ghost Mask") var starting_mask_state := 0
 @export var mask_switch_duration := 0.42
+@export var euda_mask_unlocked_at_start := false
+@export var ghost_mask_unlocked_at_start := false
 
 @export_group("Health")
 @export_range(1, 12, 1) var max_health_per_mask := 3
@@ -55,6 +58,7 @@ var current_mask_state := MaskState.NO_MASK
 var previous_mask_state := MaskState.NO_MASK
 var current_animation_name := "no_mask_idle"
 var mask_health := [3, 3, 3]
+var unlocked_mask_states := [true, false, false]
 var _coyote_timer := 0.0
 var _jump_buffer_timer := 0.0
 var _throw_cooldown_timer := 0.0
@@ -68,7 +72,10 @@ func _ready() -> void:
 	add_to_group("players")
 	add_to_group("saveable")
 	_reset_mask_health()
+	_reset_unlocked_masks()
 	current_mask_state = clampi(starting_mask_state, MaskState.NO_MASK, MaskState.GHOST_MASK)
+	if not is_mask_state_unlocked(current_mask_state):
+		current_mask_state = MaskState.NO_MASK
 	previous_mask_state = current_mask_state
 	_apply_mask_state_effects()
 	_update_animation_name()
@@ -109,6 +116,7 @@ func _physics_process(delta: float) -> void:
 	_update_animation_name()
 
 	move_and_slide()
+	_handle_mechanism_wall_collisions()
 
 func _update_timers(delta: float) -> void:
 	_coyote_timer = maxf(_coyote_timer - delta, 0.0)
@@ -128,7 +136,7 @@ func _handle_mask_state_input() -> void:
 
 	var cycle_down := Input.is_physical_key_pressed(KEY_TAB)
 	if cycle_down and not _mask_cycle_was_down:
-		requested_state = (current_mask_state + 1) % MASK_STATE_COUNT
+		requested_state = _next_unlocked_mask_state()
 	_mask_cycle_was_down = cycle_down
 
 	if requested_state != current_mask_state:
@@ -136,6 +144,8 @@ func _handle_mask_state_input() -> void:
 
 func set_mask_state(next_state: int) -> void:
 	next_state = clampi(next_state, MaskState.NO_MASK, MaskState.GHOST_MASK)
+	if not is_mask_state_unlocked(next_state):
+		return
 	if next_state == current_mask_state:
 		return
 
@@ -160,6 +170,28 @@ func get_mask_state_name(mask_state_value: int = -1) -> String:
 
 func get_previous_mask_state_name() -> String:
 	return get_mask_state_name(previous_mask_state)
+
+func unlock_mask_state(mask_state_value: int) -> bool:
+	var state := clampi(mask_state_value, MaskState.NO_MASK, MaskState.GHOST_MASK)
+	if bool(unlocked_mask_states[state]):
+		return false
+	unlocked_mask_states[state] = true
+	mask_unlocked.emit(state, get_mask_state_name(state))
+	return true
+
+func is_mask_state_unlocked(mask_state_value: int) -> bool:
+	var state := clampi(mask_state_value, MaskState.NO_MASK, MaskState.GHOST_MASK)
+	return bool(unlocked_mask_states[state])
+
+func _reset_unlocked_masks() -> void:
+	unlocked_mask_states = [true, euda_mask_unlocked_at_start, ghost_mask_unlocked_at_start]
+
+func _next_unlocked_mask_state() -> int:
+	for step in range(1, MASK_STATE_COUNT + 1):
+		var next_state := (current_mask_state + step) % MASK_STATE_COUNT
+		if is_mask_state_unlocked(next_state):
+			return next_state
+	return current_mask_state
 
 func get_current_animation_name() -> String:
 	return current_animation_name
@@ -213,6 +245,7 @@ func get_save_state() -> Dictionary:
 		"current_mask_state": current_mask_state,
 		"previous_mask_state": previous_mask_state,
 		"mask_health": mask_health.duplicate(),
+		"unlocked_mask_states": unlocked_mask_states.duplicate(),
 	}
 
 func apply_save_state(state: Dictionary) -> void:
@@ -228,6 +261,15 @@ func apply_save_state(state: Dictionary) -> void:
 		mask_health = saved_health.duplicate()
 	else:
 		_reset_mask_health()
+
+	var saved_unlocks := state.get("unlocked_mask_states", []) as Array
+	if saved_unlocks.size() == MASK_STATE_COUNT:
+		unlocked_mask_states = saved_unlocks.duplicate()
+	else:
+		_reset_unlocked_masks()
+	unlocked_mask_states[MaskState.NO_MASK] = true
+	if not is_mask_state_unlocked(current_mask_state):
+		current_mask_state = MaskState.NO_MASK
 
 	_coyote_timer = 0.0
 	_jump_buffer_timer = 0.0
@@ -249,6 +291,42 @@ func take_enemy_hit(damage: int = 1, hit_source: Node = null) -> bool:
 	_apply_damage_knockback(hit_source)
 	mask_health_changed.emit(current_mask_state, next_health, max_health_per_mask)
 
+	if next_health <= 0:
+		_die_and_load_checkpoint()
+	return true
+
+func take_environment_hit(damage: int = 1, hit_source: Node = null, hit_direction: Vector2 = Vector2.ZERO, knockback: Vector2 = Vector2(220.0, -180.0)) -> bool:
+	if damage <= 0 or is_damage_invulnerable():
+		return false
+
+	var next_health := maxi(get_current_mask_health() - damage, 0)
+	mask_health[current_mask_state] = next_health
+	_damage_invulnerability_timer = damage_invulnerability_time
+	var horizontal_direction := signf(hit_direction.x)
+	if is_zero_approx(horizontal_direction):
+		horizontal_direction = -facing_direction
+	velocity.x = absf(knockback.x) * horizontal_direction
+	velocity.y = minf(velocity.y, knockback.y)
+	mask_health_changed.emit(current_mask_state, next_health, max_health_per_mask)
+	if next_health <= 0:
+		_die_and_load_checkpoint()
+	return true
+
+func take_mechanism_crush(damage: int = 1, hit_source: Node = null, hit_direction: Vector2 = Vector2.ZERO, knockback: Vector2 = Vector2(280.0, -180.0)) -> bool:
+	if damage <= 0:
+		return false
+	var next_health := maxi(get_current_mask_health() - damage, 0)
+	mask_health[current_mask_state] = next_health
+	_damage_invulnerability_timer = maxf(_damage_invulnerability_timer, damage_invulnerability_time)
+	var horizontal_direction := signf(hit_direction.x)
+	if is_zero_approx(horizontal_direction):
+		var source := hit_source as Node2D
+		horizontal_direction = signf(global_position.x - source.global_position.x) if source != null else -facing_direction
+		if is_zero_approx(horizontal_direction):
+			horizontal_direction = -facing_direction
+	velocity.x = absf(knockback.x) * horizontal_direction
+	velocity.y = minf(velocity.y, knockback.y)
+	mask_health_changed.emit(current_mask_state, next_health, max_health_per_mask)
 	if next_health <= 0:
 		_die_and_load_checkpoint()
 	return true
@@ -410,3 +488,19 @@ func _respawn() -> void:
 
 func _save_manager() -> Node:
 	return get_tree().get_first_node_in_group("save_managers")
+
+func _handle_mechanism_wall_collisions() -> void:
+	for index in get_slide_collision_count():
+		var collision := get_slide_collision(index)
+		var collider := collision.get_collider()
+		if collider == null or not collider.is_in_group("moving_mechanism_walls"):
+			continue
+		if collider.has_method("can_apply_mechanism_crush") and not bool(collider.call("can_apply_mechanism_crush")):
+			continue
+		if collider.has_method("is_moving") and not bool(collider.call("is_moving")):
+			continue
+		var damage := int(collider.call("get_mechanism_impact_damage")) if collider.has_method("get_mechanism_impact_damage") else 1
+		var direction: Vector2 = collider.call("get_mechanism_impact_direction") if collider.has_method("get_mechanism_impact_direction") else collision.get_normal() * -1.0
+		var knockback: Vector2 = collider.call("get_mechanism_impact_knockback") if collider.has_method("get_mechanism_impact_knockback") else hit_knockback
+		take_mechanism_crush(damage, collider, direction, knockback)
+		return

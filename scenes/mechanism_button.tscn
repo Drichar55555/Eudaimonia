@@ -1,0 +1,30 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/mechanism_button.gd" id="1_button"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_button_surface"]
+size = Vector2(58, 8)
+
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_button_sensor"]
+radius = 21.0
+height = 100.0
+
+[node name="MechanismButton" type="StaticBody2D"]
+z_index = -20
+z_as_relative = false
+collision_layer = 1
+collision_mask = 0
+script = ExtResource("1_button")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -14)
+shape = SubResource("RectangleShape2D_button_surface")
+
+[node name="PressSensor" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 7
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PressSensor"]
+position = Vector2(0, -10)
+rotation = 1.5707964
+shape = SubResource("CapsuleShape2D_button_sensor")

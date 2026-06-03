@@ -11,9 +11,13 @@
 [ext_resource type="PackedScene" path="res://scenes/mask_boomerang.tscn" id="9_mask_boomerang"]
 [ext_resource type="Script" uid="uid://4kj43t0e0oxk" path="res://scripts/ghost_blocks_visual.gd" id="10_ghost_blocks_visual"]
 [ext_resource type="PackedScene" path="res://scenes/enemy.tscn" id="11_enemy"]
-[ext_resource type="Script" path="res://scripts/save_manager.gd" id="12_save_manager"]
-[ext_resource type="Script" path="res://scripts/save_point.gd" id="13_save_point"]
-[ext_resource type="Script" path="res://scripts/save_status_label.gd" id="14_save_status_label"]
+[ext_resource type="Script" uid="uid://b6vtri0rc2yys" path="res://scripts/save_manager.gd" id="12_save_manager"]
+[ext_resource type="Script" uid="uid://bov3jsymhkf5b" path="res://scripts/save_point.gd" id="13_save_point"]
+[ext_resource type="Script" uid="uid://b2lhl6deible1" path="res://scripts/save_status_label.gd" id="14_save_status_label"]
+[ext_resource type="PackedScene" path="res://scenes/mechanism_wall.tscn" id="15_mechanism_wall"]
+[ext_resource type="PackedScene" path="res://scenes/mechanism_button.tscn" id="16_mechanism_button"]
+[ext_resource type="PackedScene" path="res://scenes/tombstone.tscn" id="17_tombstone"]
+[ext_resource type="PackedScene" path="res://scenes/unlock_popup.tscn" id="18_unlock_popup"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_room_start"]
 size = Vector2(374, 232)
@@ -131,6 +135,54 @@ save_manager_path = NodePath("../../SaveManager")
 shape = SubResource("CircleShape2D_save_point")
 debug_color = Color(1, 0.86, 0.28, 0.08)
 
+[node name="Mechanisms" type="Node2D" parent="Level" unique_id=1547100000]
+
+[node name="DemoMovingWall" parent="Level/Mechanisms" unique_id=1547100001 instance=ExtResource("15_mechanism_wall")]
+position = Vector2(1931, 598)
+collision_mask = 0
+target_offset = Vector2(0, -200)
+move_time = 1.0
+
+[node name="DemoButton" parent="Level/Mechanisms" unique_id=1547100002 instance=ExtResource("16_mechanism_button")]
+position = Vector2(1829, 671)
+moving_wall_path = NodePath("../DemoMovingWall")
+
+[node name="DemoMovingWall2" parent="Level/Mechanisms" unique_id=229016664 instance=ExtResource("15_mechanism_wall")]
+position = Vector2(1213, 598)
+collision_mask = 0
+wall_mode = 1
+target_offset = Vector2(0, -200)
+move_time = 1.0
+break_animation_time = 0.3
+restore_animation_time = 0.15000000000000002
+
+[node name="DemoButton2" parent="Level/Mechanisms" unique_id=1436383 instance=ExtResource("16_mechanism_button")]
+position = Vector2(1105, 672)
+moving_wall_path = NodePath("../DemoMovingWall2")
+button_mode = 1
+detect_player_weapons = false
+
+[node name="Tombstones" type="Node2D" parent="Level" unique_id=1547200000]
+
+[node name="EudaTombstone" parent="Level/Tombstones" unique_id=1547200001 instance=ExtResource("17_tombstone")]
+position = Vector2(1705, 636)
+spawn_monsters_before_break = null
+spawned_enemy_kind = null
+spawn_on_hit_before_break = null
+spawn_count_per_hit = null
+auto_spawn_before_break = null
+auto_spawn_interval = null
+auto_spawn_count = null
+max_alive_spawned_enemies = null
+spawn_parent_path = null
+spawn_offsets = null
+spawn_jitter = null
+
+[node name="EudaTombstone2" parent="Level/Tombstones" unique_id=1789741139 instance=ExtResource("17_tombstone")]
+position = Vector2(-695, -1031)
+unlock_mask = 1
+enemy_scene = null
+
 [node name="Terrain" type="StaticBody2D" parent="Level" unique_id=144938748]
 script = ExtResource("8_terrain_visual")
 
@@ -226,14 +278,6 @@ polygon = PackedVector2Array(3251, 697, 3251, 773, 3654, 776, 3652, 697)
 collision_layer = 8
 collision_mask = 0
 script = ExtResource("10_ghost_blocks_visual")
-normal_fill_color = null
-normal_edge_color = null
-normal_stripe_color = null
-euda_blur_color = null
-euda_edge_color = null
-euda_flicker_color = null
-euda_blur_offset = null
-euda_flicker_speed = null
 
 [node name="GhostBlockCollision2" type="CollisionPolygon2D" parent="Level/GhostBlocks" unique_id=468144518]
 position = Vector2(620, 350)
@@ -261,7 +305,7 @@ z_index = 80
 z_as_relative = false
 
 [node name="EnemyGhost" parent="Level/Enemies" unique_id=990300514 instance=ExtResource("11_enemy")]
-position = Vector2(1205, 171)
+position = Vector2(2893, 598)
 collision_mask = 9
 vision_range = Vector2(360, 170)
 can_touch_ghost_blocks = true
@@ -380,3 +424,7 @@ theme_override_colors/font_color = Color(1, 0.9, 0.35, 1)
 theme_override_font_sizes/font_size = 20
 script = ExtResource("14_save_status_label")
 save_manager_path = NodePath("../../SaveManager")
+
+[node name="UnlockPopup" parent="CanvasLayer" unique_id=1547200002 instance=ExtResource("18_unlock_popup")]
+grow_horizontal = 2
+grow_vertical = 2
