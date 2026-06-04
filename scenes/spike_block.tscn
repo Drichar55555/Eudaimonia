@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/spike_block.gd" id="1_spike_block"]
+
+[node name="SpikeBlock" type="StaticBody2D"]
+script = ExtResource("1_spike_block")
+
+[node name="SpikeCollision" type="CollisionPolygon2D" parent="."]
+build_mode = 1
+polygon = PackedVector2Array(-96, -24, 96, -24, 96, 32, -96, 32)

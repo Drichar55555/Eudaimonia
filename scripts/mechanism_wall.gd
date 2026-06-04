@@ -232,7 +232,21 @@ func get_mechanism_impact_direction() -> Vector2:
 	return Vector2.ZERO
 
 func can_apply_mechanism_crush() -> bool:
-	return wall_mode == WallMode.MOVING and _moving and damage_on_impact and impact_damage > 0
+	return wall_mode == WallMode.MOVING and _moving and damage_on_impact and impact_damage > 0 and get_mechanism_impact_direction().y > 0.25
+
+func is_body_touching_impact_bottom(body_2d: Node2D) -> bool:
+	return _is_body_touching_bottom(body_2d)
+
+func get_mechanism_escape_position(body_2d: Node2D) -> Vector2:
+	if not _is_body_touching_bottom(body_2d):
+		return body_2d.global_position
+	var wall_bounds := _current_collision_bounds()
+	var body_bounds := _body_bounds(body_2d)
+	var escape_direction := signf(body_2d.global_position.x - wall_bounds.get_center().x)
+	if is_zero_approx(escape_direction):
+		escape_direction = -1.0
+	var escape_x := wall_bounds.position.x - body_bounds.size.x * 0.5 - 2.0 if escape_direction < 0.0 else wall_bounds.end.x + body_bounds.size.x * 0.5 + 2.0
+	return Vector2(escape_x, body_2d.global_position.y)
 
 func get_origin_position() -> Vector2:
 	return _origin_position
@@ -359,12 +373,12 @@ func _movement_progress(raw_progress: float) -> float:
 	return raw_progress * raw_progress * (3.0 - 2.0 * raw_progress)
 
 func _apply_impact_damage(move_delta: Vector2) -> void:
-	if not can_apply_mechanism_crush() or move_delta.length_squared() <= 0.01:
+	if not can_apply_mechanism_crush() or move_delta.length_squared() <= 0.000001:
 		return
 	if _impact_sensor != null:
 		for body in _impact_sensor.get_overlapping_bodies():
 			var sensor_body := body as Node2D
-			if sensor_body != null and sensor_body != self and is_instance_valid(sensor_body):
+			if sensor_body != null and sensor_body != self and is_instance_valid(sensor_body) and _is_body_touching_bottom(sensor_body):
 				_apply_impact_to_body(sensor_body, move_delta.normalized())
 	var impact_radius := 140.0
 	for group_name in ["players", "enemies"]:
@@ -374,6 +388,8 @@ func _apply_impact_damage(move_delta: Vector2) -> void:
 				continue
 			if _distance_to_move_segment(body_2d.global_position) > impact_radius:
 				continue
+			if not _is_body_touching_bottom(body_2d):
+				continue
 			_apply_impact_to_body(body_2d, move_delta.normalized())
 
 func _on_impact_body_entered(body: Node) -> void:
@@ -382,7 +398,19 @@ func _on_impact_body_entered(body: Node) -> void:
 	var body_2d := body as Node2D
 	if body_2d == null or body_2d == self:
 		return
+	if not _is_body_touching_bottom(body_2d):
+		return
 	_apply_impact_to_body(body_2d, (global_position - _last_position).normalized())
+
+func _is_body_touching_bottom(body_2d: Node2D) -> bool:
+	if not can_apply_mechanism_crush():
+		return false
+	var wall_bounds := _current_collision_bounds()
+	var body_bounds := _body_bounds(body_2d)
+	if body_bounds.end.x < wall_bounds.position.x or body_bounds.position.x > wall_bounds.end.x:
+		return false
+	var vertical_gap := body_bounds.position.y - wall_bounds.end.y
+	return vertical_gap >= -24.0 and vertical_gap <= 32.0
 
 func _apply_impact_to_body(body_2d: Node2D, direction: Vector2) -> void:
 	var body_id := body_2d.get_instance_id()
@@ -405,6 +433,25 @@ func _distance_to_move_segment(point: Vector2) -> float:
 		return point.distance_to(global_position)
 	var amount := clampf((point - _last_position).dot(segment) / length_squared, 0.0, 1.0)
 	return point.distance_to(_last_position + segment * amount)
+
+func _current_collision_bounds() -> Rect2:
+	var has_points := false
+	var bounds := Rect2(global_position, Vector2.ZERO)
+	for polygon in _collision_polygons():
+		for point in _transformed_polygon(polygon):
+			var global_point := global_position + point
+			bounds = Rect2(global_point, Vector2.ZERO) if not has_points else bounds.expand(global_point)
+			has_points = true
+	return bounds
+
+func _body_bounds(body_2d: Node2D) -> Rect2:
+	var collision_shape := body_2d.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if collision_shape != null and collision_shape.shape != null:
+		var rectangle := collision_shape.shape as RectangleShape2D
+		if rectangle != null:
+			var size := rectangle.size * collision_shape.scale.abs()
+			return Rect2(collision_shape.global_position - size * 0.5, size)
+	return Rect2(body_2d.global_position - Vector2(18.0, 18.0), Vector2(36.0, 36.0))
 
 func _update_impact_cooldowns(delta: float) -> void:
 	for body_id in _impact_cooldowns.keys().duplicate():

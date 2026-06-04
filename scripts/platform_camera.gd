@@ -235,6 +235,29 @@ func request_room_refresh() -> void:
 	if target != null:
 		_update_room_from_target_position()
 
+func snap_to_target_room() -> void:
+	if target == null:
+		return
+	var room := _room_at_point(target.global_position)
+	if room == null or not room.has_method("get_camera_rect"):
+		return
+	var room_rect: Rect2 = room.get_camera_rect()
+	var room_id_value: Variant = room.get("room_id")
+	var room_name: String = str(room_id_value) if room_id_value != null else room.name
+	var requested_zoom := default_zoom
+	if room.has_method("get_camera_zoom"):
+		requested_zoom = room.get_camera_zoom()
+	var room_zoom := _safe_zoom_for_room(room_rect, requested_zoom)
+	var room_settings := _camera_settings_from_room(room)
+	var room_position := _room_focus_position(room_rect, room_zoom, float(room_settings["vertical_offset"]))
+	_is_room_transitioning = false
+	_is_fade_transitioning = false
+	is_room_transitioning = false
+	transition_mask_alpha = 0.0
+	_pending_room = null
+	_pending_camera_settings = {}
+	_activate_room_immediately(room, room_rect, room_name, room_zoom, room_position, room_settings)
+
 func _transition_mode_for_connection(from_room: Node, to_room: Node) -> String:
 	var from_mode := _room_transition_mode(from_room)
 	var to_mode := _room_transition_mode(to_room)

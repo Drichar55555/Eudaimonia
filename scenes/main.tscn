@@ -18,9 +18,17 @@
 [ext_resource type="PackedScene" path="res://scenes/mechanism_button.tscn" id="16_mechanism_button"]
 [ext_resource type="PackedScene" path="res://scenes/tombstone.tscn" id="17_tombstone"]
 [ext_resource type="PackedScene" path="res://scenes/unlock_popup.tscn" id="18_unlock_popup"]
+[ext_resource type="Script" uid="uid://df233bjkyrtuc" path="res://scripts/spike_block.gd" id="19_spike_block"]
+[ext_resource type="PackedScene" path="res://scenes/push_box.tscn" id="20_push_box"]
+[ext_resource type="PackedScene" path="res://scenes/key_door.tscn" id="21_key_door"]
+[ext_resource type="PackedScene" path="res://scenes/key_chest.tscn" id="22_key_chest"]
+[ext_resource type="PackedScene" path="res://scenes/soul_lamp.tscn" id="23_soul_lamp"]
+[ext_resource type="Script" path="res://scripts/death_respawn_controller.gd" id="24_death_respawn"]
+[ext_resource type="Script" path="res://scripts/story_controller.gd" id="25_story_controller"]
+[ext_resource type="Script" path="res://scripts/dialogue_box.gd" id="26_dialogue_box"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_room_start"]
-size = Vector2(374, 232)
+size = Vector2(717, 309)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_room_cliff"]
 size = Vector2(711, 987)
@@ -40,10 +48,27 @@ radius = 96.0
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
 size = Vector2(36, 36)
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_death_room"]
+size = Vector2(960, 540)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_death_return_gate"]
+size = Vector2(90, 150)
+
+[sub_resource type="SystemFont" id="SystemFont_dialogue"]
+font_names = PackedStringArray("Arial Unicode MS", "PingFang SC", "Heiti SC", "Noto Sans CJK SC")
+
 [node name="Main" type="Node2D" unique_id=1069334800]
 
 [node name="SaveManager" type="Node" parent="." unique_id=1547000001]
 script = ExtResource("12_save_manager")
+
+[node name="StoryController" type="Node" parent="." unique_id=1547800000]
+script = ExtResource("25_story_controller")
+player_path = NodePath("../Player")
+save_manager_path = NodePath("../SaveManager")
+dialogue_box_path = NodePath("../CanvasLayer/DialogueBox")
+death_space_spawn = Vector2(7800, 480)
+death_return_gate_path = NodePath("../Level/DeathSpace/DeathReturnGate")
 
 [node name="RuntimeBackgroundLayer" type="CanvasLayer" parent="." unique_id=808420001]
 layer = -100
@@ -68,11 +93,12 @@ polygon = PackedVector2Array(-1200, -800, 3600, -800, 3600, 517.4121, 3600, 1800
 [node name="1-0" type="Area2D" parent="Rooms" unique_id=808420007]
 script = ExtResource("5_room")
 room_id = "Start Room"
+camera_profile = "vertical_shaft"
 camera_view_mode = "no_follow"
 camera_view_width = 320.0
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-0" unique_id=808420008]
-position = Vector2(161, 378)
+position = Vector2(-10.5, 392.5)
 shape = SubResource("RectangleShape2D_room_start")
 
 [node name="1-1" type="Area2D" parent="Rooms" unique_id=808420009]
@@ -84,7 +110,7 @@ camera_view_width = 664.0
 debug_color = Color(0.36, 0.76, 0.92, 0.5)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-1" unique_id=808420010]
-position = Vector2(701.5, 244.5)
+position = Vector2(697, 246)
 shape = SubResource("RectangleShape2D_room_cliff")
 
 [node name="1-2" type="Area2D" parent="Rooms" unique_id=88414947]
@@ -124,7 +150,46 @@ debug_color = Color(0.36, 0.76, 0.92, 0.5)
 position = Vector2(3962, -259)
 shape = SubResource("RectangleShape2D_choun")
 
+[node name="DeathSpaceRoom" type="Area2D" parent="Rooms" unique_id=1547800001]
+script = ExtResource("5_room")
+room_id = "Death Space"
+camera_profile = "cinematic"
+camera_view_mode = "no_follow"
+debug_color = Color(0.5, 0.5, 0.62, 0.45)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/DeathSpaceRoom" unique_id=1547800002]
+position = Vector2(8000, 360)
+shape = SubResource("RectangleShape2D_death_room")
+
 [node name="Level" type="Node2D" parent="." unique_id=1034204445]
+
+[node name="DeathSpace" type="Node2D" parent="Level" unique_id=1547800010]
+
+[node name="DeathSpaceTerrain" type="StaticBody2D" parent="Level/DeathSpace" unique_id=1547800011]
+script = ExtResource("8_terrain_visual")
+ground_color = Color(0.12, 0.13, 0.16, 1)
+outline_color = Color(0.36, 0.40, 0.48, 0.72)
+
+[node name="DeathFloorCollision" type="CollisionPolygon2D" parent="Level/DeathSpace/DeathSpaceTerrain" unique_id=1547800012]
+build_mode = 1
+polygon = PackedVector2Array(7480, 520, 8520, 520, 8520, 590, 7480, 590)
+
+[node name="DeathReturnGate" type="Area2D" parent="Level/DeathSpace" unique_id=1547800013]
+position = Vector2(8420, 450)
+collision_layer = 0
+collision_mask = 1
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Level/DeathSpace/DeathReturnGate" unique_id=1547800014]
+shape = SubResource("RectangleShape2D_death_return_gate")
+
+[node name="DoorVisual" type="Polygon2D" parent="Level/DeathSpace/DeathReturnGate" unique_id=1547800015]
+color = Color(0.2, 0.24, 0.32, 0.88)
+polygon = PackedVector2Array(-34, -72, 34, -72, 34, 72, -34, 72)
+
+[node name="DoorOutline" type="Line2D" parent="Level/DeathSpace/DeathReturnGate" unique_id=1547800016]
+points = PackedVector2Array(-34, -72, 34, -72, 34, 72, -34, 72, -34, -72)
+width = 4.0
+default_color = Color(0.55, 0.72, 1, 0.95)
 
 [node name="BirthSavePoint" type="Area2D" parent="Level" unique_id=1547000002]
 position = Vector2(80, 420)
@@ -134,6 +199,12 @@ save_manager_path = NodePath("../../SaveManager")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Level/BirthSavePoint" unique_id=1547000003]
 shape = SubResource("CircleShape2D_save_point")
 debug_color = Color(1, 0.86, 0.28, 0.08)
+
+[node name="SoulLamps" type="Node2D" parent="Level" unique_id=1547600000]
+
+[node name="DemoSoulLamp" parent="Level/SoulLamps" unique_id=1547600001 instance=ExtResource("23_soul_lamp")]
+position = Vector2(2247, 666)
+save_manager_path = NodePath("../../../SaveManager")
 
 [node name="Mechanisms" type="Node2D" parent="Level" unique_id=1547100000]
 
@@ -150,7 +221,6 @@ moving_wall_path = NodePath("../DemoMovingWall")
 [node name="DemoMovingWall2" parent="Level/Mechanisms" unique_id=229016664 instance=ExtResource("15_mechanism_wall")]
 position = Vector2(1213, 598)
 collision_mask = 0
-wall_mode = 1
 target_offset = Vector2(0, -200)
 move_time = 1.0
 break_animation_time = 0.3
@@ -162,33 +232,59 @@ moving_wall_path = NodePath("../DemoMovingWall2")
 button_mode = 1
 detect_player_weapons = false
 
+[node name="DemoMovingWall3" parent="Level/Mechanisms" unique_id=1783879147 instance=ExtResource("15_mechanism_wall")]
+position = Vector2(1064, 147)
+collision_mask = 0
+wall_mode = 1
+target_offset = Vector2(0, -200)
+move_time = 1.0
+break_animation_time = 0.3
+restore_animation_time = 0.15000000000000002
+
+[node name="DemoButton3" parent="Level/Mechanisms" unique_id=797012024 instance=ExtResource("16_mechanism_button")]
+position = Vector2(1836, 160)
+moving_wall_path = NodePath("../DemoMovingWall2")
+button_mode = 2
+detect_player_weapons = false
+
 [node name="Tombstones" type="Node2D" parent="Level" unique_id=1547200000]
 
 [node name="EudaTombstone" parent="Level/Tombstones" unique_id=1547200001 instance=ExtResource("17_tombstone")]
 position = Vector2(1705, 636)
-spawn_monsters_before_break = null
-spawned_enemy_kind = null
-spawn_on_hit_before_break = null
-spawn_count_per_hit = null
-auto_spawn_before_break = null
-auto_spawn_interval = null
-auto_spawn_count = null
-max_alive_spawned_enemies = null
-spawn_parent_path = null
-spawn_offsets = null
-spawn_jitter = null
 
 [node name="EudaTombstone2" parent="Level/Tombstones" unique_id=1789741139 instance=ExtResource("17_tombstone")]
 position = Vector2(-695, -1031)
 unlock_mask = 1
 enemy_scene = null
 
+[node name="SpikeBlocks" type="StaticBody2D" parent="Level" unique_id=1547300000]
+collision_mask = 0
+script = ExtResource("19_spike_block")
+
+[node name="SpikeCollision" type="CollisionPolygon2D" parent="Level/SpikeBlocks" unique_id=1547300001]
+position = Vector2(482, 640)
+build_mode = 1
+polygon = PackedVector2Array(-136, 22, -109, -10, -99, 16, -90, -10, -73, 18, -58, 8, -49, 21, -31, -7, -16, 21, 13, -15, 27, 17, 39, -14, 50, 19, 72, -17, 76, 16, 88, -5, 96, 32, -136, 33)
+
+[node name="Pushables" type="Node2D" parent="Level" unique_id=1547400000]
+
+[node name="DemoPushBox" parent="Level/Pushables" unique_id=1547400001 instance=ExtResource("20_push_box")]
+position = Vector2(1254, 171)
+
+[node name="Locks" type="Node2D" parent="Level" unique_id=1547500000]
+
+[node name="DemoKeyChest" parent="Level/Locks" unique_id=1547500001 instance=ExtResource("22_key_chest")]
+position = Vector2(1366, 183)
+
+[node name="DemoKeyDoor" parent="Level/Locks" unique_id=1547500002 instance=ExtResource("21_key_door")]
+position = Vector2(1477, 128)
+
 [node name="Terrain" type="StaticBody2D" parent="Level" unique_id=144938748]
 script = ExtResource("8_terrain_visual")
 
 [node name="GroundCollision" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=338598706]
 build_mode = 1
-polygon = PackedVector2Array(-416, 320, -413, 184, 268, 180, 266, 206, 548, 198, 549, 252, 362, 252, 365, 332, 321, 333, 321, 287, 29, 297, 20, 466, 467, 471, 468, 531, 353, 536, 353, 669, 2604, 670, 2602, 771, -420, 760)
+polygon = PackedVector2Array(-416, 320, -413, 184, 268, 180, 266, 206, 548, 198, 549, 252, 362, 252, 365, 332, 321, 333, 321, 287, -307, 296, -305, 484, 467, 471, 468, 531, 353, 536, 353, 669, 2604, 670, 2602, 771, -420, 760)
 
 [node name="WallCollision" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=222913767]
 position = Vector2(-456, -23)
@@ -252,7 +348,7 @@ polygon = PackedVector2Array(2838, 671, 2890, 711, 2971, 707, 3008, 673)
 [node name="GroundCollision13" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1601121876]
 position = Vector2(-2263, -1353)
 build_mode = 1
-polygon = PackedVector2Array(2838, 671, 2890, 711, 3010, 709, 3018, 907, 2822, 909, 2864, 954, 3019, 955, 3019, 1126, 3286, 1129, 3291, 1372, 3351, 1366, 3349, 1092, 3463, 1092, 3465, 1023, 3196, 1027, 3198, 668)
+polygon = PackedVector2Array(2838, 671, 2890, 711, 3010, 709, 3018, 907, 2822, 909, 2864, 954, 3019, 955, 3019, 1126, 3286, 1129, 3297, 1392, 3349, 1393, 3349, 1092, 3463, 1092, 3465, 1023, 3196, 1027, 3198, 668)
 
 [node name="GroundCollision14" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1897127467]
 position = Vector2(-2543, -1455)
@@ -305,7 +401,7 @@ z_index = 80
 z_as_relative = false
 
 [node name="EnemyGhost" parent="Level/Enemies" unique_id=990300514 instance=ExtResource("11_enemy")]
-position = Vector2(2893, 598)
+position = Vector2(3285, 79)
 collision_mask = 9
 vision_range = Vector2(360, 170)
 can_touch_ghost_blocks = true
@@ -331,6 +427,14 @@ vision_range = Vector2(360, 170)
 [node name="EnemyNormal6" parent="Level/Enemies" unique_id=166228177 instance=ExtResource("11_enemy")]
 position = Vector2(252, 416)
 vision_range = Vector2(360, 170)
+
+[node name="EnemyGhost2" parent="Level/Enemies" unique_id=1862329778 instance=ExtResource("11_enemy")]
+position = Vector2(3887, -372)
+collision_mask = 9
+vision_range = Vector2(360, 170)
+can_touch_ghost_blocks = true
+body_color = Color(0.42, 0.58, 1, 1)
+edge_color = Color(0.04, 0.08, 0.18, 1)
 
 [node name="Player" type="CharacterBody2D" parent="." unique_id=1842820891]
 z_index = 50
@@ -399,6 +503,75 @@ mouse_filter = 2
 color = Color(0.02, 0.025, 0.035, 0)
 script = ExtResource("6_room_mask")
 camera_path = NodePath("../../Camera2D")
+
+[node name="DeathRespawnMask" type="ColorRect" parent="CanvasLayer" unique_id=1547700000]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0)
+script = ExtResource("24_death_respawn")
+player_path = NodePath("../../Player")
+save_manager_path = NodePath("../../SaveManager")
+camera_path = NodePath("../../Camera2D")
+
+[node name="DialogueBox" type="Control" parent="CanvasLayer" unique_id=1547800020]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 1
+script = ExtResource("26_dialogue_box")
+speaker_label_path = NodePath("Panel/Speaker")
+body_label_path = NodePath("Panel/Body")
+continue_label_path = NodePath("Panel/Continue")
+
+[node name="Panel" type="ColorRect" parent="CanvasLayer/DialogueBox" unique_id=1547800021]
+layout_mode = 1
+anchors_preset = -1
+anchor_left = 0.12
+anchor_top = 0.68
+anchor_right = 0.88
+anchor_bottom = 0.94
+color = Color(0.02, 0.025, 0.035, 0.9)
+
+[node name="Speaker" type="Label" parent="CanvasLayer/DialogueBox/Panel" unique_id=1547800022]
+layout_mode = 1
+offset_left = 24.0
+offset_top = 16.0
+offset_right = 240.0
+offset_bottom = 46.0
+theme_override_fonts/font = SubResource("SystemFont_dialogue")
+theme_override_colors/font_color = Color(1, 0.86, 0.28, 1)
+theme_override_font_sizes/font_size = 22
+
+[node name="Body" type="Label" parent="CanvasLayer/DialogueBox/Panel" unique_id=1547800023]
+layout_mode = 1
+offset_left = 24.0
+offset_top = 58.0
+offset_right = 860.0
+offset_bottom = 140.0
+theme_override_fonts/font = SubResource("SystemFont_dialogue")
+theme_override_colors/font_color = Color(0.94, 0.96, 1, 1)
+theme_override_font_sizes/font_size = 24
+autowrap_mode = 3
+
+[node name="Continue" type="Label" parent="CanvasLayer/DialogueBox/Panel" unique_id=1547800024]
+layout_mode = 1
+offset_left = 750.0
+offset_top = 146.0
+offset_right = 860.0
+offset_bottom = 176.0
+theme_override_fonts/font = SubResource("SystemFont_dialogue")
+theme_override_colors/font_color = Color(0.68, 0.76, 0.86, 1)
+theme_override_font_sizes/font_size = 16
+horizontal_alignment = 2
 
 [node name="Hint" type="Label" parent="CanvasLayer" unique_id=689025645]
 offset_left = 24.0

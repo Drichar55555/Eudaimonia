@@ -12,6 +12,7 @@ enum EnemyState { PATROL, CHASE }
 @export_group("AI")
 @export var ai_enabled := true
 @export var target_path: NodePath
+@export var constrain_to_starting_room := true
 @export var patrol_enabled := true:
 	set(value):
 		patrol_enabled = value
@@ -114,6 +115,8 @@ var _attack_cooldown_timer := 0.0
 var _hit_flash_timer := 0.0
 var _hit_squash_timer := 0.0
 var _hit_push_direction := Vector2.ZERO
+var _home_room: Node
+var _home_room_rect := Rect2()
 
 func _ready() -> void:
 	z_index = 80
@@ -129,6 +132,7 @@ func _ready() -> void:
 	_update_shapes()
 	_update_collision_layers()
 	_resolve_target()
+	call_deferred("_detect_home_room")
 	queue_redraw()
 
 func _physics_process(delta: float) -> void:
@@ -304,6 +308,8 @@ func _patrol_desired_speed() -> float:
 
 	if _is_blocked_ahead(_patrol_direction):
 		_patrol_direction *= -1.0
+	if _would_leave_home_room(_patrol_direction):
+		_patrol_direction *= -1.0
 
 	return _patrol_direction * patrol_speed
 
@@ -314,6 +320,8 @@ func _chase_desired_speed() -> float:
 
 	var chase_direction := signf(delta_x)
 	if _is_blocked_ahead(chase_direction):
+		return 0.0
+	if _would_leave_home_room(chase_direction):
 		return 0.0
 
 	_patrol_direction = chase_direction
@@ -329,6 +337,8 @@ func _apply_gravity(delta: float) -> void:
 
 func _can_see_target() -> bool:
 	if target == null or not is_instance_valid(target):
+		return false
+	if constrain_to_starting_room and not _is_point_in_home_room(target.global_position):
 		return false
 
 	var to_target := target.global_position - global_position
@@ -456,6 +466,50 @@ func _resolve_target() -> void:
 		return
 
 	target = get_tree().root.find_child("Player", true, false) as Node2D
+
+func _detect_home_room() -> void:
+	_home_room = _room_containing_point(_home_position)
+	if _home_room != null and _home_room.has_method("get_trigger_rect"):
+		_home_room_rect = _home_room.call("get_trigger_rect") as Rect2
+	elif _home_room != null and _home_room.has_method("get_camera_rect"):
+		_home_room_rect = _home_room.call("get_camera_rect") as Rect2
+	else:
+		_home_room_rect = Rect2()
+
+func _room_containing_point(point: Vector2) -> Node:
+	var best_room: Node
+	var best_area := INF
+	for room in get_tree().get_nodes_in_group("camera_rooms"):
+		if room == null or not room.has_method("contains_point") or not bool(room.call("contains_point", point)):
+			continue
+		var room_rect := Rect2()
+		if room.has_method("get_trigger_rect"):
+			room_rect = room.call("get_trigger_rect") as Rect2
+		elif room.has_method("get_camera_rect"):
+			room_rect = room.call("get_camera_rect") as Rect2
+		else:
+			continue
+		var area := room_rect.size.x * room_rect.size.y
+		if area < best_area:
+			best_area = area
+			best_room = room
+	return best_room
+
+func _is_point_in_home_room(point: Vector2) -> bool:
+	if not constrain_to_starting_room or _home_room == null:
+		return true
+	if _home_room.has_method("contains_point"):
+		return bool(_home_room.call("contains_point", point))
+	return _home_room_rect.has_point(point) if _home_room_rect.size != Vector2.ZERO else true
+
+func _would_leave_home_room(move_direction: float) -> bool:
+	if not constrain_to_starting_room or _home_room_rect.size == Vector2.ZERO or is_zero_approx(move_direction):
+		return false
+	var half_width := body_size.x * 0.5
+	var next_edge_x := global_position.x + signf(move_direction) * (half_width + floor_probe_forward)
+	if move_direction < 0.0:
+		return next_edge_x <= _home_room_rect.position.x
+	return next_edge_x >= _home_room_rect.end.x
 
 func _set_state(next_state: EnemyState) -> void:
 	if current_state == next_state:

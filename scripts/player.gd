@@ -4,6 +4,8 @@ signal mask_state_changed(mask_state: int, state_name: String)
 signal mask_health_changed(mask_state: int, health: int, max_health: int)
 signal mask_unlocked(mask_state: int, state_name: String)
 signal player_died(mask_state: int, checkpoint_position: Vector2)
+signal key_count_changed(key_count: int)
+signal player_damaged(damage: int, cause: String)
 
 const TERRAIN_LAYER := 1 << 0
 const GHOST_BLOCK_LAYER := 1 << 3
@@ -51,6 +53,10 @@ enum MaskState { NO_MASK, EUDA_MASK, GHOST_MASK }
 @export var reset_below_y: float = 980.0
 @export var reset_above_enabled := false
 @export var reset_above_y: float = -220.0
+@export var ghost_block_fall_memory_time := 3.0
+
+@export_group("Inventory")
+@export_range(0, 99, 1) var starting_keys := 0
 
 var facing_direction := 1.0
 var active_boomerang: Node
@@ -59,11 +65,17 @@ var previous_mask_state := MaskState.NO_MASK
 var current_animation_name := "no_mask_idle"
 var mask_health := [3, 3, 3]
 var unlocked_mask_states := [true, false, false]
+var key_count := 0
 var _coyote_timer := 0.0
 var _jump_buffer_timer := 0.0
 var _throw_cooldown_timer := 0.0
 var _mask_switch_timer := 0.0
 var _damage_invulnerability_timer := 0.0
+var _ground_speed_multiplier := 1.0
+var _ground_speed_multiplier_timer := 0.0
+var _last_damage_cause := "unknown"
+var _fall_respawn_pending := false
+var _ghost_block_context_timer := 0.0
 var _jump_was_down := false
 var _throw_was_down := false
 var _mask_cycle_was_down := false
@@ -73,6 +85,7 @@ func _ready() -> void:
 	add_to_group("saveable")
 	_reset_mask_health()
 	_reset_unlocked_masks()
+	key_count = starting_keys
 	current_mask_state = clampi(starting_mask_state, MaskState.NO_MASK, MaskState.GHOST_MASK)
 	if not is_mask_state_unlocked(current_mask_state):
 		current_mask_state = MaskState.NO_MASK
@@ -81,8 +94,10 @@ func _ready() -> void:
 	_update_animation_name()
 
 func _physics_process(delta: float) -> void:
+	_update_ghost_block_context(delta)
 	if global_position.y > reset_below_y or (reset_above_enabled and global_position.y < reset_above_y):
-		_respawn()
+		_handle_fall_respawn()
+		return
 
 	_update_timers(delta)
 	_handle_mask_state_input()
@@ -116,6 +131,7 @@ func _physics_process(delta: float) -> void:
 	_update_animation_name()
 
 	move_and_slide()
+	_handle_pushable_collisions(delta, horizontal_input)
 	_handle_mechanism_wall_collisions()
 
 func _update_timers(delta: float) -> void:
@@ -124,6 +140,10 @@ func _update_timers(delta: float) -> void:
 	_throw_cooldown_timer = maxf(_throw_cooldown_timer - delta, 0.0)
 	_mask_switch_timer = maxf(_mask_switch_timer - delta, 0.0)
 	_damage_invulnerability_timer = maxf(_damage_invulnerability_timer - delta, 0.0)
+	_ground_speed_multiplier_timer = maxf(_ground_speed_multiplier_timer - delta, 0.0)
+	_ghost_block_context_timer = maxf(_ghost_block_context_timer - delta, 0.0)
+	if _ground_speed_multiplier_timer <= 0.0:
+		_ground_speed_multiplier = 1.0
 
 func _handle_mask_state_input() -> void:
 	var requested_state := current_mask_state
@@ -207,6 +227,9 @@ func is_switching_mask() -> bool:
 func is_damage_invulnerable() -> bool:
 	return _damage_invulnerability_timer > 0.0
 
+func grant_invulnerability(duration: float = 1.0) -> void:
+	_damage_invulnerability_timer = maxf(_damage_invulnerability_timer, maxf(duration, 0.0))
+
 func can_throw_mask_boomerang() -> bool:
 	return current_mask_state == MaskState.NO_MASK
 
@@ -246,6 +269,7 @@ func get_save_state() -> Dictionary:
 		"previous_mask_state": previous_mask_state,
 		"mask_health": mask_health.duplicate(),
 		"unlocked_mask_states": unlocked_mask_states.duplicate(),
+		"key_count": key_count,
 	}
 
 func apply_save_state(state: Dictionary) -> void:
@@ -270,6 +294,7 @@ func apply_save_state(state: Dictionary) -> void:
 	unlocked_mask_states[MaskState.NO_MASK] = true
 	if not is_mask_state_unlocked(current_mask_state):
 		current_mask_state = MaskState.NO_MASK
+	key_count = maxi(int(state.get("key_count", starting_keys)), 0)
 
 	_coyote_timer = 0.0
 	_jump_buffer_timer = 0.0
@@ -280,6 +305,7 @@ func apply_save_state(state: Dictionary) -> void:
 	_update_animation_name()
 	for mask_state in range(MASK_STATE_COUNT):
 		mask_health_changed.emit(mask_state, get_mask_health(mask_state), max_health_per_mask)
+	key_count_changed.emit(key_count)
 
 func take_enemy_hit(damage: int = 1, hit_source: Node = null) -> bool:
 	if damage <= 0 or is_damage_invulnerable():
@@ -287,9 +313,12 @@ func take_enemy_hit(damage: int = 1, hit_source: Node = null) -> bool:
 
 	var next_health := maxi(get_current_mask_health() - damage, 0)
 	mask_health[current_mask_state] = next_health
+	_last_damage_cause = "enemy"
 	_damage_invulnerability_timer = damage_invulnerability_time
 	_apply_damage_knockback(hit_source)
 	mask_health_changed.emit(current_mask_state, next_health, max_health_per_mask)
+	if next_health > 0:
+		_notify_damage_taken(damage, hit_source, _last_damage_cause)
 
 	if next_health <= 0:
 		_die_and_load_checkpoint()
@@ -301,6 +330,7 @@ func take_environment_hit(damage: int = 1, hit_source: Node = null, hit_directio
 
 	var next_health := maxi(get_current_mask_health() - damage, 0)
 	mask_health[current_mask_state] = next_health
+	_last_damage_cause = _damage_cause_from_source(hit_source)
 	_damage_invulnerability_timer = damage_invulnerability_time
 	var horizontal_direction := signf(hit_direction.x)
 	if is_zero_approx(horizontal_direction):
@@ -308,15 +338,53 @@ func take_environment_hit(damage: int = 1, hit_source: Node = null, hit_directio
 	velocity.x = absf(knockback.x) * horizontal_direction
 	velocity.y = minf(velocity.y, knockback.y)
 	mask_health_changed.emit(current_mask_state, next_health, max_health_per_mask)
+	if next_health > 0:
+		_notify_damage_taken(damage, hit_source, _last_damage_cause)
 	if next_health <= 0:
 		_die_and_load_checkpoint()
 	return true
 
-func take_mechanism_crush(damage: int = 1, hit_source: Node = null, hit_direction: Vector2 = Vector2.ZERO, knockback: Vector2 = Vector2(280.0, -180.0)) -> bool:
-	if damage <= 0:
+func apply_ground_speed_multiplier(multiplier: float, duration: float = 0.08) -> void:
+	_ground_speed_multiplier = minf(_ground_speed_multiplier, clampf(multiplier, 0.05, 1.0))
+	_ground_speed_multiplier_timer = maxf(_ground_speed_multiplier_timer, duration)
+
+func get_ground_speed_multiplier() -> float:
+	return _ground_speed_multiplier
+
+func add_keys(amount: int = 1) -> int:
+	if amount <= 0:
+		return key_count
+	key_count += amount
+	key_count_changed.emit(key_count)
+	return key_count
+
+func can_spend_keys(amount: int = 1) -> bool:
+	return amount <= 0 or key_count >= amount
+
+func spend_keys(amount: int = 1) -> bool:
+	if amount <= 0:
+		return true
+	if key_count < amount:
 		return false
+	key_count -= amount
+	key_count_changed.emit(key_count)
+	return true
+
+func get_key_count() -> int:
+	return key_count
+
+func take_mechanism_crush(damage: int = 1, hit_source: Node = null, hit_direction: Vector2 = Vector2.ZERO, knockback: Vector2 = Vector2(280.0, -180.0)) -> bool:
+	if damage <= 0 or is_damage_invulnerable():
+		return false
+
+	var is_falling_wall_crush := hit_direction.y > 0.25
+	if is_falling_wall_crush and hit_source != null and hit_source.has_method("get_mechanism_escape_position"):
+		var escape_position: Vector2 = hit_source.call("get_mechanism_escape_position", self)
+		global_position = escape_position
+
 	var next_health := maxi(get_current_mask_health() - damage, 0)
 	mask_health[current_mask_state] = next_health
+	_last_damage_cause = "mechanism"
 	_damage_invulnerability_timer = maxf(_damage_invulnerability_timer, damage_invulnerability_time)
 	var horizontal_direction := signf(hit_direction.x)
 	if is_zero_approx(horizontal_direction):
@@ -325,8 +393,13 @@ func take_mechanism_crush(damage: int = 1, hit_source: Node = null, hit_directio
 		if is_zero_approx(horizontal_direction):
 			horizontal_direction = -facing_direction
 	velocity.x = absf(knockback.x) * horizontal_direction
-	velocity.y = minf(velocity.y, knockback.y)
+	if is_falling_wall_crush:
+		velocity.y = maxf(velocity.y, 0.0)
+	else:
+		velocity.y = minf(velocity.y, knockback.y)
 	mask_health_changed.emit(current_mask_state, next_health, max_health_per_mask)
+	if next_health > 0:
+		_notify_damage_taken(damage, hit_source, _last_damage_cause)
 	if next_health <= 0:
 		_die_and_load_checkpoint()
 	return true
@@ -350,6 +423,14 @@ func _die_and_load_checkpoint() -> void:
 	var defeated_mask_state := current_mask_state
 	var checkpoint_position := get_checkpoint_position()
 	player_died.emit(defeated_mask_state, checkpoint_position)
+	var story_controller := get_tree().get_first_node_in_group("story_controllers")
+	if story_controller != null and story_controller.has_method("handle_player_death"):
+		if bool(story_controller.call("handle_player_death", self, defeated_mask_state, checkpoint_position, _last_damage_cause)):
+			return
+	var respawn_controller := get_tree().get_first_node_in_group("death_respawn_controllers")
+	if respawn_controller != null and respawn_controller.has_method("request_player_respawn"):
+		if bool(respawn_controller.call("request_player_respawn", self, checkpoint_position)):
+			return
 	var save_manager := _save_manager()
 	if save_manager != null and save_manager.has_method("load_checkpoint") and save_manager.has_method("has_checkpoint") and save_manager.has_checkpoint():
 		save_manager.load_checkpoint()
@@ -382,7 +463,8 @@ func _update_animation_name() -> void:
 	current_animation_name = "%s_%s" % [state_prefix, movement_suffix]
 
 func _apply_horizontal_movement(horizontal_input: float, on_floor: bool, delta: float) -> void:
-	var target_speed := horizontal_input * max_run_speed
+	var speed_multiplier := _ground_speed_multiplier if on_floor else 1.0
+	var target_speed := horizontal_input * max_run_speed * speed_multiplier
 	var accel := ground_acceleration if on_floor else air_acceleration
 	var decel := ground_deceleration if on_floor else air_deceleration
 
@@ -484,10 +566,118 @@ func _throw_is_down() -> bool:
 	return Input.is_physical_key_pressed(KEY_J) or Input.is_physical_key_pressed(KEY_X)
 
 func _respawn() -> void:
+	_last_damage_cause = "ghost_block" if _is_ghost_related_fall() else "fall"
+	_die_and_load_checkpoint()
+
+func _handle_fall_respawn() -> void:
+	if _fall_respawn_pending:
+		return
+	_fall_respawn_pending = true
+	_last_damage_cause = "ghost_block" if _is_ghost_related_fall() else "fall"
+	var story_controller := get_tree().get_first_node_in_group("story_controllers")
+	if story_controller != null and story_controller.has_method("handle_player_fall_death"):
+		if bool(story_controller.call("handle_player_fall_death", self, Callable(self, "_finish_pending_fall_respawn"), _last_damage_cause)):
+			return
+	_finish_pending_fall_respawn()
+
+func _finish_pending_fall_respawn() -> void:
+	_fall_respawn_pending = false
 	_die_and_load_checkpoint()
 
 func _save_manager() -> Node:
 	return get_tree().get_first_node_in_group("save_managers")
+
+func enter_death_space_state() -> void:
+	_recall_active_boomerang()
+	current_mask_state = MaskState.NO_MASK
+	previous_mask_state = MaskState.NO_MASK
+	unlocked_mask_states = [true, false, false]
+	mask_health = [0, 0, 0]
+	velocity = Vector2.ZERO
+	_damage_invulnerability_timer = 0.0
+	_mask_switch_timer = 0.0
+	_apply_mask_state_effects()
+	_update_animation_name()
+	for mask_state in range(MASK_STATE_COUNT):
+		mask_health_changed.emit(mask_state, get_mask_health(mask_state), max_health_per_mask)
+	mask_state_changed.emit(current_mask_state, get_mask_state_name())
+
+func _notify_damage_taken(damage: int, source: Node, cause: String) -> void:
+	player_damaged.emit(damage, cause)
+	var story_controller := get_tree().get_first_node_in_group("story_controllers")
+	if story_controller != null and story_controller.has_method("handle_player_damaged"):
+		story_controller.call("handle_player_damaged", self, damage, source, cause)
+
+func _damage_cause_from_source(source: Node) -> String:
+	if current_mask_state == MaskState.EUDA_MASK or current_mask_state == MaskState.GHOST_MASK:
+		return "ghost_block"
+	if source != null:
+		if source.is_in_group("ghost_blocks"):
+			return "ghost_block"
+		if String(source.name).to_lower().contains("ghost"):
+			return "ghost_block"
+	return "environment"
+
+func _is_ghost_related_fall() -> bool:
+	return current_mask_state == MaskState.EUDA_MASK or current_mask_state == MaskState.GHOST_MASK or _ghost_block_context_timer > 0.0
+
+func _update_ghost_block_context(_delta: float) -> void:
+	if _is_touching_ghost_block_area():
+		_ghost_block_context_timer = ghost_block_fall_memory_time
+
+func _is_touching_ghost_block_area() -> bool:
+	for ghost_block in get_tree().get_nodes_in_group("ghost_blocks"):
+		var block_node := ghost_block as Node
+		if block_node == null:
+			continue
+		for collision_polygon in _collision_polygon_descendants(block_node):
+			var points := _global_polygon_points(collision_polygon)
+			for probe_point in _player_probe_points():
+				if Geometry2D.is_point_in_polygon(probe_point, points) or _distance_to_polygon(probe_point, points) <= 8.0:
+					return true
+	return false
+
+func _player_probe_points() -> Array[Vector2]:
+	var half_size := _player_half_size()
+	return [
+		global_position,
+		global_position + Vector2(-half_size.x, -half_size.y),
+		global_position + Vector2(half_size.x, -half_size.y),
+		global_position + Vector2(-half_size.x, half_size.y),
+		global_position + Vector2(half_size.x, half_size.y),
+		global_position + Vector2(0.0, half_size.y),
+	]
+
+func _player_half_size() -> Vector2:
+	var collision_shape := get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if collision_shape != null and collision_shape.shape != null:
+		var rectangle := collision_shape.shape as RectangleShape2D
+		if rectangle != null:
+			return rectangle.size * collision_shape.scale.abs() * 0.5
+	return Vector2(18.0, 18.0)
+
+func _collision_polygon_descendants(root_node: Node) -> Array[CollisionPolygon2D]:
+	var polygons: Array[CollisionPolygon2D] = []
+	for child in root_node.get_children():
+		var collision_polygon := child as CollisionPolygon2D
+		if collision_polygon != null and collision_polygon.polygon.size() >= 3:
+			polygons.append(collision_polygon)
+		polygons.append_array(_collision_polygon_descendants(child))
+	return polygons
+
+func _global_polygon_points(collision_polygon: CollisionPolygon2D) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	points.resize(collision_polygon.polygon.size())
+	for index in collision_polygon.polygon.size():
+		points[index] = collision_polygon.to_global(collision_polygon.polygon[index])
+	return points
+
+func _distance_to_polygon(point: Vector2, points: PackedVector2Array) -> float:
+	var best_distance := INF
+	for index in points.size():
+		var closest := Geometry2D.get_closest_point_to_segment(point, points[index], points[(index + 1) % points.size()])
+		best_distance = minf(best_distance, point.distance_to(closest))
+	return best_distance
 
 func _handle_mechanism_wall_collisions() -> void:
 	for index in get_slide_collision_count():
@@ -499,8 +689,30 @@ func _handle_mechanism_wall_collisions() -> void:
 			continue
 		if collider.has_method("is_moving") and not bool(collider.call("is_moving")):
 			continue
+		if collider.has_method("is_body_touching_impact_bottom") and not bool(collider.call("is_body_touching_impact_bottom", self)):
+			continue
 		var damage := int(collider.call("get_mechanism_impact_damage")) if collider.has_method("get_mechanism_impact_damage") else 1
 		var direction: Vector2 = collider.call("get_mechanism_impact_direction") if collider.has_method("get_mechanism_impact_direction") else collision.get_normal() * -1.0
 		var knockback: Vector2 = collider.call("get_mechanism_impact_knockback") if collider.has_method("get_mechanism_impact_knockback") else hit_knockback
 		take_mechanism_crush(damage, collider, direction, knockback)
 		return
+
+func _handle_pushable_collisions(delta: float, horizontal_input: float) -> void:
+	if absf(horizontal_input) < 0.1:
+		return
+	var push_direction := signf(horizontal_input)
+	for index in get_slide_collision_count():
+		var collision := get_slide_collision(index)
+		var collider := collision.get_collider()
+		if collider == null or not collider.is_in_group("pushable_boxes"):
+			continue
+		if collision.get_normal().x * push_direction > -0.35:
+			continue
+		if not collider.has_method("push_from_player"):
+			continue
+		var did_push := bool(collider.call("push_from_player", push_direction, absf(velocity.x), delta, self))
+		if did_push:
+			var speed_multiplier := float(collider.call("get_push_speed_multiplier")) if collider.has_method("get_push_speed_multiplier") else 0.55
+			apply_ground_speed_multiplier(speed_multiplier, 0.14)
+			velocity.x = signf(velocity.x) * minf(absf(velocity.x), max_run_speed * speed_multiplier)
+			return

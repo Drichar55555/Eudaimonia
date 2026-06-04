@@ -13,6 +13,11 @@ enum SpawnEnemyKind { NORMAL, GHOST }
 @export_range(1, 12, 1) var hits_to_break := 3
 @export var interaction_prompt := "Press E"
 
+@export_group("Room Activation")
+@export var wait_for_player_room_entry := true
+@export var room_path := NodePath("")
+@export var keep_active_after_room_entry := true
+
 @export_group("Monster Spawning")
 @export var spawn_monsters_before_break := true
 @export var enemy_scene: PackedScene
@@ -56,6 +61,9 @@ var _player_inside: Node
 var _interact_was_down := false
 var _flash_timer := 0.0
 var _auto_spawn_timer := 1.0
+var _activation_room: Node
+var _room_has_been_entered := false
+var _room_detection_complete := false
 var _spawn_sequence := 0
 var _spawned_enemy_paths: Array[NodePath] = []
 var _rng := RandomNumberGenerator.new()
@@ -69,18 +77,20 @@ func _ready() -> void:
 	_auto_spawn_timer = auto_spawn_interval
 	_update_collision_enabled()
 	_connect_areas()
+	call_deferred("_detect_activation_room")
 	set_process(not Engine.is_editor_hint())
 	queue_redraw()
 
 func _process(delta: float) -> void:
 	_flash_timer = maxf(_flash_timer - delta, 0.0)
 	if not Engine.is_editor_hint():
+		_update_room_activation()
 		_update_auto_spawn(delta)
 		_handle_interaction_input()
 	queue_redraw()
 
 func take_boomerang_hit(_boomerang: Node) -> void:
-	if broken:
+	if broken or not _is_gameplay_active():
 		return
 	health = maxi(health - 1, 0)
 	_flash_timer = 0.12
@@ -111,6 +121,7 @@ func get_save_state() -> Dictionary:
 		"health": health,
 		"broken": broken,
 		"unlocked": unlocked,
+		"room_has_been_entered": _room_has_been_entered,
 		"auto_spawn_timer": _auto_spawn_timer,
 		"spawn_sequence": _spawn_sequence,
 		"spawned_enemy_paths": _spawned_enemy_paths.duplicate(),
@@ -120,15 +131,58 @@ func apply_save_state(state: Dictionary) -> void:
 	health = int(state.get("health", hits_to_break))
 	broken = bool(state.get("broken", health <= 0))
 	unlocked = bool(state.get("unlocked", false))
+	_room_has_been_entered = bool(state.get("room_has_been_entered", false))
 	_auto_spawn_timer = float(state.get("auto_spawn_timer", auto_spawn_interval))
 	_spawn_sequence = int(state.get("spawn_sequence", 0))
 	_spawned_enemy_paths = state.get("spawned_enemy_paths", []) as Array[NodePath]
 	_update_collision_enabled()
 	queue_redraw()
 
+func _detect_activation_room() -> void:
+	_room_detection_complete = true
+	if not wait_for_player_room_entry:
+		_room_has_been_entered = true
+		return
+
+	if not room_path.is_empty():
+		_activation_room = get_node_or_null(room_path)
+		if _activation_room != null:
+			return
+
+	_activation_room = _room_containing_point(global_position)
+	if _activation_room == null:
+		_room_has_been_entered = true
+
+func _update_room_activation() -> void:
+	if not wait_for_player_room_entry:
+		_room_has_been_entered = true
+		return
+
+	if not _room_detection_complete:
+		return
+
+	if _activation_room == null:
+		_room_has_been_entered = true
+		return
+
+	var player := get_tree().get_first_node_in_group("players") as Node2D
+	if player == null:
+		return
+
+	var player_is_in_room := _room_contains_point(_activation_room, player.global_position)
+	if keep_active_after_room_entry:
+		_room_has_been_entered = _room_has_been_entered or player_is_in_room
+	else:
+		_room_has_been_entered = player_is_in_room
+
+func _is_gameplay_active() -> bool:
+	if not wait_for_player_room_entry:
+		return true
+	return _room_has_been_entered
+
 func _update_auto_spawn(delta: float) -> void:
 	var interval := maxf(auto_spawn_interval, 0.1)
-	if broken or not spawn_monsters_before_break or not auto_spawn_before_break:
+	if broken or not _is_gameplay_active() or not spawn_monsters_before_break or not auto_spawn_before_break:
 		_auto_spawn_timer = interval
 		return
 
@@ -190,6 +244,46 @@ func _prune_spawned_enemies() -> void:
 		if get_node_or_null(enemy_path) != null:
 			alive_paths.append(enemy_path)
 	_spawned_enemy_paths = alive_paths
+
+func _room_containing_point(point: Vector2) -> Node:
+	var best_room: Node
+	var best_area := INF
+	var best_distance := INF
+
+	for room in get_tree().get_nodes_in_group("camera_rooms"):
+		if not _room_contains_point(room, point):
+			continue
+
+		var room_rect := _room_rect(room)
+		var room_area := room_rect.size.x * room_rect.size.y
+		var room_distance := point.distance_squared_to(room_rect.get_center())
+		if room_area < best_area or (is_equal_approx(room_area, best_area) and room_distance < best_distance):
+			best_area = room_area
+			best_distance = room_distance
+			best_room = room
+
+	return best_room
+
+func _room_contains_point(room: Node, point: Vector2) -> bool:
+	if room != null and room.has_method("contains_point"):
+		return bool(room.call("contains_point", point))
+	return _room_rect(room).has_point(point)
+
+func _room_rect(room: Node) -> Rect2:
+	if room != null and room.has_method("get_trigger_rect"):
+		return room.call("get_trigger_rect") as Rect2
+	if room != null and room.has_method("get_camera_rect"):
+		return room.call("get_camera_rect") as Rect2
+	return Rect2(global_position, Vector2.ONE)
+
+func get_activation_room_name() -> String:
+	if _activation_room == null:
+		return ""
+	var room_id_value: Variant = _activation_room.get("room_id")
+	return str(room_id_value) if room_id_value != null else _activation_room.name
+
+func has_entered_activation_room() -> bool:
+	return _room_has_been_entered
 
 func _draw() -> void:
 	var body_color := broken_color if broken else intact_color
