@@ -1,6 +1,15 @@
 @tool
 extends "res://scripts/save_point.gd"
 
+enum SoulMask { EUDA_MASK = 1, GHOST_MASK = 2 }
+
+@export_group("Soul")
+@export_enum("Euda Mask", "Ghost Mask") var soul_mask_state := 0:
+	set(value):
+		soul_mask_state = value
+		_update_soul_colors()
+		queue_redraw()
+
 @export_group("Soul Lamp Visual")
 @export var lamp_color := Color(0.22, 0.28, 0.26, 1.0):
 	set(value):
@@ -26,6 +35,29 @@ extends "res://scripts/save_point.gd"
 	set(value):
 		lamp_width = maxf(value, 14.0)
 		queue_redraw()
+
+func _ready() -> void:
+	_update_soul_colors()
+	super._ready()
+
+func _try_start_save(player: Node) -> void:
+	_restore_player_energy(player)
+	super._try_start_save(player)
+
+func _restore_player_energy(player: Node) -> void:
+	if player != null and player.has_method("restore_soul_lamp_energy"):
+		player.call("restore_soul_lamp_energy", _mask_state_value())
+
+func _mask_state_value() -> int:
+	return SoulMask.GHOST_MASK if soul_mask_state == 1 else SoulMask.EUDA_MASK
+
+func _update_soul_colors() -> void:
+	if soul_mask_state == 1:
+		flame_color = Color(0.72, 0.92, 1.0, 0.95)
+		glow_color = Color(0.50, 0.72, 1.0, 0.18)
+		return
+	flame_color = Color(0.60, 1.0, 0.72, 0.95)
+	glow_color = Color(0.44, 1.0, 0.62, 0.18)
 
 func _draw() -> void:
 	_draw_lamp()

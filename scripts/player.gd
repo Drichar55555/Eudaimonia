@@ -249,6 +249,23 @@ func get_mask_health(mask_state_value: int) -> int:
 func get_max_mask_health() -> int:
 	return max_health_per_mask
 
+func restore_mask_health(mask_state_value: int) -> bool:
+	var state := clampi(mask_state_value, MaskState.NO_MASK, MaskState.GHOST_MASK)
+	if state != MaskState.NO_MASK and not is_mask_state_unlocked(state):
+		return false
+	if int(mask_health[state]) >= max_health_per_mask:
+		return false
+	mask_health[state] = max_health_per_mask
+	mask_health_changed.emit(state, get_mask_health(state), max_health_per_mask)
+	return true
+
+func restore_soul_lamp_energy(mask_state_value: int) -> bool:
+	var did_restore := restore_mask_health(MaskState.NO_MASK)
+	var state := clampi(mask_state_value, MaskState.NO_MASK, MaskState.GHOST_MASK)
+	if state != MaskState.NO_MASK:
+		did_restore = restore_mask_health(state) or did_restore
+	return did_restore
+
 func save_checkpoint(checkpoint_position: Vector2 = Vector2.INF) -> void:
 	var save_manager := _save_manager()
 	if save_manager != null and save_manager.has_method("request_save"):

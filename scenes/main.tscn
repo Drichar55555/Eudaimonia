@@ -23,9 +23,9 @@
 [ext_resource type="PackedScene" path="res://scenes/key_door.tscn" id="21_key_door"]
 [ext_resource type="PackedScene" path="res://scenes/key_chest.tscn" id="22_key_chest"]
 [ext_resource type="PackedScene" path="res://scenes/soul_lamp.tscn" id="23_soul_lamp"]
-[ext_resource type="Script" path="res://scripts/death_respawn_controller.gd" id="24_death_respawn"]
-[ext_resource type="Script" path="res://scripts/story_controller.gd" id="25_story_controller"]
-[ext_resource type="Script" path="res://scripts/dialogue_box.gd" id="26_dialogue_box"]
+[ext_resource type="Script" uid="uid://cstn4ye10c2ax" path="res://scripts/death_respawn_controller.gd" id="24_death_respawn"]
+[ext_resource type="Script" uid="uid://utvm8bghsn26" path="res://scripts/story_controller.gd" id="25_story_controller"]
+[ext_resource type="Script" uid="uid://bbhxpl2qon1w" path="res://scripts/dialogue_box.gd" id="26_dialogue_box"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_room_start"]
 size = Vector2(717, 309)
@@ -40,13 +40,7 @@ size = Vector2(957, 399)
 size = Vector2(1414.25, 792.5)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_choun"]
-size = Vector2(1084.5, 1204.5)
-
-[sub_resource type="CircleShape2D" id="CircleShape2D_save_point"]
-radius = 96.0
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
-size = Vector2(36, 36)
+size = Vector2(1369.25, 1201.25)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_death_room"]
 size = Vector2(960, 540)
@@ -54,8 +48,15 @@ size = Vector2(960, 540)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_death_return_gate"]
 size = Vector2(90, 150)
 
+[sub_resource type="CircleShape2D" id="CircleShape2D_save_point"]
+radius = 96.0
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
+size = Vector2(36, 36)
+
 [sub_resource type="SystemFont" id="SystemFont_dialogue"]
 font_names = PackedStringArray("Arial Unicode MS", "PingFang SC", "Heiti SC", "Noto Sans CJK SC")
+subpixel_positioning = 0
 
 [node name="Main" type="Node2D" unique_id=1069334800]
 
@@ -83,7 +84,7 @@ color = Color(0.055, 0.062, 0.075, 1)
 
 [node name="Background" type="Polygon2D" parent="." unique_id=74526128]
 z_index = -100
-position = Vector2(263.93747, -1137.1006)
+position = Vector2(174.99997, -1130.0001)
 scale = Vector2(1.6497395, 1.5511242)
 color = Color(0.055, 0.062, 0.075, 1)
 polygon = PackedVector2Array(-1200, -800, 3600, -800, 3600, 517.4121, 3600, 1800, -1200, 1800)
@@ -147,7 +148,7 @@ camera_view_width = 1048.0
 debug_color = Color(0.36, 0.76, 0.92, 0.5)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-4" unique_id=456369310]
-position = Vector2(3962, -259)
+position = Vector2(4104.375, -257.375)
 shape = SubResource("RectangleShape2D_choun")
 
 [node name="DeathSpaceRoom" type="Area2D" parent="Rooms" unique_id=1547800001]
@@ -168,7 +169,7 @@ shape = SubResource("RectangleShape2D_death_room")
 [node name="DeathSpaceTerrain" type="StaticBody2D" parent="Level/DeathSpace" unique_id=1547800011]
 script = ExtResource("8_terrain_visual")
 ground_color = Color(0.12, 0.13, 0.16, 1)
-outline_color = Color(0.36, 0.40, 0.48, 0.72)
+outline_color = Color(0.36, 0.4, 0.48, 0.72)
 
 [node name="DeathFloorCollision" type="CollisionPolygon2D" parent="Level/DeathSpace/DeathSpaceTerrain" unique_id=1547800012]
 build_mode = 1
@@ -177,7 +178,6 @@ polygon = PackedVector2Array(7480, 520, 8520, 520, 8520, 590, 7480, 590)
 [node name="DeathReturnGate" type="Area2D" parent="Level/DeathSpace" unique_id=1547800013]
 position = Vector2(8420, 450)
 collision_layer = 0
-collision_mask = 1
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Level/DeathSpace/DeathReturnGate" unique_id=1547800014]
 shape = SubResource("RectangleShape2D_death_return_gate")
@@ -204,6 +204,8 @@ debug_color = Color(1, 0.86, 0.28, 0.08)
 
 [node name="DemoSoulLamp" parent="Level/SoulLamps" unique_id=1547600001 instance=ExtResource("23_soul_lamp")]
 position = Vector2(2247, 666)
+flame_color = Color(0.6, 1, 0.72, 0.95)
+glow_color = Color(0.44, 1, 0.62, 0.18)
 save_manager_path = NodePath("../../../SaveManager")
 
 [node name="Mechanisms" type="Node2D" parent="Level" unique_id=1547100000]
@@ -247,6 +249,20 @@ moving_wall_path = NodePath("../DemoMovingWall2")
 button_mode = 2
 detect_player_weapons = false
 
+[node name="DemoMovingWall4" parent="Level/Mechanisms" unique_id=466419786 instance=ExtResource("15_mechanism_wall")]
+position = Vector2(3437, -394)
+collision_mask = 0
+target_offset = Vector2(0, -200)
+move_time = 1.0
+break_animation_time = 0.3
+restore_animation_time = 0.15000000000000002
+
+[node name="DemoButton4" parent="Level/Mechanisms" unique_id=2138327210 instance=ExtResource("16_mechanism_button")]
+position = Vector2(4437, -325)
+moving_wall_path = NodePath("../DemoMovingWall2")
+button_mode = 1
+detect_player_weapons = false
+
 [node name="Tombstones" type="Node2D" parent="Level" unique_id=1547200000]
 
 [node name="EudaTombstone" parent="Level/Tombstones" unique_id=1547200001 instance=ExtResource("17_tombstone")]
@@ -265,6 +281,11 @@ script = ExtResource("19_spike_block")
 position = Vector2(482, 640)
 build_mode = 1
 polygon = PackedVector2Array(-136, 22, -109, -10, -99, 16, -90, -10, -73, 18, -58, 8, -49, 21, -31, -7, -16, 21, 13, -15, 27, 17, 39, -14, 50, 19, 72, -17, 76, 16, 88, -5, 96, 32, -136, 33)
+
+[node name="SpikeCollision2" type="CollisionPolygon2D" parent="Level/SpikeBlocks" unique_id=861374387]
+position = Vector2(1550, -71)
+build_mode = 1
+polygon = PackedVector2Array(-136, 22, -109, -10, -99, 16, -90, -10, -73, 18, -58, 8, -49, 21, -31, -7, -16, 21, 13, -15, 27, 17, 39, -14, 50, 19, 72, -17, 76, 16, 88, -5, 103, 19, 124, -12, 156, 20, 173, -8, 194, 16, 214, -28, 231, 6, 248, -18, 269, 12, 282, -17, 304, 24, -136, 33)
 
 [node name="Pushables" type="Node2D" parent="Level" unique_id=1547400000]
 
@@ -289,7 +310,7 @@ polygon = PackedVector2Array(-416, 320, -413, 184, 268, 180, 266, 206, 548, 198,
 [node name="WallCollision" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=222913767]
 position = Vector2(-456, -23)
 build_mode = 1
-polygon = PackedVector2Array(2307, 236, 2307, 106, 1867, -14, 2309, -25, 2314, -311, 4451, -301, 4451, -225, 2535, -225, 2536, 280, 2659, 280, 2995, 431, 2539, 428, 2539, 544, 1463, 552, 1464, 322, 1343, 309, 1349, 239)
+polygon = PackedVector2Array(2307, 236, 2307, 106, 1867, -14, 2309, -25, 2310, -230, 2179, -230, 2178, -293, 4451, -301, 4451, -225, 2535, -225, 2536, 280, 2659, 280, 2995, 431, 2539, 428, 2539, 544, 1463, 552, 1464, 322, 1343, 309, 1349, 239)
 
 [node name="FloatingRockCollision" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=408602743]
 build_mode = 1
@@ -298,7 +319,7 @@ polygon = PackedVector2Array(558, 493, 572, 468, 810, 477, 839, 505, 805, 543, 6
 [node name="GroundCollision2" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1933789124]
 position = Vector2(-3, 0)
 build_mode = 1
-polygon = PackedVector2Array(2826, 670, 2824, 771, 3492, 777, 3496, 224, 3646, 221, 3647, 142, 2404, 138, 2407, 172, 3355.3755, 209.12094, 3357, 522, 3177, 518)
+polygon = PackedVector2Array(2826, 670, 2824, 771, 3492, 777, 3496, 224, 3646, 221, 3647, 142, 3109, 142, 3109, 202, 3355.3755, 209.12094, 3357, 522, 3177, 518)
 
 [node name="GroundCollision3" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1804658867]
 position = Vector2(1043, -539)
@@ -333,7 +354,7 @@ polygon = PackedVector2Array(2838, 671, 2890, 711, 2971, 707, 3008, 673)
 [node name="GroundCollision9" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1436830489]
 position = Vector2(-2944, -934)
 build_mode = 1
-polygon = PackedVector2Array(1932, -270, 1937, 706, 3440, 706, 3485, 671, 2129, 656, 2133, 333, 2516, 322, 2519, 280, 2132, 276, 2136, -23, 2674, -19, 2675, -63, 2138, -65, 2138, -268)
+polygon = PackedVector2Array(1940, -377, 1937, 706, 3440, 706, 3485, 671, 2129, 656, 2133, 333, 2516, 322, 2519, 280, 2132, 276, 2136, -23, 2674, -19, 2675, -63, 2138, -65, 2143, -433, 3660, -439, 3651, -282, 3848, -277, 3844, -635, 1924, -613, 1202, -602, 1207, -364)
 
 [node name="GroundCollision11" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1138968350]
 position = Vector2(-3105, -1321)
@@ -346,9 +367,9 @@ build_mode = 1
 polygon = PackedVector2Array(2838, 671, 2890, 711, 2971, 707, 3008, 673)
 
 [node name="GroundCollision13" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1601121876]
-position = Vector2(-2263, -1353)
+position = Vector2(-2262, -1354)
 build_mode = 1
-polygon = PackedVector2Array(2838, 671, 2890, 711, 3010, 709, 3018, 907, 2822, 909, 2864, 954, 3019, 955, 3019, 1126, 3286, 1129, 3297, 1392, 3349, 1393, 3349, 1092, 3463, 1092, 3465, 1023, 3196, 1027, 3198, 668)
+polygon = PackedVector2Array(2838, 671, 2890, 711, 3010, 709, 3018, 907, 2822, 909, 2864, 954, 3019, 955, 3019, 1126, 3286, 1129, 3297, 1392, 3349, 1393, 3348, 1236, 3468, 1236, 3466, 1195, 3344, 1196, 3346, 1062, 3196, 1064, 3198, 668)
 
 [node name="GroundCollision14" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1897127467]
 position = Vector2(-2543, -1455)
@@ -358,7 +379,7 @@ polygon = PackedVector2Array(2838, 671, 2890, 711, 2971, 707, 3008, 673)
 [node name="GroundCollision15" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=988818799]
 position = Vector2(-2246, -1522)
 build_mode = 1
-polygon = PackedVector2Array(2838, 671, 2890, 711, 3368, 718, 3362, 669)
+polygon = PackedVector2Array(2838, 671, 2890, 711, 3477, 714, 3483, -56, 3396, -56, 3393, 668)
 
 [node name="GroundCollision16" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=944428195]
 position = Vector2(-2440, -1670)
@@ -369,6 +390,31 @@ polygon = PackedVector2Array(2838, 671, 2839, 712, 2988, 709, 3014, 670)
 position = Vector2(1136, -1022)
 build_mode = 1
 polygon = PackedVector2Array(3251, 697, 3251, 773, 3654, 776, 3652, 697)
+
+[node name="GroundCollision17" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=972244748]
+position = Vector2(-1463, -985)
+build_mode = 1
+polygon = PackedVector2Array(2824, 673, 2824, 733, 3009, 733, 3009, 670, 2887, 670, 2881, 139, 2827, 140, 2826, 293, 2398, 299, 2399, 345, 2823, 343)
+
+[node name="GroundCollision18" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=2099908854]
+position = Vector2(554, -1640)
+build_mode = 1
+polygon = PackedVector2Array(683, 62, 675, 530, 2801, 532, 2804.9282, 729.1131, 2491, 728, 2494, 816, 2807, 820, 2812, 1084, 2941, 1082, 2937, 541, 4261, 549, 4273, 97)
+
+[node name="GroundCollision19" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=948191119]
+position = Vector2(-229, -1585)
+build_mode = 1
+polygon = PackedVector2Array(2509, 673, 2506, 994, 3014, 992, 3008, 673)
+
+[node name="GroundCollision20" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1671593562]
+position = Vector2(-84, -530)
+build_mode = 1
+polygon = PackedVector2Array(2486, 667, 2544, 702, 3030, 727, 3027, 674)
+
+[node name="GroundCollision21" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=518429492]
+position = Vector2(-3268, -1884)
+build_mode = 1
+polygon = PackedVector2Array(2838, 671, 2839, 712, 3301, 713, 3299, 667)
 
 [node name="GhostBlocks" type="StaticBody2D" parent="Level" unique_id=1943537721]
 collision_layer = 8
@@ -396,12 +442,35 @@ position = Vector2(-215, -649.00006)
 scale = Vector2(1.89523, 1.0000002)
 polygon = PackedVector2Array(2220.8386, 323.99997, 2428.7288, 324.99997, 2429.2566, 400.99997, 2220.8386, 401.99997)
 
+[node name="GhostBlockCollision7" type="CollisionPolygon2D" parent="Level/GhostBlocks" unique_id=116480496]
+position = Vector2(-1717, -1240)
+scale = Vector2(1.89523, 1.0000002)
+polygon = PackedVector2Array(2372.2712, 327.99988, 2513.6787, 327.99997, 2514.2063, 414.99988, 2372.7988, 414.99988)
+
+[node name="GhostBlockCollision8" type="CollisionPolygon2D" parent="Level/GhostBlocks" unique_id=1649054108]
+position = Vector2(-3041, -644.00006)
+scale = Vector2(1.89523, 1.0000002)
+polygon = PackedVector2Array(2420.2866, 327.99997, 2513.6787, 327.99997, 2513.6787, 391.99994, 2420.2866, 391.99994)
+
+[node name="GhostBlockCollision9" type="CollisionPolygon2D" parent="Level/GhostBlocks" unique_id=554993278]
+position = Vector2(-3078, -1174)
+scale = Vector2(1.89523, 1.0000002)
+polygon = PackedVector2Array(2372.2712, 327.99988, 2827.0972, 326.99988, 2826.5696, 408.99988, 2372.7988, 414.99988)
+
+[node name="GhostBlockCollision10" type="CollisionPolygon2D" parent="Level/GhostBlocks" unique_id=1584775330]
+position = Vector2(903, -180)
+polygon = PackedVector2Array(2040, 324, 2203, 322, 2203, 382, 2043, 377)
+
+[node name="GhostBlockCollision11" type="CollisionPolygon2D" parent="Level/GhostBlocks" unique_id=1614560282]
+position = Vector2(-1722, -1558)
+polygon = PackedVector2Array(1949, 336, 2152, 338, 2153, 375, 1952, 376)
+
 [node name="Enemies" type="Node2D" parent="Level" unique_id=1351491580]
 z_index = 80
 z_as_relative = false
 
 [node name="EnemyGhost" parent="Level/Enemies" unique_id=990300514 instance=ExtResource("11_enemy")]
-position = Vector2(3285, 79)
+position = Vector2(4049, -28)
 collision_mask = 9
 vision_range = Vector2(360, 170)
 can_touch_ghost_blocks = true
@@ -435,6 +504,10 @@ vision_range = Vector2(360, 170)
 can_touch_ghost_blocks = true
 body_color = Color(0.42, 0.58, 1, 1)
 edge_color = Color(0.04, 0.08, 0.18, 1)
+
+[node name="EnemyNormal7" parent="Level/Enemies" unique_id=1573298062 instance=ExtResource("11_enemy")]
+position = Vector2(3225, 108)
+vision_range = Vector2(360, 170)
 
 [node name="Player" type="CharacterBody2D" parent="." unique_id=1842820891]
 z_index = 50
@@ -547,8 +620,8 @@ offset_left = 24.0
 offset_top = 16.0
 offset_right = 240.0
 offset_bottom = 46.0
-theme_override_fonts/font = SubResource("SystemFont_dialogue")
 theme_override_colors/font_color = Color(1, 0.86, 0.28, 1)
+theme_override_fonts/font = SubResource("SystemFont_dialogue")
 theme_override_font_sizes/font_size = 22
 
 [node name="Body" type="Label" parent="CanvasLayer/DialogueBox/Panel" unique_id=1547800023]
@@ -557,8 +630,8 @@ offset_left = 24.0
 offset_top = 58.0
 offset_right = 860.0
 offset_bottom = 140.0
-theme_override_fonts/font = SubResource("SystemFont_dialogue")
 theme_override_colors/font_color = Color(0.94, 0.96, 1, 1)
+theme_override_fonts/font = SubResource("SystemFont_dialogue")
 theme_override_font_sizes/font_size = 24
 autowrap_mode = 3
 
@@ -568,8 +641,8 @@ offset_left = 750.0
 offset_top = 146.0
 offset_right = 860.0
 offset_bottom = 176.0
-theme_override_fonts/font = SubResource("SystemFont_dialogue")
 theme_override_colors/font_color = Color(0.68, 0.76, 0.86, 1)
+theme_override_fonts/font = SubResource("SystemFont_dialogue")
 theme_override_font_sizes/font_size = 16
 horizontal_alignment = 2
 
