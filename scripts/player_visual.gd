@@ -8,7 +8,7 @@ const EDGE_COLOR := Color(0.02, 0.03, 0.04, 1.0)
 var player: Node
 
 func _ready() -> void:
-	z_index = 100
+	z_index = 1
 	z_as_relative = false
 	player = get_parent()
 	set_process(true)

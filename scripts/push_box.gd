@@ -7,6 +7,10 @@ const TERRAIN_LAYER := 1 << 0
 @export_range(0.05, 1.0, 0.05) var player_push_speed_multiplier := 0.55
 @export_range(24.0, 520.0, 4.0) var max_push_speed := 150.0
 @export_range(0.0, 48.0, 1.0) var skin_width := 2.0
+@export var can_step_over_small_obstacles := true
+@export_range(2.0, 36.0, 1.0) var max_step_height := 14.0
+@export_range(1.0, 12.0, 1.0) var step_scan_increment := 2.0
+@export_range(0.1, 1.0, 0.05) var step_push_speed_multiplier := 0.45
 
 @export_group("Visual")
 @export var fill_color := Color(0.47, 0.34, 0.22, 1.0):
@@ -27,6 +31,7 @@ const TERRAIN_LAYER := 1 << 0
 		queue_redraw()
 
 var _last_push_direction := 0.0
+var _last_push_was_step := false
 
 func _ready() -> void:
 	z_index = 12
@@ -41,32 +46,86 @@ func _ready() -> void:
 func push_from_player(push_direction: float, player_speed: float, delta: float, _player: Node = null) -> bool:
 	if is_zero_approx(push_direction) or delta <= 0.0:
 		return false
+	var direction := signf(push_direction)
 	var speed := clampf(maxf(player_speed, max_push_speed * 0.35), 0.0, max_push_speed)
-	var motion := Vector2(signf(push_direction) * speed * delta, 0.0)
+	var motion := Vector2(direction * speed * delta, 0.0)
 	if skin_width > 0.0:
-		motion.x += signf(motion.x) * skin_width
+		motion.x += direction * skin_width
 	var collision := move_and_collide(motion)
 	if collision != null:
-		var recovery := signf(push_direction) * skin_width
+		var recovery := direction * skin_width
 		if not is_zero_approx(recovery):
 			global_position.x -= recovery
+		if can_step_over_small_obstacles and _try_step_over_small_obstacle(direction, speed, delta):
+			_last_push_direction = direction
+			_last_push_was_step = true
+			queue_redraw()
+			return true
 		return false
-	_last_push_direction = signf(push_direction)
+	_last_push_direction = direction
+	_last_push_was_step = false
 	queue_redraw()
 	return true
 
+func _try_step_over_small_obstacle(push_direction: float, push_speed: float, delta: float) -> bool:
+	if max_step_height <= 0.0 or step_scan_increment <= 0.0:
+		return false
+	var step_speed := clampf(push_speed * step_push_speed_multiplier, 0.0, max_push_speed)
+	var horizontal_motion := Vector2(push_direction * step_speed * delta, 0.0)
+	if skin_width > 0.0:
+		horizontal_motion.x += push_direction * skin_width
+	if is_zero_approx(horizontal_motion.x):
+		return false
+	var step_height := step_scan_increment
+	while step_height <= max_step_height + 0.001:
+		if _can_step_with_height(step_height, horizontal_motion):
+			_apply_step_motion(step_height, horizontal_motion)
+			return true
+		step_height += step_scan_increment
+	return false
+
+func _can_step_with_height(step_height: float, horizontal_motion: Vector2) -> bool:
+	var raised_transform := global_transform.translated(Vector2(0.0, -step_height))
+	if test_move(global_transform, Vector2(0.0, -step_height)):
+		return false
+	if test_move(raised_transform, horizontal_motion):
+		return false
+	return true
+
+func _apply_step_motion(step_height: float, horizontal_motion: Vector2) -> void:
+	global_position.y -= step_height
+	var collision := move_and_collide(horizontal_motion)
+	if collision != null:
+		var recovery := signf(horizontal_motion.x) * skin_width
+		if not is_zero_approx(recovery):
+			global_position.x -= recovery
+		return
+	_settle_after_step(step_height + 4.0)
+
+func _settle_after_step(max_drop: float) -> void:
+	if max_drop <= 0.0:
+		return
+	var collision := move_and_collide(Vector2(0.0, max_drop))
+	if collision != null:
+		return
+	global_position.y -= max_drop
+
 func get_push_speed_multiplier() -> float:
+	if _last_push_was_step:
+		return minf(player_push_speed_multiplier, player_push_speed_multiplier * step_push_speed_multiplier)
 	return player_push_speed_multiplier
 
 func get_save_state() -> Dictionary:
 	return {
 		"position": global_position,
 		"last_push_direction": _last_push_direction,
+		"last_push_was_step": _last_push_was_step,
 	}
 
 func apply_save_state(state: Dictionary) -> void:
 	global_position = state.get("position", global_position)
 	_last_push_direction = float(state.get("last_push_direction", 0.0))
+	_last_push_was_step = bool(state.get("last_push_was_step", false))
 	queue_redraw()
 
 func _draw() -> void:

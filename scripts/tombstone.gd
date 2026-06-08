@@ -5,6 +5,7 @@ const TERRAIN_LAYER := 1 << 0
 
 enum UnlockMask { EUDA_MASK = 1, GHOST_MASK = 2 }
 enum SpawnEnemyKind { NORMAL, GHOST }
+enum SpawnEnemyFacing { LEFT, RIGHT }
 
 @export_enum("Euda Mask", "Ghost Mask") var unlock_mask := 0:
 	set(value):
@@ -22,6 +23,7 @@ enum SpawnEnemyKind { NORMAL, GHOST }
 @export var spawn_monsters_before_break := true
 @export var enemy_scene: PackedScene
 @export_enum("Normal Enemy", "Ghost Enemy") var spawned_enemy_kind := 0
+@export_enum("Left", "Right") var spawned_enemy_facing := 0
 @export var spawn_on_hit_before_break := true
 @export_range(1, 8, 1) var spawn_count_per_hit := 1
 @export var auto_spawn_before_break := true
@@ -71,7 +73,7 @@ var _rng := RandomNumberGenerator.new()
 func _ready() -> void:
 	add_to_group("saveable")
 	_rng.randomize()
-	collision_layer = TERRAIN_LAYER
+	collision_layer = 0
 	collision_mask = 0
 	health = hits_to_break
 	_auto_spawn_timer = auto_spawn_interval
@@ -231,12 +233,20 @@ func _spawn_offset(index: int) -> Vector2:
 	return base_offset + jitter
 
 func _configure_spawned_enemy(enemy: Node2D) -> void:
+	var facing_direction := _spawned_enemy_facing_direction()
+	if enemy.has_method("set_spawn_facing_direction"):
+		enemy.call("set_spawn_facing_direction", facing_direction)
+	else:
+		enemy.set("initial_patrol_direction", facing_direction)
 	if spawned_enemy_kind == SpawnEnemyKind.GHOST:
 		enemy.set("can_touch_ghost_blocks", true)
 		enemy.set("body_color", Color(0.42, 0.58, 1.0, 1.0))
 		enemy.set("edge_color", Color(0.04, 0.08, 0.18, 1.0))
 	else:
 		enemy.set("can_touch_ghost_blocks", false)
+
+func _spawned_enemy_facing_direction() -> float:
+	return 1.0 if spawned_enemy_facing == SpawnEnemyFacing.RIGHT else -1.0
 
 func _prune_spawned_enemies() -> void:
 	var alive_paths: Array[NodePath] = []
@@ -381,10 +391,11 @@ func _on_interaction_body_exited(body: Node) -> void:
 		queue_redraw()
 
 func _update_collision_enabled() -> void:
-	collision_layer = 0 if broken else TERRAIN_LAYER
+	collision_layer = 0
+	collision_mask = 0
 	var collision_shape := get_node_or_null("CollisionShape2D") as CollisionShape2D
 	if collision_shape != null:
-		collision_shape.disabled = broken
+		collision_shape.disabled = true
 
 func _unlock_mask_state_value() -> int:
 	return 1 if unlock_mask == 0 else 2

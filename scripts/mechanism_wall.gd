@@ -2,6 +2,8 @@
 extends AnimatableBody2D
 
 const TERRAIN_LAYER := 1 << 0
+const CRUSH_ESCAPE_MARGIN := 4.0
+const CRUSH_ESCAPE_MAX_ADJUSTMENTS := 8
 
 enum WallMode { MOVING, BREAKABLE }
 enum MovementMode { PHYSICAL, CONSTANT_SPEED }
@@ -41,6 +43,8 @@ enum BreakState { INTACT, BROKEN, RESTORING }
 @export_range(0, 6, 1) var impact_damage := 1
 @export var impact_knockback := Vector2(280.0, -180.0)
 @export_range(0.05, 2.0, 0.05) var impact_cooldown := 0.6
+@export var sync_impact_sensor_to_shape := true
+@export var impact_sensor_padding := Vector2(32.0, 48.0)
 
 @export_group("Visual")
 @export var fill_color := Color(0.29, 0.32, 0.31, 1.0):
@@ -89,6 +93,7 @@ func _ready() -> void:
 	collision_mask = 0
 	_impact_sensor = get_node_or_null("ImpactSensor") as Area2D
 	if _impact_sensor != null:
+		_sync_impact_sensor_shape()
 		_impact_sensor.monitoring = true
 		_impact_sensor.monitorable = true
 		_impact_sensor.body_entered.connect(_on_impact_body_entered)
@@ -147,6 +152,8 @@ func trigger_move() -> void:
 		activate()
 		return
 	if _moving:
+		var reverse_destination := _origin_position if _is_moving_toward(_target_position) else _target_position
+		_begin_move_to(reverse_destination)
 		return
 	if _moved and not resettable:
 		return
@@ -159,7 +166,11 @@ func trigger_open() -> void:
 	if wall_mode != WallMode.MOVING:
 		activate()
 		return
-	if _moving or _moved:
+	if _moving:
+		if not _is_moving_toward(_target_position):
+			_begin_move_to(_target_position)
+		return
+	if _moved:
 		return
 	refresh_origin_from_current_position()
 	_begin_move_to(_target_position)
@@ -168,7 +179,11 @@ func trigger_close() -> void:
 	if wall_mode != WallMode.MOVING:
 		deactivate()
 		return
-	if _moving or not _moved:
+	if _moving:
+		if not _is_moving_toward(_origin_position):
+			_begin_move_to(_origin_position)
+		return
+	if not _moved:
 		return
 	_begin_move_to(_origin_position)
 
@@ -232,21 +247,30 @@ func get_mechanism_impact_direction() -> Vector2:
 	return Vector2.ZERO
 
 func can_apply_mechanism_crush() -> bool:
-	return wall_mode == WallMode.MOVING and _moving and damage_on_impact and impact_damage > 0 and get_mechanism_impact_direction().y > 0.25
+	return wall_mode == WallMode.MOVING and _moving and damage_on_impact and impact_damage > 0 and get_mechanism_impact_direction().length_squared() > 0.01
 
 func is_body_touching_impact_bottom(body_2d: Node2D) -> bool:
 	return _is_body_touching_bottom(body_2d)
 
+func is_body_touching_impact_surface(body_2d: Node2D) -> bool:
+	return _is_body_touching_impact_surface(body_2d, get_mechanism_impact_direction())
+
 func get_mechanism_escape_position(body_2d: Node2D) -> Vector2:
-	if not _is_body_touching_bottom(body_2d):
+	var direction := get_mechanism_impact_direction()
+	if not _is_body_touching_impact_surface(body_2d, direction):
 		return body_2d.global_position
 	var wall_bounds := _current_collision_bounds()
 	var body_bounds := _body_bounds(body_2d)
-	var escape_direction := signf(body_2d.global_position.x - wall_bounds.get_center().x)
+	var escape_direction := _escape_direction_for_impact(body_2d, wall_bounds, direction)
 	if is_zero_approx(escape_direction):
 		escape_direction = -1.0
-	var escape_x := wall_bounds.position.x - body_bounds.size.x * 0.5 - 2.0 if escape_direction < 0.0 else wall_bounds.end.x + body_bounds.size.x * 0.5 + 2.0
-	return Vector2(escape_x, body_2d.global_position.y)
+	var preferred_position := _escape_position_for_direction(body_2d, wall_bounds, body_bounds, escape_direction)
+	if _is_escape_position_clear(body_2d, preferred_position, body_bounds.size):
+		return preferred_position
+	var fallback_position := _escape_position_for_direction(body_2d, wall_bounds, body_bounds, -escape_direction)
+	if _is_escape_position_clear(body_2d, fallback_position, body_bounds.size):
+		return fallback_position
+	return preferred_position
 
 func get_origin_position() -> Vector2:
 	return _origin_position
@@ -365,6 +389,9 @@ func _begin_move_to(destination: Vector2) -> void:
 	_move_elapsed = 0.0
 	_moving = true
 
+func _is_moving_toward(destination: Vector2) -> bool:
+	return _moving and _move_to.distance_squared_to(destination) <= 1.0
+
 func _movement_progress(raw_progress: float) -> float:
 	if movement_mode == MovementMode.CONSTANT_SPEED:
 		return raw_progress
@@ -375,22 +402,23 @@ func _movement_progress(raw_progress: float) -> float:
 func _apply_impact_damage(move_delta: Vector2) -> void:
 	if not can_apply_mechanism_crush() or move_delta.length_squared() <= 0.000001:
 		return
+	var impact_direction := move_delta.normalized()
 	if _impact_sensor != null:
 		for body in _impact_sensor.get_overlapping_bodies():
 			var sensor_body := body as Node2D
-			if sensor_body != null and sensor_body != self and is_instance_valid(sensor_body) and _is_body_touching_bottom(sensor_body):
-				_apply_impact_to_body(sensor_body, move_delta.normalized())
+			if sensor_body != null and sensor_body != self and is_instance_valid(sensor_body) and _is_body_touching_impact_surface(sensor_body, impact_direction):
+				_apply_impact_to_body(sensor_body, impact_direction)
 	var impact_radius := 140.0
 	for group_name in ["players", "enemies"]:
 		for body in get_tree().get_nodes_in_group(group_name):
 			var body_2d := body as Node2D
 			if body_2d == null or body_2d == self or not is_instance_valid(body_2d):
 				continue
-			if _distance_to_move_segment(body_2d.global_position) > impact_radius:
+			if not _is_body_near_impact_sweep(body_2d, impact_direction, impact_radius):
 				continue
-			if not _is_body_touching_bottom(body_2d):
+			if not _is_body_touching_impact_surface(body_2d, impact_direction):
 				continue
-			_apply_impact_to_body(body_2d, move_delta.normalized())
+			_apply_impact_to_body(body_2d, impact_direction)
 
 func _on_impact_body_entered(body: Node) -> void:
 	if not can_apply_mechanism_crush():
@@ -398,9 +426,10 @@ func _on_impact_body_entered(body: Node) -> void:
 	var body_2d := body as Node2D
 	if body_2d == null or body_2d == self:
 		return
-	if not _is_body_touching_bottom(body_2d):
+	var impact_direction := (global_position - _last_position).normalized()
+	if not _is_body_touching_impact_surface(body_2d, impact_direction):
 		return
-	_apply_impact_to_body(body_2d, (global_position - _last_position).normalized())
+	_apply_impact_to_body(body_2d, impact_direction)
 
 func _is_body_touching_bottom(body_2d: Node2D) -> bool:
 	if not can_apply_mechanism_crush():
@@ -411,6 +440,47 @@ func _is_body_touching_bottom(body_2d: Node2D) -> bool:
 		return false
 	var vertical_gap := body_bounds.position.y - wall_bounds.end.y
 	return vertical_gap >= -24.0 and vertical_gap <= 32.0
+
+func _is_body_touching_impact_surface(body_2d: Node2D, direction: Vector2) -> bool:
+	if not can_apply_mechanism_crush() or direction.length_squared() <= 0.01:
+		return false
+	if absf(direction.y) >= absf(direction.x):
+		if direction.y > 0.0:
+			return _is_body_touching_bottom(body_2d)
+		return false
+	return _is_body_touching_side(body_2d, signf(direction.x))
+
+func _is_body_near_impact_sweep(body_2d: Node2D, direction: Vector2, padding: float) -> bool:
+	var body_bounds := _body_bounds(body_2d)
+	var current_bounds := _current_collision_bounds()
+	var previous_bounds := Rect2(current_bounds.position + (_last_position - global_position), current_bounds.size)
+	var sweep_bounds := current_bounds.merge(previous_bounds).grow(padding)
+	if not sweep_bounds.intersects(body_bounds, true):
+		return false
+	if absf(direction.x) > absf(direction.y):
+		return body_bounds.end.y >= current_bounds.position.y - padding and body_bounds.position.y <= current_bounds.end.y + padding
+	return body_bounds.end.x >= current_bounds.position.x - padding and body_bounds.position.x <= current_bounds.end.x + padding
+
+func _is_body_touching_top(body_2d: Node2D) -> bool:
+	var wall_bounds := _current_collision_bounds()
+	var body_bounds := _body_bounds(body_2d)
+	if body_bounds.end.x < wall_bounds.position.x or body_bounds.position.x > wall_bounds.end.x:
+		return false
+	var vertical_gap := wall_bounds.position.y - body_bounds.end.y
+	return vertical_gap >= -24.0 and vertical_gap <= 32.0
+
+func _is_body_touching_side(body_2d: Node2D, direction_x: float) -> bool:
+	var wall_bounds := _current_collision_bounds()
+	var body_bounds := _body_bounds(body_2d)
+	if body_bounds.end.y < wall_bounds.position.y or body_bounds.position.y > wall_bounds.end.y:
+		return false
+	var horizontal_gap := body_bounds.position.x - wall_bounds.end.x if direction_x > 0.0 else wall_bounds.position.x - body_bounds.end.x
+	return horizontal_gap >= -24.0 and horizontal_gap <= 32.0
+
+func _escape_direction_for_impact(body_2d: Node2D, wall_bounds: Rect2, direction: Vector2) -> float:
+	if absf(direction.x) > absf(direction.y):
+		return -signf(direction.x)
+	return signf(body_2d.global_position.x - wall_bounds.get_center().x)
 
 func _apply_impact_to_body(body_2d: Node2D, direction: Vector2) -> void:
 	var body_id := body_2d.get_instance_id()
@@ -445,13 +515,122 @@ func _current_collision_bounds() -> Rect2:
 	return bounds
 
 func _body_bounds(body_2d: Node2D) -> Rect2:
-	var collision_shape := body_2d.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	var collision_bounds := _node_collision_bounds(body_2d)
+	if collision_bounds.size != Vector2.ZERO:
+		return collision_bounds
+	return Rect2(body_2d.global_position - Vector2(18.0, 18.0), Vector2(36.0, 36.0))
+
+func _escape_position_for_direction(body_2d: Node2D, wall_bounds: Rect2, body_bounds: Rect2, direction: float) -> Vector2:
+	var half_width := body_bounds.size.x * 0.5
+	var escape_x := wall_bounds.position.x - half_width - CRUSH_ESCAPE_MARGIN if direction < 0.0 else wall_bounds.end.x + half_width + CRUSH_ESCAPE_MARGIN
+	var escape_position := Vector2(escape_x, body_2d.global_position.y)
+	return _move_escape_past_pushable_boxes(body_2d, escape_position, body_bounds.size, direction)
+
+func _move_escape_past_pushable_boxes(body_2d: Node2D, escape_position: Vector2, body_size: Vector2, direction: float) -> Vector2:
+	var adjusted_position := escape_position
+	for _index in CRUSH_ESCAPE_MAX_ADJUSTMENTS:
+		var adjusted_bounds := _rect_from_center(adjusted_position, body_size)
+		var blocking_box := _first_intersecting_pushable_box(body_2d, adjusted_bounds)
+		if blocking_box == null:
+			return adjusted_position
+		var box_bounds := _node_collision_bounds(blocking_box)
+		if box_bounds.size == Vector2.ZERO:
+			return adjusted_position
+		var half_width := body_size.x * 0.5
+		adjusted_position.x = box_bounds.position.x - half_width - CRUSH_ESCAPE_MARGIN if direction < 0.0 else box_bounds.end.x + half_width + CRUSH_ESCAPE_MARGIN
+	return adjusted_position
+
+func _is_escape_position_clear(body_2d: Node2D, escape_position: Vector2, body_size: Vector2) -> bool:
+	return _first_intersecting_pushable_box(body_2d, _rect_from_center(escape_position, body_size)) == null
+
+func _first_intersecting_pushable_box(body_2d: Node2D, bounds: Rect2) -> Node2D:
+	for box in get_tree().get_nodes_in_group("pushable_boxes"):
+		var box_2d := box as Node2D
+		if box_2d == null or box_2d == body_2d or not is_instance_valid(box_2d):
+			continue
+		var box_bounds := _node_collision_bounds(box_2d)
+		if box_bounds.size != Vector2.ZERO and bounds.intersects(box_bounds, true):
+			return box_2d
+	return null
+
+func _rect_from_center(center: Vector2, size: Vector2) -> Rect2:
+	return Rect2(center - size * 0.5, size)
+
+func _node_collision_bounds(body_2d: Node2D) -> Rect2:
+	var has_bounds := false
+	var bounds := Rect2(body_2d.global_position, Vector2.ZERO)
+	for polygon in _collision_polygon_descendants(body_2d):
+		for point in _global_polygon_points(polygon):
+			bounds = Rect2(point, Vector2.ZERO) if not has_bounds else bounds.expand(point)
+			has_bounds = true
+	for collision_shape in _collision_shape_descendants(body_2d):
+		for point in _global_shape_points(collision_shape):
+			bounds = Rect2(point, Vector2.ZERO) if not has_bounds else bounds.expand(point)
+			has_bounds = true
+	return bounds if has_bounds else Rect2(Vector2.ZERO, Vector2.ZERO)
+
+func _collision_polygon_descendants(root_node: Node) -> Array[CollisionPolygon2D]:
+	var polygons: Array[CollisionPolygon2D] = []
+	for child in root_node.get_children():
+		var collision_polygon := child as CollisionPolygon2D
+		if collision_polygon != null and collision_polygon.polygon.size() >= 3 and not collision_polygon.disabled:
+			polygons.append(collision_polygon)
+		polygons.append_array(_collision_polygon_descendants(child))
+	return polygons
+
+func _collision_shape_descendants(root_node: Node) -> Array[CollisionShape2D]:
+	var shapes: Array[CollisionShape2D] = []
+	for child in root_node.get_children():
+		var collision_shape := child as CollisionShape2D
+		if collision_shape != null and collision_shape.shape != null and not collision_shape.disabled:
+			shapes.append(collision_shape)
+		shapes.append_array(_collision_shape_descendants(child))
+	return shapes
+
+func _global_polygon_points(collision_polygon: CollisionPolygon2D) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	points.resize(collision_polygon.polygon.size())
+	for index in collision_polygon.polygon.size():
+		points[index] = collision_polygon.to_global(collision_polygon.polygon[index])
+	return points
+
+func _global_shape_points(collision_shape: CollisionShape2D) -> PackedVector2Array:
 	if collision_shape != null and collision_shape.shape != null:
 		var rectangle := collision_shape.shape as RectangleShape2D
 		if rectangle != null:
-			var size := rectangle.size * collision_shape.scale.abs()
-			return Rect2(collision_shape.global_position - size * 0.5, size)
-	return Rect2(body_2d.global_position - Vector2(18.0, 18.0), Vector2(36.0, 36.0))
+			var half_size := rectangle.size * 0.5
+			return _global_points_from_local(collision_shape, PackedVector2Array([
+				Vector2(-half_size.x, -half_size.y),
+				Vector2(half_size.x, -half_size.y),
+				Vector2(half_size.x, half_size.y),
+				Vector2(-half_size.x, half_size.y),
+			]))
+		var circle := collision_shape.shape as CircleShape2D
+		if circle != null:
+			var circle_points := PackedVector2Array()
+			var circle_segments := 16
+			for index in circle_segments:
+				var angle := float(index) / float(circle_segments) * TAU
+				circle_points.append(Vector2(cos(angle), sin(angle)) * circle.radius)
+			return _global_points_from_local(collision_shape, circle_points)
+		var capsule := collision_shape.shape as CapsuleShape2D
+		if capsule != null:
+			var radius := capsule.radius
+			var half_height := maxf(capsule.height, radius * 2.0) * 0.5
+			return _global_points_from_local(collision_shape, PackedVector2Array([
+				Vector2(-radius, -half_height),
+				Vector2(radius, -half_height),
+				Vector2(radius, half_height),
+				Vector2(-radius, half_height),
+			]))
+	return PackedVector2Array()
+
+func _global_points_from_local(node_2d: Node2D, local_points: PackedVector2Array) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	points.resize(local_points.size())
+	for index in local_points.size():
+		points[index] = node_2d.to_global(local_points[index])
+	return points
 
 func _update_impact_cooldowns(delta: float) -> void:
 	for body_id in _impact_cooldowns.keys().duplicate():
@@ -487,9 +666,35 @@ func _set_collision_enabled(enabled: bool) -> void:
 	collision_layer = TERRAIN_LAYER if enabled else 0
 	for polygon in _collision_polygons():
 		polygon.set_deferred("disabled", not enabled)
+	_sync_impact_sensor_shape()
 	if _impact_sensor != null:
 		_impact_sensor.monitoring = enabled and wall_mode == WallMode.MOVING
 		_impact_sensor.monitorable = enabled and wall_mode == WallMode.MOVING
+
+func _sync_impact_sensor_shape() -> void:
+	if not sync_impact_sensor_to_shape or _impact_sensor == null:
+		return
+	var collision_shape := _impact_sensor.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if collision_shape == null:
+		return
+	var bounds := _current_local_collision_bounds()
+	if bounds.size == Vector2.ZERO:
+		return
+	var rectangle := collision_shape.shape as RectangleShape2D
+	if rectangle == null:
+		rectangle = RectangleShape2D.new()
+		collision_shape.shape = rectangle
+	rectangle.size = bounds.size + impact_sensor_padding
+	collision_shape.position = bounds.get_center()
+
+func _current_local_collision_bounds() -> Rect2:
+	var has_points := false
+	var bounds := Rect2(Vector2.ZERO, Vector2.ZERO)
+	for polygon in _collision_polygons():
+		for point in _transformed_polygon(polygon):
+			bounds = Rect2(point, Vector2.ZERO) if not has_points else bounds.expand(point)
+			has_points = true
+	return bounds
 
 func _collision_enabled() -> bool:
 	if collision_layer == 0:

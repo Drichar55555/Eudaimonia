@@ -13,6 +13,8 @@ enum EnemyState { PATROL, CHASE }
 @export var ai_enabled := true
 @export var target_path: NodePath
 @export var constrain_to_starting_room := true
+@export var active_only_in_current_room := true
+@export var lock_chase_after_detection := true
 @export var patrol_enabled := true:
 	set(value):
 		patrol_enabled = value
@@ -21,14 +23,22 @@ enum EnemyState { PATROL, CHASE }
 	set(value):
 		patrol_distance = maxf(value, 0.0)
 		queue_redraw()
-@export var vision_range := Vector2(260.0, 120.0):
+@export var vision_range := Vector2(1200.0, 620.0):
 	set(value):
 		vision_range = Vector2(maxf(absf(value.x), 24.0), maxf(absf(value.y), 24.0))
 		queue_redraw()
-@export var hearing_range := Vector2(86.0, 82.0):
+@export var hearing_range := Vector2(220.0, 200.0):
 	set(value):
 		hearing_range = Vector2(maxf(absf(value.x), 16.0), maxf(absf(value.y), 16.0))
 		queue_redraw()
+@export var awareness_range := Vector2(900.0, 520.0):
+	set(value):
+		awareness_range = Vector2(maxf(absf(value.x), 16.0), maxf(absf(value.y), 16.0))
+		queue_redraw()
+@export var enforce_minimum_detection_ranges := true
+@export var minimum_vision_range := Vector2(1200.0, 620.0)
+@export var minimum_hearing_range := Vector2(220.0, 200.0)
+@export var minimum_awareness_range := Vector2(900.0, 520.0)
 @export_range(0.0, 2.0, 0.05) var chase_memory_time := 0.55
 @export_range(0.0, 160.0, 1.0) var stop_distance := 34.0
 @export_range(0.0, 360.0, 1.0) var patrol_speed := 34.0
@@ -42,6 +52,9 @@ enum EnemyState { PATROL, CHASE }
 @export var require_line_of_sight := false
 @export_range(4.0, 80.0, 1.0) var floor_probe_forward := 26.0
 @export_range(8.0, 140.0, 1.0) var floor_probe_depth := 72.0
+@export var can_step_over_small_obstacles := true
+@export_range(0.0, 96.0, 1.0) var max_step_height := 28.0
+@export_range(2.0, 24.0, 1.0) var step_scan_increment := 4.0
 
 @export_group("Attack")
 @export_range(1, 6, 1) var attack_damage := 1
@@ -129,6 +142,7 @@ func _ready() -> void:
 	set_process(false)
 	set_physics_process(not Engine.is_editor_hint())
 	health = max_health
+	_apply_minimum_detection_ranges()
 	_update_shapes()
 	_update_collision_layers()
 	_resolve_target()
@@ -137,6 +151,9 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	if Engine.is_editor_hint():
+		return
+	if not _is_active_in_current_room():
+		velocity = Vector2.ZERO
 		return
 
 	if not ai_enabled:
@@ -198,11 +215,17 @@ func take_environment_hit(damage: int = 1, hit_source: Node = null, hit_directio
 func take_mechanism_crush(damage: int = 1, hit_source: Node = null, hit_direction: Vector2 = Vector2.ZERO, knockback: Vector2 = Vector2(280.0, -160.0)) -> bool:
 	return take_environment_hit(damage, hit_source, hit_direction, knockback)
 
+func set_spawn_facing_direction(direction: float) -> void:
+	initial_patrol_direction = -1.0 if direction < 0.0 else 1.0
+	_patrol_direction = initial_patrol_direction
+	queue_redraw()
+
 func get_save_scene_path() -> String:
 	return "res://scenes/enemy.tscn"
 
 func get_save_state() -> Dictionary:
 	return {
+		"config": _get_save_config(),
 		"position": global_position,
 		"velocity": velocity,
 		"health": health,
@@ -218,6 +241,7 @@ func get_save_state() -> Dictionary:
 	}
 
 func apply_save_state(state: Dictionary) -> void:
+	_apply_save_config(state.get("config", {}))
 	global_position = state.get("position", global_position)
 	velocity = state.get("velocity", Vector2.ZERO)
 	health = int(state.get("health", max_health))
@@ -234,6 +258,124 @@ func apply_save_state(state: Dictionary) -> void:
 	_update_shapes()
 	_resolve_target()
 	queue_redraw()
+
+func _get_save_config() -> Dictionary:
+	return {
+		"ai_enabled": ai_enabled,
+		"target_path": target_path,
+		"constrain_to_starting_room": constrain_to_starting_room,
+		"active_only_in_current_room": active_only_in_current_room,
+		"lock_chase_after_detection": lock_chase_after_detection,
+		"patrol_enabled": patrol_enabled,
+		"patrol_distance": patrol_distance,
+		"vision_range": vision_range,
+		"hearing_range": hearing_range,
+		"awareness_range": awareness_range,
+		"enforce_minimum_detection_ranges": enforce_minimum_detection_ranges,
+		"minimum_vision_range": minimum_vision_range,
+		"minimum_hearing_range": minimum_hearing_range,
+		"minimum_awareness_range": minimum_awareness_range,
+		"chase_memory_time": chase_memory_time,
+		"stop_distance": stop_distance,
+		"patrol_speed": patrol_speed,
+		"chase_speed": chase_speed,
+		"ground_acceleration": ground_acceleration,
+		"ground_deceleration": ground_deceleration,
+		"gravity_scale": gravity_scale,
+		"max_fall_speed": max_fall_speed,
+		"initial_patrol_direction": initial_patrol_direction,
+		"avoid_ledges": avoid_ledges,
+		"require_line_of_sight": require_line_of_sight,
+		"floor_probe_forward": floor_probe_forward,
+		"floor_probe_depth": floor_probe_depth,
+		"can_step_over_small_obstacles": can_step_over_small_obstacles,
+		"max_step_height": max_step_height,
+		"step_scan_increment": step_scan_increment,
+		"attack_damage": attack_damage,
+		"attack_range": attack_range,
+		"attack_cooldown": attack_cooldown,
+		"queue_enabled": queue_enabled,
+		"queue_spacing": queue_spacing,
+		"queue_vertical_tolerance": queue_vertical_tolerance,
+		"show_ai_ranges": show_ai_ranges,
+		"show_runtime_ai_ranges": show_runtime_ai_ranges,
+		"ai_visual_alpha": ai_visual_alpha,
+		"max_health": max_health,
+		"can_touch_ghost_blocks": can_touch_ghost_blocks,
+		"body_size": body_size,
+		"body_color": body_color,
+		"edge_color": edge_color,
+		"ghost_mark_color": ghost_mark_color,
+		"hit_flash_time": hit_flash_time,
+		"hit_flash_color": hit_flash_color,
+		"hit_push_distance": hit_push_distance,
+		"hit_spark_color": hit_spark_color,
+		"hit_shake_amount": hit_shake_amount,
+		"defeat_shake_amount": defeat_shake_amount,
+	}
+
+func _apply_save_config(config: Dictionary) -> void:
+	if config.is_empty():
+		return
+	ai_enabled = bool(config.get("ai_enabled", ai_enabled))
+	target_path = config.get("target_path", target_path)
+	constrain_to_starting_room = bool(config.get("constrain_to_starting_room", constrain_to_starting_room))
+	active_only_in_current_room = bool(config.get("active_only_in_current_room", active_only_in_current_room))
+	lock_chase_after_detection = bool(config.get("lock_chase_after_detection", lock_chase_after_detection))
+	patrol_enabled = bool(config.get("patrol_enabled", patrol_enabled))
+	patrol_distance = float(config.get("patrol_distance", patrol_distance))
+	vision_range = config.get("vision_range", vision_range)
+	hearing_range = config.get("hearing_range", hearing_range)
+	awareness_range = config.get("awareness_range", awareness_range)
+	enforce_minimum_detection_ranges = bool(config.get("enforce_minimum_detection_ranges", enforce_minimum_detection_ranges))
+	minimum_vision_range = config.get("minimum_vision_range", minimum_vision_range)
+	minimum_hearing_range = config.get("minimum_hearing_range", minimum_hearing_range)
+	minimum_awareness_range = config.get("minimum_awareness_range", minimum_awareness_range)
+	_apply_minimum_detection_ranges()
+	chase_memory_time = float(config.get("chase_memory_time", chase_memory_time))
+	stop_distance = float(config.get("stop_distance", stop_distance))
+	patrol_speed = float(config.get("patrol_speed", patrol_speed))
+	chase_speed = float(config.get("chase_speed", chase_speed))
+	ground_acceleration = float(config.get("ground_acceleration", ground_acceleration))
+	ground_deceleration = float(config.get("ground_deceleration", ground_deceleration))
+	gravity_scale = float(config.get("gravity_scale", gravity_scale))
+	max_fall_speed = float(config.get("max_fall_speed", max_fall_speed))
+	initial_patrol_direction = float(config.get("initial_patrol_direction", initial_patrol_direction))
+	avoid_ledges = bool(config.get("avoid_ledges", avoid_ledges))
+	require_line_of_sight = bool(config.get("require_line_of_sight", require_line_of_sight))
+	floor_probe_forward = float(config.get("floor_probe_forward", floor_probe_forward))
+	floor_probe_depth = float(config.get("floor_probe_depth", floor_probe_depth))
+	can_step_over_small_obstacles = bool(config.get("can_step_over_small_obstacles", can_step_over_small_obstacles))
+	max_step_height = float(config.get("max_step_height", max_step_height))
+	step_scan_increment = float(config.get("step_scan_increment", step_scan_increment))
+	attack_damage = int(config.get("attack_damage", attack_damage))
+	attack_range = config.get("attack_range", attack_range)
+	attack_cooldown = float(config.get("attack_cooldown", attack_cooldown))
+	queue_enabled = bool(config.get("queue_enabled", queue_enabled))
+	queue_spacing = float(config.get("queue_spacing", queue_spacing))
+	queue_vertical_tolerance = float(config.get("queue_vertical_tolerance", queue_vertical_tolerance))
+	show_ai_ranges = bool(config.get("show_ai_ranges", show_ai_ranges))
+	show_runtime_ai_ranges = bool(config.get("show_runtime_ai_ranges", show_runtime_ai_ranges))
+	ai_visual_alpha = float(config.get("ai_visual_alpha", ai_visual_alpha))
+	max_health = int(config.get("max_health", max_health))
+	can_touch_ghost_blocks = bool(config.get("can_touch_ghost_blocks", can_touch_ghost_blocks))
+	body_size = config.get("body_size", body_size)
+	body_color = config.get("body_color", body_color)
+	edge_color = config.get("edge_color", edge_color)
+	ghost_mark_color = config.get("ghost_mark_color", ghost_mark_color)
+	hit_flash_time = float(config.get("hit_flash_time", hit_flash_time))
+	hit_flash_color = config.get("hit_flash_color", hit_flash_color)
+	hit_push_distance = float(config.get("hit_push_distance", hit_push_distance))
+	hit_spark_color = config.get("hit_spark_color", hit_spark_color)
+	hit_shake_amount = float(config.get("hit_shake_amount", hit_shake_amount))
+	defeat_shake_amount = float(config.get("defeat_shake_amount", defeat_shake_amount))
+
+func _apply_minimum_detection_ranges() -> void:
+	if not enforce_minimum_detection_ranges:
+		return
+	vision_range = Vector2(maxf(vision_range.x, minimum_vision_range.x), maxf(vision_range.y, minimum_vision_range.y))
+	hearing_range = Vector2(maxf(hearing_range.x, minimum_hearing_range.x), maxf(hearing_range.y, minimum_hearing_range.y))
+	awareness_range = Vector2(maxf(awareness_range.x, minimum_awareness_range.x), maxf(awareness_range.y, minimum_awareness_range.y))
 
 func _draw() -> void:
 	_draw_ai_ranges()
@@ -275,6 +417,11 @@ func _update_ai_state(delta: float) -> void:
 		_last_seen_position = target.global_position
 		_sight_memory_timer = chase_memory_time
 		_set_state(EnemyState.CHASE)
+		return
+
+	if current_state == EnemyState.CHASE and lock_chase_after_detection:
+		if _is_point_in_home_room(target.global_position):
+			_last_seen_position = target.global_position
 		return
 
 	if current_state == EnemyState.CHASE:
@@ -347,11 +494,12 @@ func _can_see_target() -> bool:
 	var vertical_distance := to_target.y
 	var in_forward_vision := _is_inside_forward_vision(forward_distance, vertical_distance)
 	var in_hearing := _is_inside_hearing(to_target)
+	var in_awareness := _is_inside_awareness(to_target)
 
-	if not in_forward_vision and not in_hearing:
+	if not in_forward_vision and not in_hearing and not in_awareness:
 		return false
 
-	if in_forward_vision and require_line_of_sight and _line_of_sight_blocked():
+	if (in_forward_vision or in_awareness) and require_line_of_sight and _line_of_sight_blocked():
 		return false
 
 	return true
@@ -408,6 +556,10 @@ func _is_inside_hearing(target_offset: Vector2) -> bool:
 	var normalized := Vector2(absf(target_offset.x) / maxf(hearing_range.x, 0.001), absf(target_offset.y) / maxf(hearing_range.y, 0.001))
 	return normalized.length_squared() <= 1.0
 
+func _is_inside_awareness(target_offset: Vector2) -> bool:
+	var normalized := Vector2(absf(target_offset.x) / maxf(awareness_range.x, 0.001), absf(target_offset.y) / maxf(awareness_range.y, 0.001))
+	return normalized.length_squared() <= 1.0
+
 func _facing_direction() -> float:
 	if current_state == EnemyState.CHASE:
 		var to_last_seen := _last_seen_position.x - global_position.x
@@ -441,6 +593,8 @@ func _is_blocked_ahead(move_direction: float) -> bool:
 	if is_zero_approx(move_direction):
 		return false
 	if is_on_wall():
+		if _try_step_up(move_direction):
+			return false
 		return true
 	if avoid_ledges and is_on_floor() and not _has_floor_ahead(move_direction):
 		return true
@@ -450,10 +604,39 @@ func _has_floor_ahead(move_direction: float) -> bool:
 	var cast_start := global_position + Vector2(signf(move_direction) * (body_size.x * 0.5 + floor_probe_forward), -2.0)
 	var cast_end := cast_start + Vector2(0.0, body_size.y * 0.5 + floor_probe_depth)
 	var space_state := get_world_2d().direct_space_state
-	var query := PhysicsRayQueryParameters2D.create(cast_start, cast_end, collision_mask)
+	var query := PhysicsRayQueryParameters2D.create(cast_start, cast_end, _navigation_block_mask())
 	query.exclude = [get_rid()]
 	query.collide_with_areas = false
 	return not space_state.intersect_ray(query).is_empty()
+
+func _try_step_up(move_direction: float) -> bool:
+	if not can_step_over_small_obstacles or max_step_height <= 0.0 or not is_on_floor():
+		return false
+	var direction := signf(move_direction)
+	if is_zero_approx(direction):
+		return false
+	var step := maxf(step_scan_increment, 1.0)
+	var forward_motion := Vector2(direction * maxf(floor_probe_forward, body_size.x * 0.35), 0.0)
+	while step <= max_step_height:
+		var stepped_transform := global_transform.translated(Vector2(0.0, -step))
+		var blocked_after_step := test_move(stepped_transform, forward_motion)
+		if not blocked_after_step and _has_floor_from_position(global_position + Vector2(direction * floor_probe_forward, -step)):
+			global_position.y -= step
+			return true
+		step += maxf(step_scan_increment, 1.0)
+	return false
+
+func _has_floor_from_position(position: Vector2) -> bool:
+	var cast_start := position + Vector2(0.0, -2.0)
+	var cast_end := cast_start + Vector2(0.0, body_size.y * 0.5 + floor_probe_depth)
+	var space_state := get_world_2d().direct_space_state
+	var query := PhysicsRayQueryParameters2D.create(cast_start, cast_end, _navigation_block_mask())
+	query.exclude = [get_rid()]
+	query.collide_with_areas = false
+	return not space_state.intersect_ray(query).is_empty()
+
+func _navigation_block_mask() -> int:
+	return TERRAIN_LAYER | GHOST_BLOCK_LAYER
 
 func _resolve_target() -> void:
 	if not target_path.is_empty():
@@ -475,6 +658,26 @@ func _detect_home_room() -> void:
 		_home_room_rect = _home_room.call("get_camera_rect") as Rect2
 	else:
 		_home_room_rect = Rect2()
+
+func _is_active_in_current_room() -> bool:
+	if not active_only_in_current_room:
+		return true
+	if _home_room == null:
+		return true
+	var current_room := _current_camera_room()
+	if current_room == null:
+		return true
+	return current_room == _home_room
+
+func _current_camera_room() -> Node:
+	for camera in get_tree().get_nodes_in_group("room_cameras"):
+		if camera == null or not is_instance_valid(camera):
+			continue
+		var room_value: Variant = camera.get("active_room")
+		var room := room_value as Node
+		if room != null:
+			return room
+	return null
 
 func _room_containing_point(point: Vector2) -> Node:
 	var best_room: Node
@@ -537,6 +740,10 @@ func _draw_ai_ranges() -> void:
 	var hearing_fill := Color(0.5, 0.86, 1.0, ai_visual_alpha * 0.55)
 	var hearing_outline := Color(0.5, 0.86, 1.0, minf(ai_visual_alpha + 0.2, 0.75))
 	_draw_ellipse(Vector2.ZERO, hearing_range, hearing_fill, hearing_outline, 1.5)
+
+	var awareness_fill := Color(1.0, 0.72, 0.22, ai_visual_alpha * 0.22)
+	var awareness_outline := Color(1.0, 0.72, 0.22, minf(ai_visual_alpha + 0.12, 0.64))
+	_draw_ellipse(Vector2.ZERO, awareness_range, awareness_fill, awareness_outline, 1.25)
 
 	var arrow_color := vision_outline
 	draw_line(Vector2.ZERO, Vector2(facing * minf(42.0, vision_range.x * 0.22), 0.0), arrow_color, 2.0, true)

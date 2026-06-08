@@ -2,6 +2,7 @@ extends Camera2D
 
 @export var target_path: NodePath
 @export var lookahead_distance: float = 96.0
+@export var facing_lookahead_speed: float = 4.5
 @export var horizontal_dead_zone: float = 42.0
 @export var vertical_dead_zone: float = 88.0
 @export var catchup_speed: float = 7.5
@@ -9,6 +10,7 @@ extends Camera2D
 @export var default_room_rect := Rect2(-180.0, -120.0, 1280.0, 720.0)
 @export var default_zoom := Vector2.ONE
 @export var room_transition_duration: float = 0.58
+@export var room_switch_pause_duration: float = 0.3
 @export var fade_out_duration: float = 0.16
 @export var fade_hold_duration: float = 0.08
 @export var fade_in_duration: float = 0.2
@@ -27,6 +29,7 @@ var active_camera_profile := "custom"
 var active_camera_view_mode := "free_size"
 var active_no_follow := false
 var active_lookahead_distance := 96.0
+var active_facing_lookahead_speed := 4.5
 var active_vertical_offset := 0.0
 var active_dead_zone := Vector2(42.0, 88.0)
 var active_border_zone := Vector2(180.0, 140.0)
@@ -58,8 +61,13 @@ var _shake_rng := RandomNumberGenerator.new()
 var _cinematic_override_active := false
 var _cinematic_override_position := Vector2.ZERO
 var _cinematic_override_zoom := Vector2.ONE
+var _room_switch_pause_generation := 0
+var _room_switch_pause_active := false
+var _restore_tree_paused_after_room_switch := false
+var _facing_lookahead_offset := 0.0
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	enabled = true
 	make_current()
 	add_to_group("room_cameras")
@@ -141,16 +149,21 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var target_position := target.global_position + Vector2(0.0, active_vertical_offset)
-	var facing: float = signf(target.velocity.x)
-
-	if is_zero_approx(facing):
-		facing = _read_horizontal_intent()
-	if is_zero_approx(facing):
-		facing = 1.0
-
-	var tracked_position := target_position + Vector2(facing * active_lookahead_distance, 0.0)
+	var facing := _target_facing_direction()
+	var target_lookahead_offset := facing * (active_lookahead_distance + active_dead_zone.x)
+	_facing_lookahead_offset = lerpf(_facing_lookahead_offset, target_lookahead_offset, 1.0 - exp(-active_facing_lookahead_speed * delta))
+	var tracked_position := target_position + Vector2(_facing_lookahead_offset, 0.0)
 	var next_position := desired_position
 	var follow_damping := active_follow_damping
+	var fixed_axis_position := _fixed_axis_position()
+	if active_camera_view_mode == "horizontal_follow":
+		tracked_position.y = fixed_axis_position.y
+		next_position.y = fixed_axis_position.y
+		desired_position.y = fixed_axis_position.y
+	elif active_camera_view_mode == "vertical_follow":
+		tracked_position.x = fixed_axis_position.x
+		next_position.x = fixed_axis_position.x
+		desired_position.x = fixed_axis_position.x
 	var horizontal_delta := tracked_position.x - desired_position.x
 	var vertical_delta := tracked_position.y - desired_position.y
 
@@ -174,6 +187,13 @@ func _physics_process(delta: float) -> void:
 	if absf(tracked_from_camera.y) > hard_offset.y:
 		next_position.y = tracked_position.y - signf(tracked_from_camera.y) * hard_offset.y
 		follow_damping.y = active_border_damping.y
+
+	if active_camera_view_mode == "horizontal_follow":
+		next_position.y = fixed_axis_position.y
+		follow_damping.y = active_border_damping.y
+	elif active_camera_view_mode == "vertical_follow":
+		next_position.x = fixed_axis_position.x
+		follow_damping.x = active_border_damping.x
 
 	desired_position.x = lerpf(desired_position.x, next_position.x, 1.0 - exp(-follow_damping.x * delta))
 	desired_position.y = lerpf(desired_position.y, next_position.y, 1.0 - exp(-follow_damping.y * delta))
@@ -222,6 +242,7 @@ func set_room(room: Node) -> void:
 		_start_fade_transition(room, next_room_rect, next_room_name, next_zoom, next_position, next_camera_settings)
 	else:
 		_start_smooth_transition(room, next_room_rect, next_room_name, next_zoom, next_position, next_camera_settings)
+	_pause_game_for_room_switch()
 
 func _find_starting_room() -> void:
 	if target == null:
@@ -414,6 +435,23 @@ func _start_fade_transition(room: Node, next_room_rect: Rect2, next_room_name: S
 	_pending_room_position = next_position
 	_pending_camera_settings = next_camera_settings
 
+func _pause_game_for_room_switch() -> void:
+	if room_switch_pause_duration <= 0.0 or get_tree() == null:
+		return
+	_room_switch_pause_generation += 1
+	var pause_generation := _room_switch_pause_generation
+	if not _room_switch_pause_active:
+		_restore_tree_paused_after_room_switch = get_tree().paused
+		_room_switch_pause_active = true
+	get_tree().paused = true
+	var pause_timer := get_tree().create_timer(room_switch_pause_duration, true, false, true)
+	await pause_timer.timeout
+	if pause_generation != _room_switch_pause_generation:
+		return
+	_room_switch_pause_active = false
+	if not _restore_tree_paused_after_room_switch:
+		get_tree().paused = false
+
 func _cancel_fade_transition() -> void:
 	_is_fade_transitioning = false
 	is_room_transitioning = false
@@ -469,6 +507,7 @@ func _default_camera_settings() -> Dictionary:
 		"view_mode": "free_size",
 		"no_follow": false,
 		"lookahead_distance": lookahead_distance,
+		"facing_lookahead_speed": facing_lookahead_speed,
 		"vertical_offset": 0.0,
 		"dead_zone": Vector2(horizontal_dead_zone, vertical_dead_zone),
 		"border_zone": Vector2(180.0, 140.0),
@@ -489,6 +528,8 @@ func _camera_settings_from_room(room: Node) -> Dictionary:
 		settings["no_follow"] = bool(room.get_no_follow())
 	if room.has_method("get_lookahead_distance"):
 		settings["lookahead_distance"] = float(room.get_lookahead_distance())
+	if room.has_method("get_facing_lookahead_speed"):
+		settings["facing_lookahead_speed"] = float(room.get_facing_lookahead_speed())
 	if room.has_method("get_vertical_offset"):
 		settings["vertical_offset"] = float(room.get_vertical_offset())
 	if room.has_method("get_dead_zone"):
@@ -507,6 +548,7 @@ func _apply_camera_settings(settings: Dictionary) -> void:
 	active_camera_view_mode = str(settings["view_mode"])
 	active_no_follow = bool(settings.get("no_follow", false))
 	active_lookahead_distance = float(settings["lookahead_distance"])
+	active_facing_lookahead_speed = float(settings.get("facing_lookahead_speed", facing_lookahead_speed))
 	active_vertical_offset = float(settings["vertical_offset"])
 	active_dead_zone = settings["dead_zone"]
 	active_border_zone = settings["border_zone"]
@@ -563,6 +605,11 @@ func _clamp_position_to_rect(position: Vector2, room_rect: Rect2, room_zoom: Vec
 
 	return position
 
+func _fixed_axis_position() -> Vector2:
+	var center := active_room_rect.get_center()
+	center.y += active_vertical_offset
+	return _clamp_position_to_rect(center, active_room_rect, zoom)
+
 func _read_horizontal_intent() -> float:
 	var direction := 0.0
 	if Input.is_action_pressed("ui_left") or Input.is_physical_key_pressed(KEY_A):
@@ -570,3 +617,18 @@ func _read_horizontal_intent() -> float:
 	if Input.is_action_pressed("ui_right") or Input.is_physical_key_pressed(KEY_D):
 		direction += 1.0
 	return clampf(direction, -1.0, 1.0)
+
+func _target_facing_direction() -> float:
+	if target == null:
+		return 1.0
+	var target_facing: Variant = target.get("facing_direction")
+	var facing := signf(float(target_facing)) if target_facing != null else 0.0
+	if not is_zero_approx(facing):
+		return facing
+	facing = signf(target.velocity.x)
+	if not is_zero_approx(facing):
+		return facing
+	facing = _read_horizontal_intent()
+	if not is_zero_approx(facing):
+		return facing
+	return 1.0

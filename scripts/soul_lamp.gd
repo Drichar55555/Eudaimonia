@@ -27,18 +27,48 @@ enum SoulMask { EUDA_MASK = 1, GHOST_MASK = 2 }
 	set(value):
 		glow_color = value
 		queue_redraw()
+@export_group("Lighting")
+@export var emit_blue_light := true:
+	set(value):
+		emit_blue_light = value
+		_update_light()
+@export var soul_light_color := Color(0.36, 0.72, 1.0, 1.0):
+	set(value):
+		soul_light_color = value
+		_update_light()
+@export_range(0.0, 4.0, 0.05) var soul_light_energy := 1.45:
+	set(value):
+		soul_light_energy = maxf(value, 0.0)
+		_update_light()
+@export_range(0.2, 8.0, 0.05) var soul_light_scale := 2.6:
+	set(value):
+		soul_light_scale = maxf(value, 0.01)
+		_update_light()
+@export_range(-4096, 4096, 1) var soul_light_z_min := -100:
+	set(value):
+		soul_light_z_min = value
+		_update_light()
+@export_range(-4096, 4096, 1) var soul_light_z_max := 1:
+	set(value):
+		soul_light_z_max = value
+		_update_light()
 @export var base_height := 88.0:
 	set(value):
 		base_height = maxf(value, 24.0)
+		_update_light_position()
 		queue_redraw()
 @export var lamp_width := 36.0:
 	set(value):
 		lamp_width = maxf(value, 14.0)
 		queue_redraw()
 
+var _soul_light: PointLight2D
+var _soul_light_texture: Texture2D
+
 func _ready() -> void:
 	_update_soul_colors()
 	super._ready()
+	_ensure_soul_light()
 
 func _try_start_save(player: Node) -> void:
 	_restore_player_energy(player)
@@ -56,8 +86,47 @@ func _update_soul_colors() -> void:
 		flame_color = Color(0.72, 0.92, 1.0, 0.95)
 		glow_color = Color(0.50, 0.72, 1.0, 0.18)
 		return
-	flame_color = Color(0.60, 1.0, 0.72, 0.95)
-	glow_color = Color(0.44, 1.0, 0.62, 0.18)
+	flame_color = Color(0.64, 0.90, 1.0, 0.95)
+	glow_color = Color(0.42, 0.82, 1.0, 0.18)
+
+func _ensure_soul_light() -> void:
+	_soul_light = get_node_or_null("SoulLight") as PointLight2D
+	if _soul_light == null:
+		_soul_light = PointLight2D.new()
+		_soul_light.name = "SoulLight"
+		add_child(_soul_light)
+	_update_light_position()
+	_update_light()
+
+func _update_light_position() -> void:
+	if _soul_light != null:
+		_soul_light.position = Vector2(0.0, -base_height - 8.0)
+
+func _update_light() -> void:
+	if _soul_light == null:
+		return
+	_soul_light.enabled = emit_blue_light
+	_soul_light.color = soul_light_color
+	_soul_light.energy = soul_light_energy
+	_soul_light.texture_scale = soul_light_scale
+	_soul_light.range_z_min = soul_light_z_min
+	_soul_light.range_z_max = soul_light_z_max
+	_soul_light.z_index = 1
+	_soul_light.z_as_relative = false
+	if _soul_light_texture == null:
+		_soul_light_texture = _make_radial_light_texture(256)
+	_soul_light.texture = _soul_light_texture
+
+func _make_radial_light_texture(size: int) -> ImageTexture:
+	var image := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	var center := Vector2(size, size) * 0.5
+	var radius := float(size) * 0.5
+	for y in size:
+		for x in size:
+			var distance := Vector2(x, y).distance_to(center) / radius
+			var alpha := pow(clampf(1.0 - distance, 0.0, 1.0), 1.8)
+			image.set_pixel(x, y, Color(1.0, 1.0, 1.0, alpha))
+	return ImageTexture.create_from_image(image)
 
 func _draw() -> void:
 	_draw_lamp()

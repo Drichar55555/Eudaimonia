@@ -9,9 +9,14 @@ extends Area2D
 	set(value):
 		camera_profile = value
 		queue_redraw()
-@export_enum("free_size", "horizontal_follow", "vertical_follow", "no_follow") var camera_view_mode := "free_size":
+@export_enum("auto_follow", "free_size", "horizontal_follow", "vertical_follow", "no_follow") var camera_view_mode := "auto_follow":
 	set(value):
 		camera_view_mode = value
+		queue_redraw()
+@export_group("Auto Camera")
+@export_range(0.0, 0.5, 0.01) var auto_aspect_deadband := 0.08:
+	set(value):
+		auto_aspect_deadband = clampf(value, 0.0, 0.5)
 		queue_redraw()
 @export var manual_camera_rect := false:
 	set(value):
@@ -32,6 +37,10 @@ extends Area2D
 @export var lookahead_distance: float = 96.0:
 	set(value):
 		lookahead_distance = value
+		queue_redraw()
+@export var facing_lookahead_speed: float = 4.5:
+	set(value):
+		facing_lookahead_speed = maxf(value, 0.1)
 		queue_redraw()
 @export var vertical_offset: float = 0.0:
 	set(value):
@@ -75,7 +84,8 @@ func _process(_delta: float) -> void:
 		queue_redraw()
 
 func get_camera_rect() -> Rect2:
-	match camera_view_mode:
+	var resolved_view_mode := get_resolved_camera_view_mode()
+	match resolved_view_mode:
 		"horizontal_follow", "vertical_follow":
 			return _trigger_rect()
 		"no_follow":
@@ -89,10 +99,11 @@ func get_camera_zoom() -> Vector2:
 
 func get_camera_view_size() -> Vector2:
 	var rect := get_camera_rect()
-	if camera_view_mode == "no_follow":
+	var resolved_view_mode := get_resolved_camera_view_mode()
+	if resolved_view_mode == "no_follow":
 		return rect.size
 
-	match camera_view_mode:
+	match resolved_view_mode:
 		"horizontal_follow":
 			return _fit_aspect_size_inside(Vector2(rect.size.y * _screen_aspect_ratio(), rect.size.y), rect.size)
 		"vertical_follow":
@@ -101,10 +112,27 @@ func get_camera_view_size() -> Vector2:
 			return _fit_aspect_size_inside(_screen_ratio_size_from_width(camera_view_width), rect.size)
 
 func get_no_follow() -> bool:
-	return camera_view_mode == "no_follow"
+	return get_resolved_camera_view_mode() == "no_follow"
 
 func get_camera_view_mode() -> String:
+	return get_resolved_camera_view_mode()
+
+func get_raw_camera_view_mode() -> String:
 	return camera_view_mode
+
+func get_resolved_camera_view_mode() -> String:
+	if camera_view_mode != "auto_follow":
+		return camera_view_mode
+	var rect := _trigger_rect()
+	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
+		return "free_size"
+	var aspect := rect.size.x / rect.size.y
+	var screen_aspect := _screen_aspect_ratio()
+	if aspect >= screen_aspect + auto_aspect_deadband:
+		return "horizontal_follow"
+	if aspect <= screen_aspect - auto_aspect_deadband:
+		return "vertical_follow"
+	return "free_size"
 
 func get_transition_mode() -> String:
 	return transition_mode
@@ -116,6 +144,9 @@ func get_lookahead_distance() -> float:
 	if camera_profile != "custom":
 		return _profile_lookahead_distance()
 	return lookahead_distance
+
+func get_facing_lookahead_speed() -> float:
+	return facing_lookahead_speed
 
 func get_vertical_offset() -> float:
 	if camera_profile != "custom":

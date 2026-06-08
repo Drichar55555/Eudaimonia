@@ -58,6 +58,11 @@ enum MaskState { NO_MASK, EUDA_MASK, GHOST_MASK }
 @export_group("Inventory")
 @export_range(0, 99, 1) var starting_keys := 0
 
+@export_group("Lighting")
+@export var emit_player_light := true
+@export_range(0.0, 2.0, 0.02) var player_light_energy := 0.24
+@export_range(0.2, 5.0, 0.05) var player_light_scale := 1.45
+
 var facing_direction := 1.0
 var active_boomerang: Node
 var current_mask_state := MaskState.NO_MASK
@@ -79,10 +84,13 @@ var _ghost_block_context_timer := 0.0
 var _jump_was_down := false
 var _throw_was_down := false
 var _mask_cycle_was_down := false
+var _player_light: PointLight2D
+var _player_light_texture: Texture2D
 
 func _ready() -> void:
 	add_to_group("players")
 	add_to_group("saveable")
+	_ensure_player_light()
 	_reset_mask_health()
 	_reset_unlocked_masks()
 	key_count = starting_keys
@@ -349,7 +357,7 @@ func take_environment_hit(damage: int = 1, hit_source: Node = null, hit_directio
 	mask_health[current_mask_state] = next_health
 	_last_damage_cause = _damage_cause_from_source(hit_source)
 	_damage_invulnerability_timer = damage_invulnerability_time
-	var horizontal_direction := signf(hit_direction.x)
+	var horizontal_direction := -signf(hit_direction.x) if absf(hit_direction.x) > absf(hit_direction.y) else signf(hit_direction.x)
 	if is_zero_approx(horizontal_direction):
 		horizontal_direction = -facing_direction
 	velocity.x = absf(knockback.x) * horizontal_direction
@@ -391,19 +399,23 @@ func get_key_count() -> int:
 	return key_count
 
 func take_mechanism_crush(damage: int = 1, hit_source: Node = null, hit_direction: Vector2 = Vector2.ZERO, knockback: Vector2 = Vector2(280.0, -180.0)) -> bool:
-	if damage <= 0 or is_damage_invulnerable():
+	if damage <= 0:
 		return false
 
 	var is_falling_wall_crush := hit_direction.y > 0.25
-	if is_falling_wall_crush and hit_source != null and hit_source.has_method("get_mechanism_escape_position"):
+	var should_escape_mechanism := hit_source != null and hit_source.has_method("get_mechanism_escape_position") and hit_direction.length_squared() > 0.01
+	if should_escape_mechanism:
 		var escape_position: Vector2 = hit_source.call("get_mechanism_escape_position", self)
 		global_position = escape_position
+
+	if is_damage_invulnerable():
+		return false
 
 	var next_health := maxi(get_current_mask_health() - damage, 0)
 	mask_health[current_mask_state] = next_health
 	_last_damage_cause = "mechanism"
 	_damage_invulnerability_timer = maxf(_damage_invulnerability_timer, damage_invulnerability_time)
-	var horizontal_direction := signf(hit_direction.x)
+	var horizontal_direction := -signf(hit_direction.x) if absf(hit_direction.x) > absf(hit_direction.y) else signf(hit_direction.x)
 	if is_zero_approx(horizontal_direction):
 		var source := hit_source as Node2D
 		horizontal_direction = signf(global_position.x - source.global_position.x) if source != null else -facing_direction
@@ -460,6 +472,51 @@ func _apply_mask_state_effects() -> void:
 	if can_stand_on_ghost_blocks():
 		collision_mask |= GHOST_BLOCK_LAYER
 	_update_ghost_block_visibility()
+	_update_player_light()
+
+func _ensure_player_light() -> void:
+	_player_light = get_node_or_null("PlayerLight") as PointLight2D
+	if _player_light == null:
+		_player_light = PointLight2D.new()
+		_player_light.name = "PlayerLight"
+		add_child(_player_light)
+	_player_light.position = Vector2(0.0, -20.0)
+	_player_light.z_index = 1
+	_player_light.z_as_relative = false
+	_player_light.range_z_min = -100
+	_player_light.range_z_max = 1
+	if _player_light_texture == null:
+		_player_light_texture = _make_radial_light_texture(192, 1.65)
+	_player_light.texture = _player_light_texture
+	_update_player_light()
+
+func _update_player_light() -> void:
+	if _player_light == null:
+		return
+	_player_light.enabled = emit_player_light
+	_player_light.energy = player_light_energy
+	_player_light.texture_scale = player_light_scale
+	_player_light.color = _player_light_color()
+
+func _player_light_color() -> Color:
+	match current_mask_state:
+		MaskState.EUDA_MASK:
+			return Color(1.0, 0.86, 0.28, 1.0)
+		MaskState.GHOST_MASK:
+			return Color(0.42, 1.0, 0.58, 1.0)
+		_:
+			return Color(1.0, 1.0, 1.0, 1.0)
+
+func _make_radial_light_texture(size: int, falloff: float) -> ImageTexture:
+	var image := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	var center := Vector2(size, size) * 0.5
+	var radius := float(size) * 0.5
+	for y in size:
+		for x in size:
+			var distance := Vector2(x, y).distance_to(center) / radius
+			var alpha := pow(clampf(1.0 - distance, 0.0, 1.0), falloff)
+			image.set_pixel(x, y, Color(1.0, 1.0, 1.0, alpha))
+	return ImageTexture.create_from_image(image)
 
 func _update_ghost_block_visibility() -> void:
 	for ghost_block in get_tree().get_nodes_in_group("ghost_blocks"):
@@ -706,7 +763,9 @@ func _handle_mechanism_wall_collisions() -> void:
 			continue
 		if collider.has_method("is_moving") and not bool(collider.call("is_moving")):
 			continue
-		if collider.has_method("is_body_touching_impact_bottom") and not bool(collider.call("is_body_touching_impact_bottom", self)):
+		if collider.has_method("is_body_touching_impact_surface") and not bool(collider.call("is_body_touching_impact_surface", self)):
+			continue
+		if not collider.has_method("is_body_touching_impact_surface") and collider.has_method("is_body_touching_impact_bottom") and not bool(collider.call("is_body_touching_impact_bottom", self)):
 			continue
 		var damage := int(collider.call("get_mechanism_impact_damage")) if collider.has_method("get_mechanism_impact_damage") else 1
 		var direction: Vector2 = collider.call("get_mechanism_impact_direction") if collider.has_method("get_mechanism_impact_direction") else collision.get_normal() * -1.0

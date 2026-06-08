@@ -19,7 +19,21 @@ enum ButtonMode { LATCH, HOLD, SHOT }
 @export_range(0.03, 1.2, 0.01) var press_animation_time := 0.22
 @export var detect_players := true
 @export var detect_enemies := true
+@export var detect_pushable_boxes := true
+@export_range(4.0, 128.0, 1.0) var pushable_box_trigger_width := 32.0
 @export var detect_player_weapons := true
+@export var sync_sensor_to_button_shape := true:
+	set(value):
+		sync_sensor_to_button_shape = true if value == null else bool(value)
+		_last_sensor_sync_signature = ""
+		_sync_sensor_to_button_shape()
+		queue_redraw()
+@export_range(0.0, 96.0, 1.0) var sensor_padding := 10.0:
+	set(value):
+		sensor_padding = 10.0 if value == null else maxf(float(value), 0.0)
+		_last_sensor_sync_signature = ""
+		_sync_sensor_to_button_shape()
+		queue_redraw()
 
 @export_group("Screen Shake")
 @export var shake_on_press := 0.26
@@ -73,9 +87,10 @@ var _camera_start_zoom := Vector2.ONE
 var _camera_focus_position := Vector2.ZERO
 var _camera_focus_zoom := Vector2.ONE
 var _paused_nodes: Array[Dictionary] = []
+var _last_sensor_sync_signature := ""
 
 func _ready() -> void:
-	z_index = -20
+	z_index = 1
 	z_as_relative = false
 	add_to_group("mechanism_buttons")
 	add_to_group("saveable")
@@ -88,11 +103,33 @@ func _ready() -> void:
 		_sensor.body_entered.connect(_on_body_entered)
 		_sensor.body_exited.connect(_on_body_exited)
 		_sensor.area_entered.connect(_on_area_entered)
+	_sync_sensor_to_button_shape()
 	_resolve_wall()
 	set_process(Engine.is_editor_hint())
+	set_physics_process(not Engine.is_editor_hint())
 	queue_redraw()
 
+func _physics_process(delta: float) -> void:
+	if Engine.is_editor_hint() or button_mode == ButtonMode.SHOT:
+		return
+	var has_trigger_body := _has_trigger_body_inside()
+	if not _pressed and has_trigger_body:
+		if button_mode == ButtonMode.HOLD:
+			_release_timer = 0.0
+		_press_from_body()
+	elif button_mode == ButtonMode.HOLD and _pressed:
+		if has_trigger_body:
+			_release_timer = 0.0
+		else:
+			_release_timer = release_delay if _release_timer <= 0.0 else _release_timer
+			_release_timer = maxf(_release_timer - delta, 0.0)
+			if _release_timer <= 0.0 and not _has_trigger_body_inside():
+				_deactivate_button()
+
 func _process(delta: float) -> void:
+	if Engine.is_editor_hint():
+		_sync_sensor_to_button_shape()
+	_update_overlap_held_triggers()
 	_update_press_animation(delta)
 	_update_button_timers(delta)
 	_update_wall_shake(delta)
@@ -107,7 +144,8 @@ func _draw() -> void:
 
 	var depth := _press_visual_depth
 	var plate_color := active_color if _pressed else body_color
-	_draw_capsule(Vector2(0.0, -3.0 + depth), Vector2(76.0, 22.0), plate_color, Color(0.03, 0.035, 0.04, 1.0), 3.0)
+	if not _draw_button_surface(depth, plate_color):
+		_draw_capsule(Vector2(0.0, -3.0 + depth), Vector2(76.0, 22.0), plate_color, Color(0.03, 0.035, 0.04, 1.0), 3.0)
 	_draw_capsule(Vector2(0.0, 14.0), Vector2(92.0, 14.0), Color(0.08, 0.09, 0.10, 1.0), Color(0.03, 0.035, 0.04, 1.0), 2.0)
 
 	if _activated:
@@ -126,31 +164,56 @@ func get_save_state() -> Dictionary:
 	}
 
 func apply_save_state(state: Dictionary) -> void:
-	_pressed = bool(state.get("pressed", false))
+	_pressed = false if button_mode == ButtonMode.HOLD else bool(state.get("pressed", false))
 	_press_visual_depth = _target_press_depth()
-	_activated = bool(state.get("activated", false))
-	_watching_wall_finish = bool(state.get("watching_wall_finish", false))
-	_release_timer = float(state.get("release_timer", 0.0))
+	_activated = false if button_mode == ButtonMode.HOLD else bool(state.get("activated", false))
+	_watching_wall_finish = false if button_mode == ButtonMode.HOLD else bool(state.get("watching_wall_finish", false))
+	_release_timer = 0.0 if button_mode == ButtonMode.HOLD else float(state.get("release_timer", 0.0))
 	_shot_reset_timer = float(state.get("shot_reset_timer", 0.0))
 	_last_wall_moving = false
 	_moving_shake_timer = 0.0
 	_finish_shake_sent = false
+	if button_mode == ButtonMode.HOLD:
+		call_deferred("_refresh_hold_state_after_load")
+	_ensure_process_needed()
+	queue_redraw()
+
+func _refresh_hold_state_after_load() -> void:
+	if not is_inside_tree() or button_mode != ButtonMode.HOLD:
+		return
+	await get_tree().physics_frame
+	if not is_inside_tree() or button_mode != ButtonMode.HOLD:
+		return
+	_resolve_wall()
+	if _has_trigger_body_inside():
+		_pressed = true
+		_activated = true
+		_activate_target()
+		_start_wall_finish_watch()
+	else:
+		_pressed = false
+		_activated = false
+		_release_timer = 0.0
+		_deactivate_target()
 	_ensure_process_needed()
 	queue_redraw()
 
 func _on_body_entered(body: Node) -> void:
 	if Engine.is_editor_hint() or not _can_trigger(body):
 		return
+	if button_mode == ButtonMode.SHOT:
+		return
+	if not _can_body_press(body):
+		set_process(true)
+		return
 	if button_mode == ButtonMode.HOLD:
 		_release_timer = 0.0
-	_pressed = true
-	_shake_camera(shake_on_press)
-	set_process(true)
-	queue_redraw()
-	_trigger_mechanism()
+	_press_from_body()
 
 func _on_body_exited(body: Node) -> void:
 	if Engine.is_editor_hint() or not _can_trigger(body):
+		return
+	if button_mode == ButtonMode.SHOT:
 		return
 	if button_mode == ButtonMode.HOLD:
 		_release_timer = release_delay if not _has_trigger_body_inside() else 0.0
@@ -191,6 +254,25 @@ func _trigger_mechanism() -> void:
 		_activate_target()
 		_start_wall_finish_watch()
 	queue_redraw()
+
+func _press_from_body() -> void:
+	_pressed = true
+	_shake_camera(shake_on_press)
+	set_process(true)
+	queue_redraw()
+	_trigger_mechanism()
+
+func _update_overlap_held_triggers() -> void:
+	if Engine.is_editor_hint() or _sensor == null or button_mode == ButtonMode.SHOT:
+		return
+	for body in _trigger_candidate_bodies():
+		if not _can_trigger(body) or not _can_body_press(body):
+			continue
+		if button_mode == ButtonMode.HOLD:
+			_release_timer = 0.0
+		if not _pressed or (button_mode == ButtonMode.HOLD and not _activated):
+			_press_from_body()
+		return
 
 func _start_cinematic() -> void:
 	_camera = _current_camera()
@@ -257,10 +339,6 @@ func _target_press_depth() -> float:
 	return press_depth if _pressed else 0.0
 
 func _update_button_timers(delta: float) -> void:
-	if button_mode == ButtonMode.HOLD and _release_timer > 0.0:
-		_release_timer = maxf(_release_timer - delta, 0.0)
-		if _release_timer <= 0.0 and not _has_trigger_body_inside():
-			_deactivate_button()
 	if button_mode == ButtonMode.SHOT and _shot_reset_timer > 0.0:
 		_shot_reset_timer = maxf(_shot_reset_timer - delta, 0.0)
 		if _shot_reset_timer <= 0.0:
@@ -277,7 +355,7 @@ func _deactivate_button() -> void:
 	queue_redraw()
 
 func _ensure_process_needed() -> void:
-	if Engine.is_editor_hint() or _cinematic_state != CinematicState.NONE or _press_visual_depth != _target_press_depth() or _watching_wall_finish or _release_timer > 0.0 or _shot_reset_timer > 0.0:
+	if Engine.is_editor_hint() or _cinematic_state != CinematicState.NONE or _press_visual_depth != _target_press_depth() or _watching_wall_finish or _release_timer > 0.0 or _shot_reset_timer > 0.0 or _has_pushable_box_body_inside():
 		set_process(true)
 	else:
 		set_process(false)
@@ -387,22 +465,14 @@ func _draw_detection_area() -> void:
 	var color := detect_color
 	var outline := detect_color
 	outline.a = minf(outline.a + 0.35, 1.0)
-	var rectangle := collision_shape.shape as RectangleShape2D
-	if rectangle != null:
-		var rect := Rect2(collision_shape.position - rectangle.size * 0.5, rectangle.size)
-		draw_rect(rect, color, true)
-		draw_rect(rect, outline, false, 2.0)
-		return
-	var circle := collision_shape.shape as CircleShape2D
-	if circle != null:
-		draw_circle(collision_shape.position, circle.radius, color)
-		draw_arc(collision_shape.position, circle.radius, 0.0, TAU, 36, outline, 2.0, true)
-		return
-	var capsule := collision_shape.shape as CapsuleShape2D
-	if capsule != null:
-		var horizontal := absf(absf(collision_shape.rotation) - PI * 0.5) < 0.01
-		var size := Vector2(capsule.height, capsule.radius * 2.0) if horizontal else Vector2(capsule.radius * 2.0, capsule.height)
-		_draw_capsule(collision_shape.position, size, color, outline, 2.0)
+	_draw_collision_shape(collision_shape, color, outline, 2.0)
+
+func _draw_button_surface(depth: float, fill: Color) -> bool:
+	var outline := Color(0.03, 0.035, 0.04, 1.0)
+	var collision_shape := get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if collision_shape == null or collision_shape.shape == null:
+		return false
+	return _draw_collision_shape(collision_shape, fill, outline, 3.0, Vector2(0.0, depth))
 
 func _draw_capsule(center: Vector2, size: Vector2, fill: Color, outline: Color, outline_width: float) -> void:
 	var radius := minf(size.y * 0.5, size.x * 0.5)
@@ -425,12 +495,292 @@ func _draw_capsule(center: Vector2, size: Vector2, fill: Color, outline: Color, 
 	points.append(points[0])
 	draw_polyline(points, outline, outline_width, true)
 
+func _sync_sensor_to_button_shape() -> void:
+	if not sync_sensor_to_button_shape:
+		return
+	var button_shape := get_node_or_null("CollisionShape2D") as CollisionShape2D
+	var sensor_shape := get_node_or_null("PressSensor/CollisionShape2D") as CollisionShape2D
+	if button_shape == null or sensor_shape == null or button_shape.shape == null:
+		return
+	var signature := _sensor_sync_signature(button_shape)
+	if signature == _last_sensor_sync_signature:
+		return
+	_last_sensor_sync_signature = signature
+	var synced_shape := _shape_for_sensor(button_shape.shape)
+	if synced_shape == null:
+		return
+	sensor_shape.shape = synced_shape
+	var sensor_parent := sensor_shape.get_parent() as Node2D
+	if sensor_parent != null:
+		sensor_shape.transform = sensor_parent.global_transform.affine_inverse() * button_shape.global_transform
+	else:
+		sensor_shape.transform = button_shape.transform
+	queue_redraw()
+
+func _shape_for_sensor(source_shape: Shape2D) -> Shape2D:
+	var rectangle := source_shape as RectangleShape2D
+	if rectangle != null:
+		var shape := RectangleShape2D.new()
+		shape.size = rectangle.size + Vector2(sensor_padding * 2.0, sensor_padding * 2.0)
+		return shape
+
+	var circle := source_shape as CircleShape2D
+	if circle != null:
+		var shape := CircleShape2D.new()
+		shape.radius = circle.radius + sensor_padding
+		return shape
+
+	var capsule := source_shape as CapsuleShape2D
+	if capsule != null:
+		var shape := CapsuleShape2D.new()
+		shape.radius = capsule.radius + sensor_padding
+		shape.height = maxf(capsule.height + sensor_padding * 2.0, shape.radius * 2.0)
+		return shape
+
+	return null
+
+func _sensor_sync_signature(button_shape: CollisionShape2D) -> String:
+	return "%s|%s|%.4f|%s|%.2f" % [button_shape.position, button_shape.scale, button_shape.rotation, _shape_signature(button_shape.shape), sensor_padding]
+
+func _shape_signature(shape: Shape2D) -> String:
+	var rectangle := shape as RectangleShape2D
+	if rectangle != null:
+		return "rect:%s" % rectangle.size
+	var circle := shape as CircleShape2D
+	if circle != null:
+		return "circle:%.4f" % circle.radius
+	var capsule := shape as CapsuleShape2D
+	if capsule != null:
+		return "capsule:%.4f:%.4f" % [capsule.radius, capsule.height]
+	return "shape:%s" % shape.get_class()
+
+func _draw_collision_shape(collision_shape: CollisionShape2D, fill: Color, outline: Color, outline_width: float, offset: Vector2 = Vector2.ZERO) -> bool:
+	var points := _collision_shape_points(collision_shape)
+	if points.size() < 3:
+		return false
+	if offset != Vector2.ZERO:
+		points = _offset_points(points, offset)
+	_draw_polygon_fill(points, fill)
+	_draw_polygon_outline(points, outline, outline_width)
+	return true
+
+func _collision_shape_points(collision_shape: CollisionShape2D) -> PackedVector2Array:
+	var rectangle := collision_shape.shape as RectangleShape2D
+	if rectangle != null:
+		var half_size := rectangle.size * 0.5
+		return _transformed_shape_points(collision_shape, PackedVector2Array([
+			Vector2(-half_size.x, -half_size.y),
+			Vector2(half_size.x, -half_size.y),
+			Vector2(half_size.x, half_size.y),
+			Vector2(-half_size.x, half_size.y),
+		]))
+
+	var circle := collision_shape.shape as CircleShape2D
+	if circle != null:
+		var circle_points := PackedVector2Array()
+		var circle_segments := 40
+		for index in circle_segments:
+			var angle := float(index) / float(circle_segments) * TAU
+			circle_points.append(Vector2(cos(angle), sin(angle)) * circle.radius)
+		return _transformed_shape_points(collision_shape, circle_points)
+
+	var capsule := collision_shape.shape as CapsuleShape2D
+	if capsule != null:
+		return _transformed_shape_points(collision_shape, _capsule_shape_points(capsule))
+
+	return PackedVector2Array()
+
+func _capsule_shape_points(capsule: CapsuleShape2D) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	var radius := capsule.radius
+	var total_height := maxf(capsule.height, radius * 2.0)
+	var middle_height := maxf(total_height - radius * 2.0, 0.0)
+	var top_center := Vector2(0.0, -middle_height * 0.5)
+	var bottom_center := Vector2(0.0, middle_height * 0.5)
+	var segments := 16
+	for index in range(segments + 1):
+		var angle := PI + float(index) / float(segments) * PI
+		points.append(top_center + Vector2(cos(angle), sin(angle)) * radius)
+	for index in range(segments + 1):
+		var angle := float(index) / float(segments) * PI
+		points.append(bottom_center + Vector2(cos(angle), sin(angle)) * radius)
+	return points
+
+func _transformed_shape_points(collision_shape: CollisionShape2D, local_points: PackedVector2Array) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	points.resize(local_points.size())
+	for index in local_points.size():
+		points[index] = to_local(collision_shape.to_global(local_points[index]))
+	return points
+
+func _draw_polygon_fill(points: PackedVector2Array, color: Color) -> void:
+	var indices := Geometry2D.triangulate_polygon(points)
+	if indices.size() >= 3:
+		for index in range(0, indices.size(), 3):
+			_draw_polygon_triangle(points[indices[index]], points[indices[index + 1]], points[indices[index + 2]], color)
+		return
+	var center := _polygon_center(points)
+	for index in points.size():
+		_draw_polygon_triangle(center, points[index], points[(index + 1) % points.size()], color)
+
+func _draw_polygon_triangle(a: Vector2, b: Vector2, c: Vector2, color: Color) -> void:
+	if absf((b - a).cross(c - a)) < 0.01:
+		return
+	draw_colored_polygon(PackedVector2Array([a, b, c]), color)
+
+func _draw_polygon_outline(points: PackedVector2Array, color: Color, width: float) -> void:
+	if width <= 0.0 or points.size() < 2:
+		return
+	var closed := PackedVector2Array(points)
+	closed.append(points[0])
+	draw_polyline(closed, color, width, true)
+
+func _polygon_center(points: PackedVector2Array) -> Vector2:
+	var center := Vector2.ZERO
+	for point in points:
+		center += point
+	return center / float(points.size())
+
+func _offset_points(points: PackedVector2Array, offset: Vector2) -> PackedVector2Array:
+	var shifted := PackedVector2Array()
+	shifted.resize(points.size())
+	for index in points.size():
+		shifted[index] = points[index] + offset
+	return shifted
+
 func _can_trigger(body: Node) -> bool:
 	if detect_players and body.is_in_group("players"):
 		return true
 	if detect_enemies and body.is_in_group("enemies"):
 		return true
+	if detect_pushable_boxes and body.is_in_group("pushable_boxes"):
+		return true
 	return false
+
+func _can_body_press(body: Node) -> bool:
+	return _body_overlaps_trigger_area(body)
+
+func _pushable_box_overlaps_trigger_area(body: Node) -> bool:
+	return _body_overlaps_trigger_area(body)
+
+func _body_overlaps_trigger_area(body: Node) -> bool:
+	var body_2d := body as Node2D
+	if body_2d == null or _sensor == null:
+		return false
+	var sensor_shape := _sensor.get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if sensor_shape == null or sensor_shape.shape == null:
+		return false
+	var trigger_polygon := _pushable_box_trigger_polygon(sensor_shape)
+	if trigger_polygon.size() < 3:
+		return false
+	for collision_shape in _collision_shape_descendants(body_2d):
+		if _polygons_overlap(trigger_polygon, _collision_shape_points(collision_shape)):
+			return true
+	for collision_polygon in _collision_polygon_descendants(body_2d):
+		if _polygons_overlap(trigger_polygon, _local_polygon_points(collision_polygon)):
+			return true
+	return false
+
+func _pushable_box_trigger_polygon(sensor_shape: CollisionShape2D) -> PackedVector2Array:
+	var sensor_points := _collision_shape_points(sensor_shape)
+	if sensor_points.size() < 3:
+		return PackedVector2Array()
+	var sensor_bounds := _local_points_bounds(sensor_points)
+	if sensor_bounds.size == Vector2.ZERO:
+		return PackedVector2Array()
+	var trigger_bounds := _pushable_box_trigger_bounds(sensor_bounds)
+	return PackedVector2Array([
+		trigger_bounds.position,
+		trigger_bounds.position + Vector2(trigger_bounds.size.x, 0.0),
+		trigger_bounds.position + trigger_bounds.size,
+		trigger_bounds.position + Vector2(0.0, trigger_bounds.size.y),
+	])
+
+func _pushable_box_trigger_bounds(sensor_bounds: Rect2) -> Rect2:
+	var trigger_width := minf(maxf(pushable_box_trigger_width, 1.0), sensor_bounds.size.x)
+	var trigger_position := Vector2(
+		sensor_bounds.get_center().x - trigger_width * 0.5,
+		sensor_bounds.position.y
+	)
+	return Rect2(trigger_position, Vector2(trigger_width, sensor_bounds.size.y))
+
+func _polygons_overlap(a: PackedVector2Array, b: PackedVector2Array) -> bool:
+	if a.size() < 3 or b.size() < 3:
+		return false
+	if not Geometry2D.intersect_polygons(a, b).is_empty():
+		return true
+	for point in a:
+		if Geometry2D.is_point_in_polygon(point, b):
+			return true
+	for point in b:
+		if Geometry2D.is_point_in_polygon(point, a):
+			return true
+	return false
+
+func _local_points_bounds(points: PackedVector2Array) -> Rect2:
+	if points.is_empty():
+		return Rect2(Vector2.ZERO, Vector2.ZERO)
+	var bounds := Rect2(points[0], Vector2.ZERO)
+	for index in range(1, points.size()):
+		bounds = bounds.expand(points[index])
+	return bounds
+
+func _global_bounds_for_shape(collision_shape: CollisionShape2D) -> Rect2:
+	var local_points := _collision_shape_points(collision_shape)
+	if local_points.is_empty():
+		return Rect2(Vector2.ZERO, Vector2.ZERO)
+	var bounds := Rect2(to_global(local_points[0]), Vector2.ZERO)
+	for index in range(1, local_points.size()):
+		bounds = bounds.expand(to_global(local_points[index]))
+	return bounds
+
+func _global_collision_bounds(root_node: Node2D) -> Rect2:
+	var has_bounds := false
+	var bounds := Rect2(root_node.global_position, Vector2.ZERO)
+	for collision_shape in _collision_shape_descendants(root_node):
+		var shape_bounds := _global_bounds_for_shape(collision_shape)
+		if shape_bounds.size == Vector2.ZERO:
+			continue
+		bounds = shape_bounds if not has_bounds else bounds.merge(shape_bounds)
+		has_bounds = true
+	for collision_polygon in _collision_polygon_descendants(root_node):
+		var points := _global_polygon_points(collision_polygon)
+		for point in points:
+			bounds = Rect2(point, Vector2.ZERO) if not has_bounds else bounds.expand(point)
+			has_bounds = true
+	return bounds if has_bounds else Rect2(Vector2.ZERO, Vector2.ZERO)
+
+func _collision_shape_descendants(root_node: Node) -> Array[CollisionShape2D]:
+	var shapes: Array[CollisionShape2D] = []
+	for child in root_node.get_children():
+		var collision_shape := child as CollisionShape2D
+		if collision_shape != null and collision_shape.shape != null and not collision_shape.disabled:
+			shapes.append(collision_shape)
+		shapes.append_array(_collision_shape_descendants(child))
+	return shapes
+
+func _collision_polygon_descendants(root_node: Node) -> Array[CollisionPolygon2D]:
+	var polygons: Array[CollisionPolygon2D] = []
+	for child in root_node.get_children():
+		var collision_polygon := child as CollisionPolygon2D
+		if collision_polygon != null and collision_polygon.polygon.size() >= 3 and not collision_polygon.disabled:
+			polygons.append(collision_polygon)
+		polygons.append_array(_collision_polygon_descendants(child))
+	return polygons
+
+func _global_polygon_points(collision_polygon: CollisionPolygon2D) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	points.resize(collision_polygon.polygon.size())
+	for index in collision_polygon.polygon.size():
+		points[index] = collision_polygon.to_global(collision_polygon.polygon[index])
+	return points
+
+func _local_polygon_points(collision_polygon: CollisionPolygon2D) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	points.resize(collision_polygon.polygon.size())
+	for index in collision_polygon.polygon.size():
+		points[index] = to_local(collision_polygon.to_global(collision_polygon.polygon[index]))
+	return points
 
 func _can_projectile_trigger(area: Area2D) -> bool:
 	return detect_player_weapons and area != null and area.is_in_group("player_weapons")
@@ -438,10 +788,30 @@ func _can_projectile_trigger(area: Area2D) -> bool:
 func _has_trigger_body_inside() -> bool:
 	if _sensor == null:
 		return false
-	for body in _sensor.get_overlapping_bodies():
-		if _can_trigger(body):
+	for body in _trigger_candidate_bodies():
+		if _can_trigger(body) and _can_body_press(body):
 			return true
 	return false
+
+func _has_pushable_box_body_inside() -> bool:
+	if _sensor == null or button_mode == ButtonMode.SHOT:
+		return false
+	for body in _trigger_candidate_bodies():
+		if body != null and body.is_in_group("pushable_boxes") and _pushable_box_overlaps_trigger_area(body):
+			return true
+	return false
+
+func _trigger_candidate_bodies() -> Array[Node]:
+	var candidates: Array[Node] = []
+	if _sensor != null:
+		for body in _sensor.get_overlapping_bodies():
+			if body != null and not candidates.has(body):
+				candidates.append(body)
+	for box in get_tree().get_nodes_in_group("pushable_boxes"):
+		var box_node := box as Node
+		if box_node != null and not candidates.has(box_node) and _body_overlaps_trigger_area(box_node):
+			candidates.append(box_node)
+	return candidates
 
 func _shake_camera(amount: float) -> void:
 	if amount <= 0.0:
