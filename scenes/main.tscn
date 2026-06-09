@@ -41,6 +41,8 @@
 [ext_resource type="Script" uid="uid://deve56xbj05cq" path="res://scripts/background_light_rays.gd" id="39_background_light_rays"]
 [ext_resource type="Script" uid="uid://8teu508ifaq0" path="res://scripts/sun_light_handle.gd" id="40_sun_light_handle"]
 [ext_resource type="Texture2D" uid="uid://42pbi1cbpnd7" path="res://ArtWorks/editor_sun_handle.png" id="41_editor_sun_handle"]
+[ext_resource type="Script" path="res://scripts/damage_vignette.gd" id="42_damage_vignette"]
+[ext_resource type="Script" path="res://scripts/pause_menu.gd" id="43_pause_menu"]
 
 [sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_5poiv"]
 blend_mode = 1
@@ -1014,6 +1016,30 @@ script = ExtResource("24_death_respawn")
 player_path = NodePath("../../Player")
 save_manager_path = NodePath("../../SaveManager")
 camera_path = NodePath("../../Camera2D")
+
+[node name="DamageVignette" type="Control" parent="CanvasLayer" unique_id=1548000000]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("42_damage_vignette")
+player_path = NodePath("../../Player")
+
+[node name="PauseMenu" type="Control" parent="CanvasLayer" unique_id=1548000001]
+visible = false
+z_index = 80
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("43_pause_menu")
 
 [node name="DialogueBox" type="Control" parent="CanvasLayer" unique_id=1547800020]
 visible = false

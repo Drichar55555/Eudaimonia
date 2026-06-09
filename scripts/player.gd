@@ -20,6 +20,11 @@ enum MaskState { NO_MASK, EUDA_MASK, GHOST_MASK }
 @export var air_acceleration: float = 1850.0
 @export var air_deceleration: float = 980.0
 @export var turn_acceleration: float = 4300.0
+@export var can_step_over_small_obstacles := true
+@export_range(0.0, 96.0, 1.0) var max_step_height := 28.0
+@export_range(2.0, 24.0, 1.0) var step_scan_increment := 4.0
+@export_range(4.0, 80.0, 1.0) var floor_probe_forward := 26.0
+@export_range(8.0, 140.0, 1.0) var floor_probe_depth := 72.0
 
 @export_group("Jump")
 @export var jump_velocity: float = -710.0
@@ -134,6 +139,7 @@ func _physics_process(delta: float) -> void:
 	_apply_horizontal_movement(horizontal_input, on_floor, delta)
 	_apply_jump(jump_released)
 	_apply_gravity(on_floor, jump_down, delta)
+	_try_step_up(horizontal_input, on_floor)
 	_handle_boomerang_throw()
 	_update_throw_point()
 	_update_animation_name()
@@ -575,6 +581,56 @@ func _apply_gravity(on_floor: bool, jump_down: bool, delta: float) -> void:
 	velocity.y += gravity * gravity_scale * gravity_multiplier * delta
 	velocity.y = minf(velocity.y, max_fall_speed)
 
+func _try_step_up(horizontal_input: float, on_floor: bool) -> bool:
+	if not can_step_over_small_obstacles or max_step_height <= 0.0 or not on_floor:
+		return false
+	if not is_on_wall():
+		return false
+	var direction := signf(horizontal_input)
+	if is_zero_approx(direction):
+		return false
+
+	var body_size := _player_body_size()
+	var step := maxf(step_scan_increment, 1.0)
+	var forward_motion := Vector2(direction * maxf(floor_probe_forward, body_size.x * 0.35), 0.0)
+	while step <= max_step_height:
+		var stepped_transform := global_transform.translated(Vector2(0.0, -step))
+		var blocked_after_step := test_move(stepped_transform, forward_motion)
+		if not blocked_after_step and _has_floor_from_position(global_position + Vector2(direction * floor_probe_forward, -step), body_size):
+			global_position.y -= step
+			return true
+		step += maxf(step_scan_increment, 1.0)
+	return false
+
+func _has_floor_from_position(position: Vector2, body_size: Vector2) -> bool:
+	var cast_start := position + Vector2(0.0, -2.0)
+	var cast_end := cast_start + Vector2(0.0, body_size.y * 0.5 + floor_probe_depth)
+	var space_state := get_world_2d().direct_space_state
+	var query := PhysicsRayQueryParameters2D.create(cast_start, cast_end, _navigation_block_mask())
+	query.exclude = [get_rid()]
+	query.collide_with_areas = false
+	return not space_state.intersect_ray(query).is_empty()
+
+func _navigation_block_mask() -> int:
+	var block_mask := collision_mask & (TERRAIN_LAYER | GHOST_BLOCK_LAYER)
+	return block_mask if block_mask != 0 else TERRAIN_LAYER
+
+func _player_body_size() -> Vector2:
+	var collision_shape := get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if collision_shape == null or collision_shape.shape == null:
+		return Vector2(36.0, 36.0)
+	var shape := collision_shape.shape
+	var scale := Vector2(absf(collision_shape.global_scale.x), absf(collision_shape.global_scale.y))
+	if shape is RectangleShape2D:
+		return (shape as RectangleShape2D).size * scale
+	if shape is CapsuleShape2D:
+		var capsule := shape as CapsuleShape2D
+		return Vector2(capsule.radius * 2.0, capsule.height) * scale
+	if shape is CircleShape2D:
+		var radius := (shape as CircleShape2D).radius
+		return Vector2(radius * 2.0, radius * 2.0) * scale
+	return Vector2(36.0, 36.0) * scale
+
 func _handle_boomerang_throw() -> void:
 	var throw_down := _throw_is_down()
 	var throw_pressed := throw_down and not _throw_was_down
@@ -586,13 +642,10 @@ func _handle_boomerang_throw() -> void:
 	if not throw_pressed or _throw_cooldown_timer > 0.0:
 		return
 
-	_throw_cooldown_timer = boomerang_cooldown
-
 	if active_boomerang != null and is_instance_valid(active_boomerang):
-		if active_boomerang.has_method("start_return"):
-			active_boomerang.start_return()
 		return
 
+	_throw_cooldown_timer = boomerang_cooldown
 	_throw_boomerang()
 
 func _throw_boomerang() -> void:
