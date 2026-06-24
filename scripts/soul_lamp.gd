@@ -64,6 +64,7 @@ enum SoulMask { EUDA_MASK = 1, GHOST_MASK = 2 }
 @export_group("Healing Particles")
 @export var healing_particle_color := Color(0.34, 0.78, 1.0, 0.95)
 @export_range(40.0, 520.0, 5.0) var healing_particle_speed := 85.0
+@export_range(0.0, 1200.0, 10.0) var healing_particle_acceleration := 260.0
 @export_range(0.05, 1.2, 0.01) var healing_particle_interval := 0.34
 @export_range(2.0, 24.0, 0.5) var healing_particle_radius := 5.5
 @export_range(0.0, 3.0, 0.05) var healing_particle_light_energy := 0.85
@@ -288,8 +289,11 @@ func _update_healing_particles(delta: float) -> void:
 			continue
 		var target_position := to_local(target.global_position + Vector2(0.0, -38.0))
 		var position_value := particle.get("position") as Vector2
-		position_value = position_value.move_toward(target_position, healing_particle_speed * delta)
+		var speed := float(particle.get("speed", healing_particle_speed))
+		speed += healing_particle_acceleration * delta
+		position_value = position_value.move_toward(target_position, speed * delta)
 		particle["position"] = position_value
+		particle["speed"] = speed
 		particle["age"] = float(particle.get("age")) + delta
 		_update_particle_light(particle)
 		_heal_particles[index] = particle
@@ -311,6 +315,7 @@ func _emit_healing_particle(target: Node2D, mask_state: int) -> void:
 		"position": Vector2(0.0, -base_height - 8.0),
 		"target": target,
 		"mask_state": mask_state,
+		"speed": healing_particle_speed,
 		"age": 0.0,
 		"light": _make_healing_particle_light(),
 	}
