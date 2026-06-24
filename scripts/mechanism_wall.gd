@@ -8,6 +8,7 @@ const CRUSH_ESCAPE_MAX_ADJUSTMENTS := 8
 enum WallMode { MOVING, BREAKABLE }
 enum MovementMode { PHYSICAL, CONSTANT_SPEED }
 enum BreakState { INTACT, BROKEN, RESTORING }
+enum VerticalImpactEscapeDirection { BY_BODY_POSITION, ALWAYS_LEFT, ALWAYS_RIGHT }
 
 @export_enum("moving", "breakable") var wall_mode := 0:
 	set(value):
@@ -45,6 +46,7 @@ enum BreakState { INTACT, BROKEN, RESTORING }
 @export_range(0.05, 2.0, 0.05) var impact_cooldown := 0.6
 @export var sync_impact_sensor_to_shape := true
 @export var impact_sensor_padding := Vector2(32.0, 48.0)
+@export_enum("by_body_position", "always_left", "always_right") var vertical_impact_escape_direction := 0
 
 @export_group("Visual")
 @export var fill_color := Color(0.29, 0.32, 0.31, 1.0):
@@ -480,6 +482,11 @@ func _is_body_touching_side(body_2d: Node2D, direction_x: float) -> bool:
 func _escape_direction_for_impact(body_2d: Node2D, wall_bounds: Rect2, direction: Vector2) -> float:
 	if absf(direction.x) > absf(direction.y):
 		return -signf(direction.x)
+	match vertical_impact_escape_direction:
+		VerticalImpactEscapeDirection.ALWAYS_LEFT:
+			return -1.0
+		VerticalImpactEscapeDirection.ALWAYS_RIGHT:
+			return 1.0
 	return signf(body_2d.global_position.x - wall_bounds.get_center().x)
 
 func _apply_impact_to_body(body_2d: Node2D, direction: Vector2) -> void:

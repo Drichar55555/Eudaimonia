@@ -6,6 +6,8 @@ const TERRAIN_LAYER := 1 << 0
 
 @export var camera_group := "room_cameras"
 @export var enabled := true
+@export var runtime_enabled_by_default := false
+@export var runtime_toggle_key := KEY_G
 @export var light_color := Color(1.0, 0.84, 0.46, 0.24)
 @export_range(0.0, 2.0, 0.02) var intensity := 1.0
 @export var light_direction := Vector2(0.30, 1.0):
@@ -33,23 +35,40 @@ const TERRAIN_LAYER := 1 << 0
 @export var use_handles := true
 @export var source_handle_path := NodePath("SourceHandle")
 @export var direction_handle_path := NodePath("DirectionHandle")
+@export var discover_sibling_source_handles := true
+@export var source_handle_prefix := "SourceHandle"
+@export var direction_handle_prefix := "DirectionHandle"
 @export var show_handle_guides := true
 
 var _time := 0.0
+var _runtime_rendering_enabled := false
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	z_as_relative = false
 	_apply_editor_layering()
 	material = CanvasItemMaterial.new()
 	(material as CanvasItemMaterial).blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-	set_process(true)
+	_runtime_rendering_enabled = runtime_enabled_by_default
+	set_process_unhandled_input(not Engine.is_editor_hint())
+	_apply_runtime_rendering_state()
 	queue_redraw()
+
+func _unhandled_input(event: InputEvent) -> void:
+	if Engine.is_editor_hint():
+		return
+	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == runtime_toggle_key or event.physical_keycode == runtime_toggle_key):
+		_runtime_rendering_enabled = not _runtime_rendering_enabled
+		_apply_runtime_rendering_state()
+		queue_redraw()
 
 func _process(delta: float) -> void:
 	_apply_editor_layering()
 	if Engine.is_editor_hint():
 		_sync_fallback_values_from_handles()
 		queue_redraw()
+		return
+	if not _should_render_runtime():
 		return
 	_time += delta
 	var camera := _current_camera()
@@ -58,39 +77,69 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func _draw() -> void:
-	if not enabled:
+	if not enabled or (not Engine.is_editor_hint() and not _runtime_rendering_enabled):
 		return
 	var camera := _current_camera()
 	if camera == null:
 		return
-	var direction := _current_light_direction()
-	var normal := direction.orthogonal().normalized()
 	var view_size := _camera_view_size(camera) + cover_margin * 2.0
-	var source_center := _current_source_center(camera, view_size)
-	var width := maxf(source_width, 1.0)
-	var count := maxi(ray_count, 2)
-	var spacing := width / float(count - 1)
-	var visual_width := maxf(ray_visual_width, spacing * 0.74)
 	var physics := get_world_2d().direct_space_state
-	for index in count:
-		var fraction := float(index) / float(count - 1)
-		var aperture_offset := (fraction - 0.5) * width
-		var broken_edge := _edge_breakup(index, fraction)
-		var origin := source_center + normal * (aperture_offset + broken_edge)
-		var end := _ray_end(physics, origin, direction, ray_length)
-		_draw_scattered_ray(origin, end, direction, normal, visual_width, fraction, index)
-	if Engine.is_editor_hint() and show_handle_guides:
-		_draw_handle_guides(source_center, direction, normal, width)
+	var light_sources := _current_light_sources(camera, view_size)
+	for source_index in light_sources.size():
+		var light_source := light_sources[source_index]
+		var source_center := light_source.get("center", camera.global_position) as Vector2
+		var direction := (light_source.get("direction", light_direction.normalized()) as Vector2).normalized()
+		var normal := direction.orthogonal().normalized()
+		var width := maxf(float(light_source.get("width", source_width)), 1.0)
+		var count := maxi(ray_count, 2)
+		var spacing := width / float(count - 1)
+		var visual_width := maxf(ray_visual_width, spacing * 0.74)
+		for ray_index in count:
+			var fraction := float(ray_index) / float(count - 1)
+			var aperture_offset := (fraction - 0.5) * width
+			var broken_edge := _edge_breakup(ray_index + source_index * count, fraction)
+			var origin := source_center + normal * (aperture_offset + broken_edge)
+			var end := _ray_end(physics, origin, direction, ray_length)
+			_draw_scattered_ray(origin, end, direction, normal, visual_width, fraction, ray_index + source_index * count)
+		if Engine.is_editor_hint() and show_handle_guides:
+			_draw_handle_guides(source_center, direction, normal, width)
 
 func _apply_editor_layering() -> void:
 	z_as_relative = false
 	z_index = editor_z_index if Engine.is_editor_hint() else runtime_z_index
+
+func _apply_runtime_rendering_state() -> void:
+	visible = Engine.is_editor_hint() or _runtime_rendering_enabled
+	set_process(Engine.is_editor_hint() or _should_render_runtime())
+
+func _should_render_runtime() -> bool:
+	return enabled and _runtime_rendering_enabled
 
 func _current_source_center(camera: Camera2D, view_size: Vector2) -> Vector2:
 	var source_handle := _source_handle()
 	if use_handles and source_handle != null:
 		return source_handle.global_position
 	return camera.global_position + Vector2(source_screen_x * view_size.x, source_screen_y * view_size.y)
+
+func _current_light_sources(camera: Camera2D, view_size: Vector2) -> Array[Dictionary]:
+	var sources: Array[Dictionary] = []
+	var primary_direction := _current_light_direction()
+	var source_handles := _source_handles()
+	if use_handles and not source_handles.is_empty():
+		for source_handle in source_handles:
+			var source_direction := _direction_for_source_handle(source_handle, primary_direction)
+			sources.append({
+				"center": source_handle.global_position,
+				"direction": source_direction,
+				"width": source_width * _source_width_scale(source_handle),
+			})
+		return sources
+	sources.append({
+		"center": _current_source_center(camera, view_size),
+		"direction": primary_direction,
+		"width": source_width,
+	})
+	return sources
 
 func _current_light_direction() -> Vector2:
 	var source_handle := _source_handle()
@@ -104,8 +153,44 @@ func _current_light_direction() -> Vector2:
 func _source_handle() -> Node2D:
 	return get_node_or_null(source_handle_path) as Node2D
 
+func _source_handles() -> Array[Node2D]:
+	var handles: Array[Node2D] = []
+	var primary_handle := _source_handle()
+	if primary_handle != null:
+		handles.append(primary_handle)
+	if not discover_sibling_source_handles or primary_handle == null or primary_handle.get_parent() == null:
+		return handles
+	for child in primary_handle.get_parent().get_children():
+		var source_handle := child as Node2D
+		if source_handle == null or source_handle == primary_handle:
+			continue
+		if not source_handle.name.begins_with(source_handle_prefix):
+			continue
+		handles.append(source_handle)
+	return handles
+
 func _direction_handle() -> Node2D:
 	return get_node_or_null(direction_handle_path) as Node2D
+
+func _direction_for_source_handle(source_handle: Node2D, fallback_direction: Vector2) -> Vector2:
+	var matching_direction_handle := _matching_direction_handle(source_handle)
+	if matching_direction_handle != null:
+		var handle_direction := matching_direction_handle.global_position - source_handle.global_position
+		if handle_direction.length_squared() > 0.001:
+			return handle_direction.normalized()
+	return fallback_direction.normalized()
+
+func _matching_direction_handle(source_handle: Node2D) -> Node2D:
+	var suffix := source_handle.name.trim_prefix(source_handle_prefix)
+	if suffix.is_empty():
+		return _direction_handle()
+	if source_handle.get_parent() == null:
+		return null
+	return source_handle.get_parent().get_node_or_null("%s%s" % [direction_handle_prefix, suffix]) as Node2D
+
+func _source_width_scale(source_handle: Node2D) -> float:
+	var scale := source_handle.global_scale
+	return maxf((absf(scale.x) + absf(scale.y)) * 0.5, 0.1)
 
 func _sync_fallback_values_from_handles() -> void:
 	if not use_handles:

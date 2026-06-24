@@ -26,6 +26,9 @@ enum MaskState { NO_MASK, EUDA_MASK, GHOST_MASK }
 @export_range(4.0, 80.0, 1.0) var floor_probe_forward := 26.0
 @export_range(8.0, 140.0, 1.0) var floor_probe_depth := 72.0
 
+@export_group("Test Mode")
+@export var test_mode_speed_multiplier := 3.0
+
 @export_group("Jump")
 @export var jump_velocity: float = -710.0
 @export var gravity_scale: float = 1.0
@@ -65,8 +68,28 @@ enum MaskState { NO_MASK, EUDA_MASK, GHOST_MASK }
 
 @export_group("Lighting")
 @export var emit_player_light := true
-@export_range(0.0, 2.0, 0.02) var player_light_energy := 0.24
-@export_range(0.2, 5.0, 0.05) var player_light_scale := 1.45
+@export_range(0.0, 2.0, 0.02) var player_light_energy := 0.58
+@export_range(0.2, 5.0, 0.05) var player_light_scale := 2.15
+@export_group("Healing Flash")
+@export var soul_heal_flash_color := Color(0.58, 0.86, 1.0, 1.0)
+@export_range(0.04, 0.8, 0.01) var soul_heal_flash_duration := 0.18
+@export_range(0.0, 3.0, 0.05) var soul_heal_light_boost := 1.05
+
+@export_group("Visual Animation")
+@export var visual_sprite_path := NodePath("Sprite2D")
+@export var animation_player_path := NodePath("AnimationPlayer")
+@export var left_eye_point_path := NodePath("EyeGlow/LeftEyePoint")
+@export var right_eye_point_path := NodePath("EyeGlow/RightEyePoint")
+@export var eye_glow_path := NodePath("EyeGlow")
+@export var artwork_faces_left := true
+@export var idle_visual_position_offset := Vector2.ZERO
+@export var run_visual_position_offset := Vector2(0.0, -11.5)
+@export var no_mask_eye_color := Color(1.0, 0.46, 0.08, 1.0)
+@export var euda_mask_eye_color := Color(0.36, 1.0, 0.42, 1.0)
+@export var ghost_mask_eye_color := Color(0.3, 0.66, 1.0, 1.0)
+@export var run_animation_name: StringName = &"Euda-run"
+@export var idle_texture: Texture2D = preload("res://ArtWorks/Euda/Euda-2.png")
+@export var run_reference_texture: Texture2D = preload("res://ArtWorks/Euda/Euda-run/Euda-run-1.png")
 
 var facing_direction := 1.0
 var active_boomerang: Node
@@ -89,13 +112,31 @@ var _ghost_block_context_timer := 0.0
 var _jump_was_down := false
 var _throw_was_down := false
 var _mask_cycle_was_down := false
+var _test_mode_enabled := false
+var _test_mode_was_down := false
+var _test_mode_collision_shape_states := {}
 var _player_light: PointLight2D
 var _player_light_texture: Texture2D
+var _visual_sprite: Sprite2D
+var _movement_animation_player: AnimationPlayer
+var _idle_texture: Texture2D
+var _base_visual_scale := Vector2.ONE
+var _base_visual_position := Vector2.ZERO
+var _base_visual_modulate := Color(1.0, 1.0, 1.0, 1.0)
+var _left_eye_point: Marker2D
+var _right_eye_point: Marker2D
+var _eye_glow: Node
+var _idle_left_eye_position := Vector2.ZERO
+var _idle_right_eye_position := Vector2.ZERO
+var _current_visual_movement_suffix := "idle"
+var _soul_heal_flash_timer := 0.0
+var _active_soul_heal_flash_color := Color(0.58, 0.86, 1.0, 1.0)
 
 func _ready() -> void:
 	add_to_group("players")
 	add_to_group("saveable")
 	_ensure_player_light()
+	_setup_visual_animation()
 	_reset_mask_health()
 	_reset_unlocked_masks()
 	key_count = starting_keys
@@ -105,14 +146,25 @@ func _ready() -> void:
 	previous_mask_state = current_mask_state
 	_apply_mask_state_effects()
 	_update_animation_name()
+	_update_eye_glow_state()
 
 func _physics_process(delta: float) -> void:
+	_handle_test_mode_toggle()
+	if _test_mode_enabled:
+		_update_timers(delta)
+		_update_soul_heal_flash_visual()
+		_handle_test_mode_movement(delta)
+		_update_throw_point()
+		_update_animation_name()
+		return
+
 	_update_ghost_block_context(delta)
 	if global_position.y > reset_below_y or (reset_above_enabled and global_position.y < reset_above_y):
 		_handle_fall_respawn()
 		return
 
 	_update_timers(delta)
+	_update_soul_heal_flash_visual()
 	_handle_mask_state_input()
 
 	var horizontal_input := Input.get_axis("ui_left", "ui_right")
@@ -156,8 +208,14 @@ func _update_timers(delta: float) -> void:
 	_damage_invulnerability_timer = maxf(_damage_invulnerability_timer - delta, 0.0)
 	_ground_speed_multiplier_timer = maxf(_ground_speed_multiplier_timer - delta, 0.0)
 	_ghost_block_context_timer = maxf(_ghost_block_context_timer - delta, 0.0)
+	_soul_heal_flash_timer = maxf(_soul_heal_flash_timer - delta, 0.0)
 	if _ground_speed_multiplier_timer <= 0.0:
 		_ground_speed_multiplier = 1.0
+
+func play_soul_heal_flash(flash_color: Color = Color(0.58, 0.86, 1.0, 1.0)) -> void:
+	_active_soul_heal_flash_color = flash_color
+	_soul_heal_flash_timer = maxf(soul_heal_flash_duration, 0.01)
+	_update_soul_heal_flash_visual()
 
 func _handle_mask_state_input() -> void:
 	var requested_state := current_mask_state
@@ -190,6 +248,7 @@ func set_mask_state(next_state: int) -> void:
 		_recall_active_boomerang()
 	_apply_mask_state_effects()
 	_update_animation_name()
+	_update_eye_glow_state()
 	mask_state_changed.emit(current_mask_state, get_mask_state_name())
 
 func get_mask_state_name(mask_state_value: int = -1) -> String:
@@ -239,7 +298,7 @@ func is_switching_mask() -> bool:
 	return _mask_switch_timer > 0.0
 
 func is_damage_invulnerable() -> bool:
-	return _damage_invulnerability_timer > 0.0
+	return _test_mode_enabled or _damage_invulnerability_timer > 0.0
 
 func grant_invulnerability(duration: float = 1.0) -> void:
 	_damage_invulnerability_timer = maxf(_damage_invulnerability_timer, maxf(duration, 0.0))
@@ -270,6 +329,8 @@ func restore_mask_health(mask_state_value: int) -> bool:
 	if int(mask_health[state]) >= max_health_per_mask:
 		return false
 	mask_health[state] = max_health_per_mask
+	if state == current_mask_state:
+		_update_eye_glow_state()
 	mask_health_changed.emit(state, get_mask_health(state), max_health_per_mask)
 	return true
 
@@ -279,6 +340,34 @@ func restore_soul_lamp_energy(mask_state_value: int) -> bool:
 	if state != MaskState.NO_MASK:
 		did_restore = restore_mask_health(state) or did_restore
 	return did_restore
+
+func get_soul_lamp_missing_energy_states(mask_state_value: int) -> Array[int]:
+	var states: Array[int] = []
+	_append_missing_energy_states(states, MaskState.NO_MASK)
+	var state := clampi(mask_state_value, MaskState.NO_MASK, MaskState.GHOST_MASK)
+	if state != MaskState.NO_MASK:
+		_append_missing_energy_states(states, state)
+	return states
+
+func restore_mask_health_step(mask_state_value: int) -> bool:
+	var state := clampi(mask_state_value, MaskState.NO_MASK, MaskState.GHOST_MASK)
+	if state != MaskState.NO_MASK and not is_mask_state_unlocked(state):
+		return false
+	if int(mask_health[state]) >= max_health_per_mask:
+		return false
+	mask_health[state] = mini(int(mask_health[state]) + 1, max_health_per_mask)
+	if state == current_mask_state:
+		_update_eye_glow_state()
+	mask_health_changed.emit(state, get_mask_health(state), max_health_per_mask)
+	return true
+
+func _append_missing_energy_states(states: Array[int], mask_state_value: int) -> void:
+	var state := clampi(mask_state_value, MaskState.NO_MASK, MaskState.GHOST_MASK)
+	if state != MaskState.NO_MASK and not is_mask_state_unlocked(state):
+		return
+	var missing := maxi(max_health_per_mask - int(mask_health[state]), 0)
+	for _index in range(missing):
+		states.append(state)
 
 func save_checkpoint(checkpoint_position: Vector2 = Vector2.INF) -> void:
 	var save_manager := _save_manager()
@@ -334,16 +423,20 @@ func apply_save_state(state: Dictionary) -> void:
 	_damage_invulnerability_timer = respawn_invulnerability_time
 	_apply_mask_state_effects()
 	_update_animation_name()
+	_update_eye_glow_state()
 	for mask_state in range(MASK_STATE_COUNT):
 		mask_health_changed.emit(mask_state, get_mask_health(mask_state), max_health_per_mask)
 	key_count_changed.emit(key_count)
 
 func take_enemy_hit(damage: int = 1, hit_source: Node = null) -> bool:
+	if _test_mode_enabled:
+		return false
 	if damage <= 0 or is_damage_invulnerable():
 		return false
 
 	var next_health := maxi(get_current_mask_health() - damage, 0)
 	mask_health[current_mask_state] = next_health
+	_update_eye_glow_state()
 	_last_damage_cause = "enemy"
 	_damage_invulnerability_timer = damage_invulnerability_time
 	_apply_damage_knockback(hit_source)
@@ -356,11 +449,14 @@ func take_enemy_hit(damage: int = 1, hit_source: Node = null) -> bool:
 	return true
 
 func take_environment_hit(damage: int = 1, hit_source: Node = null, hit_direction: Vector2 = Vector2.ZERO, knockback: Vector2 = Vector2(220.0, -180.0)) -> bool:
+	if _test_mode_enabled:
+		return false
 	if damage <= 0 or is_damage_invulnerable():
 		return false
 
 	var next_health := maxi(get_current_mask_health() - damage, 0)
 	mask_health[current_mask_state] = next_health
+	_update_eye_glow_state()
 	_last_damage_cause = _damage_cause_from_source(hit_source)
 	_damage_invulnerability_timer = damage_invulnerability_time
 	var horizontal_direction := -signf(hit_direction.x) if absf(hit_direction.x) > absf(hit_direction.y) else signf(hit_direction.x)
@@ -405,6 +501,8 @@ func get_key_count() -> int:
 	return key_count
 
 func take_mechanism_crush(damage: int = 1, hit_source: Node = null, hit_direction: Vector2 = Vector2.ZERO, knockback: Vector2 = Vector2(280.0, -180.0)) -> bool:
+	if _test_mode_enabled:
+		return false
 	if damage <= 0:
 		return false
 
@@ -419,6 +517,7 @@ func take_mechanism_crush(damage: int = 1, hit_source: Node = null, hit_directio
 
 	var next_health := maxi(get_current_mask_health() - damage, 0)
 	mask_health[current_mask_state] = next_health
+	_update_eye_glow_state()
 	_last_damage_cause = "mechanism"
 	_damage_invulnerability_timer = maxf(_damage_invulnerability_timer, damage_invulnerability_time)
 	var horizontal_direction := -signf(hit_direction.x) if absf(hit_direction.x) > absf(hit_direction.y) else signf(hit_direction.x)
@@ -443,6 +542,7 @@ func _reset_mask_health() -> void:
 	mask_health = []
 	for _index in range(MASK_STATE_COUNT):
 		mask_health.append(max_health_per_mask)
+	_update_eye_glow_state()
 
 func _apply_damage_knockback(hit_source: Node) -> void:
 	var knockback_direction := -facing_direction
@@ -473,12 +573,19 @@ func _die_and_load_checkpoint() -> void:
 		apply_save_state({"position": spawn_position})
 
 func _apply_mask_state_effects() -> void:
+	if _test_mode_enabled:
+		_disable_test_mode_collisions()
+		_update_ghost_block_visibility()
+		_update_player_light()
+		_update_eye_glow_state()
+		return
 	collision_layer = TERRAIN_LAYER
 	collision_mask = TERRAIN_LAYER
 	if can_stand_on_ghost_blocks():
 		collision_mask |= GHOST_BLOCK_LAYER
 	_update_ghost_block_visibility()
 	_update_player_light()
+	_update_eye_glow_state()
 
 func _ensure_player_light() -> void:
 	_player_light = get_node_or_null("PlayerLight") as PointLight2D
@@ -499,10 +606,23 @@ func _ensure_player_light() -> void:
 func _update_player_light() -> void:
 	if _player_light == null:
 		return
+	var flash_progress := _soul_heal_flash_progress()
 	_player_light.enabled = emit_player_light
-	_player_light.energy = player_light_energy
+	_player_light.energy = player_light_energy + soul_heal_light_boost * flash_progress
 	_player_light.texture_scale = player_light_scale
-	_player_light.color = _player_light_color()
+	_player_light.color = _player_light_color().lerp(_active_soul_heal_flash_color, flash_progress)
+
+func _update_soul_heal_flash_visual() -> void:
+	var flash_progress := _soul_heal_flash_progress()
+	if _visual_sprite != null:
+		var visual_pulse := sin(flash_progress * PI)
+		_visual_sprite.modulate = _base_visual_modulate.lerp(_active_soul_heal_flash_color, visual_pulse * 0.62)
+	_update_player_light()
+
+func _soul_heal_flash_progress() -> float:
+	if soul_heal_flash_duration <= 0.0:
+		return 0.0
+	return clampf(_soul_heal_flash_timer / soul_heal_flash_duration, 0.0, 1.0)
 
 func _player_light_color() -> Color:
 	match current_mask_state:
@@ -532,6 +652,7 @@ func _update_ghost_block_visibility() -> void:
 func _update_animation_name() -> void:
 	if is_switching_mask():
 		current_animation_name = "mask_switch_cutscene"
+		_update_visual_animation("idle")
 		return
 
 	var state_prefix := get_mask_state_name()
@@ -541,6 +662,111 @@ func _update_animation_name() -> void:
 	elif absf(velocity.x) > 12.0:
 		movement_suffix = "run"
 	current_animation_name = "%s_%s" % [state_prefix, movement_suffix]
+	_update_visual_animation(movement_suffix)
+
+func _setup_visual_animation() -> void:
+	_visual_sprite = get_node_or_null(visual_sprite_path) as Sprite2D
+	_movement_animation_player = get_node_or_null(animation_player_path) as AnimationPlayer
+	_left_eye_point = get_node_or_null(left_eye_point_path) as Marker2D
+	_right_eye_point = get_node_or_null(right_eye_point_path) as Marker2D
+	_eye_glow = get_node_or_null(eye_glow_path)
+	_idle_texture = idle_texture
+	if _idle_texture == null and _visual_sprite != null:
+		_idle_texture = _visual_sprite.texture
+	if _visual_sprite != null:
+		_base_visual_scale = _visual_sprite.scale
+		_base_visual_position = _visual_sprite.position
+		_base_visual_modulate = _visual_sprite.modulate
+	if _left_eye_point != null:
+		_idle_left_eye_position = _left_eye_point.position
+	if _right_eye_point != null:
+		_idle_right_eye_position = _right_eye_point.position
+	_update_visual_animation("idle")
+	_apply_visual_facing()
+
+func _update_visual_animation(movement_suffix: String) -> void:
+	_current_visual_movement_suffix = movement_suffix
+	if movement_suffix == "run" and _can_play_run_animation():
+		_apply_visual_scale(_run_visual_scale_multiplier())
+		_apply_visual_position(run_visual_position_offset)
+		_apply_visual_facing()
+		if _movement_animation_player.current_animation != run_animation_name or not _movement_animation_player.is_playing():
+			_movement_animation_player.play(run_animation_name)
+		return
+
+	if _movement_animation_player != null and _movement_animation_player.current_animation == run_animation_name:
+		_movement_animation_player.stop(true)
+	_apply_visual_scale(1.0)
+	_apply_visual_position(idle_visual_position_offset)
+	_restore_idle_eye_positions()
+	_apply_visual_facing()
+	if _visual_sprite != null and _idle_texture != null:
+		_visual_sprite.texture = _idle_texture
+
+func _can_play_run_animation() -> bool:
+	return _movement_animation_player != null and _movement_animation_player.has_animation(run_animation_name)
+
+func _run_visual_scale_multiplier() -> float:
+	if _idle_texture == null or run_reference_texture == null:
+		return 1.0
+	var run_height := run_reference_texture.get_height()
+	if run_height <= 0:
+		return 1.0
+	return float(_idle_texture.get_height()) / float(run_height)
+
+func _apply_visual_scale(multiplier: float) -> void:
+	if _visual_sprite == null:
+		return
+	_visual_sprite.scale = _base_visual_scale * multiplier
+
+func _apply_visual_position(offset: Vector2) -> void:
+	if _visual_sprite == null:
+		return
+	_visual_sprite.position = _base_visual_position + offset
+
+func _apply_visual_facing() -> void:
+	var should_mirror := _should_mirror_visuals()
+	if _visual_sprite != null:
+		_visual_sprite.flip_h = should_mirror
+	if _eye_glow != null:
+		_eye_glow.set("mirror_horizontally", should_mirror)
+		if _visual_sprite != null:
+			_eye_glow.set("mirror_axis_x", _visual_sprite.position.x)
+		_update_eye_glow_state()
+
+func _should_mirror_visuals() -> bool:
+	return facing_direction > 0.0 if artwork_faces_left else facing_direction < 0.0
+
+func _update_eye_glow_state() -> void:
+	if _eye_glow == null:
+		return
+	var health := get_current_mask_health()
+	var missing_health := maxi(max_health_per_mask - health, 0)
+	var left_eye_has_light := health > 0 and missing_health < 1
+	var right_eye_has_light := health > 0 and missing_health < 2
+	if _current_visual_movement_suffix == "run":
+		var visible_left_eye := facing_direction > 0.0
+		var visible_right_eye := facing_direction < 0.0
+		left_eye_has_light = left_eye_has_light and visible_left_eye
+		right_eye_has_light = right_eye_has_light and visible_right_eye
+	_eye_glow.set("glow_color", _eye_glow_color())
+	_eye_glow.set("left_eye_enabled", left_eye_has_light)
+	_eye_glow.set("right_eye_enabled", right_eye_has_light)
+
+func _eye_glow_color() -> Color:
+	match current_mask_state:
+		MaskState.EUDA_MASK:
+			return euda_mask_eye_color
+		MaskState.GHOST_MASK:
+			return ghost_mask_eye_color
+		_:
+			return no_mask_eye_color
+
+func _restore_idle_eye_positions() -> void:
+	if _left_eye_point != null:
+		_left_eye_point.position = _idle_left_eye_position
+	if _right_eye_point != null:
+		_right_eye_point.position = _idle_right_eye_position
 
 func _apply_horizontal_movement(horizontal_input: float, on_floor: bool, delta: float) -> void:
 	var speed_multiplier := _ground_speed_multiplier if on_floor else 1.0
@@ -647,6 +873,84 @@ func _handle_boomerang_throw() -> void:
 
 	_throw_cooldown_timer = boomerang_cooldown
 	_throw_boomerang()
+
+func _handle_test_mode_toggle() -> void:
+	var test_mode_down := Input.is_physical_key_pressed(KEY_U)
+	if test_mode_down and not _test_mode_was_down:
+		_set_test_mode_enabled(not _test_mode_enabled)
+	_test_mode_was_down = test_mode_down
+
+func _set_test_mode_enabled(enabled: bool) -> void:
+	if _test_mode_enabled == enabled:
+		return
+	_test_mode_enabled = enabled
+	velocity = Vector2.ZERO
+	_fall_respawn_pending = false
+	_damage_invulnerability_timer = 0.0
+	if _test_mode_enabled:
+		_disable_test_mode_collisions()
+	else:
+		_restore_test_mode_collisions()
+		_apply_mask_state_effects()
+	_notify_room_cameras_test_mode(_test_mode_enabled)
+
+func _handle_test_mode_movement(delta: float) -> void:
+	var input_vector := Vector2.ZERO
+	input_vector.x = Input.get_axis("ui_left", "ui_right")
+	if Input.is_physical_key_pressed(KEY_A):
+		input_vector.x -= 1.0
+	if Input.is_physical_key_pressed(KEY_D):
+		input_vector.x += 1.0
+	if Input.is_physical_key_pressed(KEY_W) or Input.is_physical_key_pressed(KEY_UP) or Input.is_physical_key_pressed(KEY_SPACE):
+		input_vector.y -= 1.0
+	if Input.is_physical_key_pressed(KEY_S) or Input.is_physical_key_pressed(KEY_DOWN):
+		input_vector.y += 1.0
+	input_vector = input_vector.normalized() if input_vector.length_squared() > 1.0 else input_vector
+	var test_speed := max_run_speed * maxf(test_mode_speed_multiplier, 0.1)
+	velocity = input_vector * test_speed
+	global_position += velocity * delta
+	if not is_zero_approx(input_vector.x):
+		facing_direction = signf(input_vector.x)
+
+func _disable_test_mode_collisions() -> void:
+	collision_layer = 0
+	collision_mask = 0
+	for collision_shape in _player_collision_shapes():
+		var shape_path := str(collision_shape.get_path())
+		if not _test_mode_collision_shape_states.has(shape_path):
+			_test_mode_collision_shape_states[shape_path] = collision_shape.disabled
+		collision_shape.disabled = true
+
+func _restore_test_mode_collisions() -> void:
+	for collision_shape in _player_collision_shapes():
+		var shape_path := str(collision_shape.get_path())
+		collision_shape.disabled = bool(_test_mode_collision_shape_states.get(shape_path, false))
+	_test_mode_collision_shape_states.clear()
+
+func _player_collision_shapes(root_node: Node = self) -> Array[CollisionShape2D]:
+	var shapes: Array[CollisionShape2D] = []
+	for child in root_node.get_children():
+		var collision_shape := child as CollisionShape2D
+		if collision_shape != null:
+			shapes.append(collision_shape)
+		shapes.append_array(_player_collision_shapes(child))
+	return shapes
+
+func _notify_room_cameras_test_mode(enabled: bool) -> void:
+	for camera in get_tree().get_nodes_in_group("room_cameras"):
+		if camera != null and camera.has_method("set_test_mode_free_camera"):
+			camera.call("set_test_mode_free_camera", enabled)
+
+func start_with_right_shot() -> bool:
+	facing_direction = 1.0
+	_update_throw_point()
+	if not can_throw_mask_boomerang():
+		return false
+	if active_boomerang != null and is_instance_valid(active_boomerang):
+		return false
+	_throw_cooldown_timer = boomerang_cooldown
+	_throw_boomerang()
+	return active_boomerang != null and is_instance_valid(active_boomerang)
 
 func _throw_boomerang() -> void:
 	if boomerang_scene == null:

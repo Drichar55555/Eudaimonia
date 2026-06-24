@@ -16,6 +16,8 @@ func _ready() -> void:
 	set_process_unhandled_input(true)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _start_gate_is_visible():
+		return
 	var key_event := event as InputEventKey
 	if key_event == null or not key_event.pressed or key_event.echo:
 		return
@@ -47,6 +49,10 @@ func _resume_game() -> void:
 		get_tree().paused = false
 	_paused_by_menu = false
 	queue_redraw()
+
+func _start_gate_is_visible() -> bool:
+	var start_gate := get_node_or_null("../GameStartGate") as CanvasItem
+	return start_gate != null and start_gate.visible
 
 func _draw() -> void:
 	if size.x <= 1.0 or size.y <= 1.0:

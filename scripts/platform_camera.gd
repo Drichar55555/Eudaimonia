@@ -1,5 +1,7 @@
 extends Camera2D
 
+const CONNECTED_ROOM_ADJACENCY_TOLERANCE := 8.0
+
 @export var target_path: NodePath
 @export var lookahead_distance: float = 96.0
 @export var facing_lookahead_speed: float = 4.5
@@ -14,7 +16,7 @@ extends Camera2D
 @export var fade_out_duration: float = 0.16
 @export var fade_hold_duration: float = 0.08
 @export var fade_in_duration: float = 0.2
-@export var show_camera_zone_overlay := true
+@export var show_camera_zone_overlay := false
 @export_group("Hit Feedback")
 @export var shake_decay: float = 5.5
 @export var max_shake_offset := Vector2(18.0, 12.0)
@@ -65,6 +67,9 @@ var _room_switch_pause_generation := 0
 var _room_switch_pause_active := false
 var _restore_tree_paused_after_room_switch := false
 var _facing_lookahead_offset := 0.0
+var _continuous_room_limits_active := false
+var _continuous_room_limit_rect := Rect2()
+var _test_mode_free_camera := false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -94,9 +99,12 @@ func _process(delta: float) -> void:
 		global_position = _cinematic_override_position
 		zoom = _cinematic_override_zoom
 		return
+	if _test_mode_free_camera:
+		return
 	if not _is_room_transitioning and not _is_fade_transitioning:
-		_apply_native_camera_limits(active_room_rect)
-		global_position = _clamp_to_room(global_position)
+		var camera_limit_rect := _active_camera_limit_rect()
+		_apply_native_camera_limits(camera_limit_rect)
+		global_position = _clamp_position_to_rect(global_position, camera_limit_rect, zoom)
 
 func add_hit_shake(amount: float = 0.18) -> void:
 	_shake_trauma = clampf(_shake_trauma + amount, 0.0, 1.0)
@@ -131,6 +139,10 @@ func _physics_process(delta: float) -> void:
 	if target == null:
 		return
 
+	if _test_mode_free_camera:
+		_update_test_mode_free_camera(delta)
+		return
+
 	_update_room_from_target_position()
 
 	if _is_fade_transitioning:
@@ -143,8 +155,9 @@ func _physics_process(delta: float) -> void:
 
 	if active_no_follow:
 		zoom = target_zoom
-		_apply_native_camera_limits(active_room_rect)
-		global_position = _clamp_to_room(active_room_rect.get_center())
+		var no_follow_limit_rect := _active_camera_limit_rect()
+		_apply_native_camera_limits(no_follow_limit_rect)
+		global_position = _clamp_position_to_rect(active_room_rect.get_center(), no_follow_limit_rect, zoom)
 		desired_position = global_position
 		return
 
@@ -202,8 +215,9 @@ func _physics_process(delta: float) -> void:
 	var smoothing := 1.0 - exp(5.0 * -delta)
 	zoom = zoom.lerp(target_zoom, smoothing)
 	zoom = _safe_zoom_for_room(active_room_rect, zoom)
-	_apply_native_camera_limits(active_room_rect)
-	global_position = _clamp_to_room(unclamped_position)
+	var camera_limit_rect := _active_camera_limit_rect()
+	_apply_native_camera_limits(camera_limit_rect)
+	global_position = _clamp_position_to_rect(unclamped_position, camera_limit_rect, zoom)
 
 func set_room(room: Node) -> void:
 	if room == null or not room.has_method("get_camera_rect"):
@@ -229,11 +243,15 @@ func set_room(room: Node) -> void:
 		active_room_name = next_room_name
 		target_zoom = next_zoom
 		_apply_camera_settings(next_camera_settings)
-		_apply_native_camera_limits(active_room_rect)
+		_apply_native_camera_limits(_active_camera_limit_rect())
 		if active_no_follow:
 			zoom = next_zoom
-			global_position = _clamp_to_room(active_room_rect.get_center())
+			global_position = _clamp_position_to_rect(active_room_rect.get_center(), _active_camera_limit_rect(), zoom)
 			desired_position = global_position
+		return
+
+	if _rooms_are_continuously_connected(active_room, room):
+		_activate_connected_room(room, next_room_rect, next_room_name, next_zoom, next_camera_settings)
 		return
 
 	var next_transition_mode := _transition_mode_for_connection(active_room, room)
@@ -243,6 +261,32 @@ func set_room(room: Node) -> void:
 	else:
 		_start_smooth_transition(room, next_room_rect, next_room_name, next_zoom, next_position, next_camera_settings)
 	_pause_game_for_room_switch()
+
+func set_test_mode_free_camera(enabled: bool) -> void:
+	if _test_mode_free_camera == enabled:
+		return
+	_test_mode_free_camera = enabled
+	_is_room_transitioning = false
+	_is_fade_transitioning = false
+	is_room_transitioning = false
+	transition_mask_alpha = 0.0
+	_pending_room = null
+	_pending_camera_settings = {}
+	_clear_continuous_room_limits()
+	if _test_mode_free_camera:
+		limit_left = -10000000
+		limit_top = -10000000
+		limit_right = 10000000
+		limit_bottom = 10000000
+		desired_position = global_position
+	else:
+		request_room_refresh()
+
+func _update_test_mode_free_camera(delta: float) -> void:
+	var smoothing := 1.0 - exp(-12.0 * delta)
+	zoom = zoom.lerp(default_zoom, smoothing)
+	global_position = global_position.lerp(target.global_position, smoothing)
+	desired_position = global_position
 
 func _find_starting_room() -> void:
 	if target == null:
@@ -312,8 +356,13 @@ func _update_room_from_target_position() -> void:
 		set_room(room)
 
 func _room_at_point(point: Vector2) -> Node:
-	if active_room != null and active_room.has_method("contains_point") and active_room.contains_point(point):
-		return active_room
+	if active_room != null and active_room.has_method("contains_point"):
+		var active_contains := bool(active_room.contains_point(point))
+		var connected_room_at_point := _connected_room_at_point(point, active_contains)
+		if connected_room_at_point != null:
+			return connected_room_at_point
+		if active_contains:
+			return active_room
 
 	var best_room: Node
 	var best_distance := INF
@@ -343,6 +392,54 @@ func _room_selection_center(room: Node) -> Vector2:
 		return room.get_camera_rect().get_center()
 	return Vector2.ZERO
 
+func _connected_room_at_point(point: Vector2, active_contains: bool) -> Node:
+	if active_room == null:
+		return null
+	var active_distance := point.distance_squared_to(_room_selection_center(active_room)) if active_contains else INF
+	var best_room: Node
+	var best_distance := active_distance
+	for room in get_tree().get_nodes_in_group("camera_rooms"):
+		if room == active_room or not _rooms_are_continuously_connected(active_room, room):
+			continue
+		if not room.has_method("contains_point") or not bool(room.contains_point(point)):
+			continue
+		var distance := point.distance_squared_to(_room_selection_center(room))
+		if not active_contains or distance + 1.0 < best_distance:
+			best_distance = distance
+			best_room = room
+	return best_room
+
+func _rooms_are_continuously_connected(from_room: Node, to_room: Node) -> bool:
+	if from_room == null or to_room == null or from_room == to_room:
+		return false
+	if not _room_is_connected(from_room) or not _room_is_connected(to_room):
+		return false
+	return _rooms_are_adjacent(from_room, to_room)
+
+func _room_is_connected(room: Node) -> bool:
+	return room != null and room.has_method("is_connected_room") and bool(room.call("is_connected_room"))
+
+func _rooms_are_adjacent(from_room: Node, to_room: Node) -> bool:
+	var from_rect := _room_trigger_rect(from_room)
+	var to_rect := _room_trigger_rect(to_room)
+	if from_rect.size.x <= 0.0 or from_rect.size.y <= 0.0 or to_rect.size.x <= 0.0 or to_rect.size.y <= 0.0:
+		return false
+	var tolerance := CONNECTED_ROOM_ADJACENCY_TOLERANCE
+	if from_rect.grow(tolerance).intersects(to_rect, true):
+		return true
+	var horizontal_touch := absf(from_rect.end.x - to_rect.position.x) <= tolerance or absf(to_rect.end.x - from_rect.position.x) <= tolerance
+	var vertical_overlap := from_rect.position.y <= to_rect.end.y + tolerance and to_rect.position.y <= from_rect.end.y + tolerance
+	var vertical_touch := absf(from_rect.end.y - to_rect.position.y) <= tolerance or absf(to_rect.end.y - from_rect.position.y) <= tolerance
+	var horizontal_overlap := from_rect.position.x <= to_rect.end.x + tolerance and to_rect.position.x <= from_rect.end.x + tolerance
+	return (horizontal_touch and vertical_overlap) or (vertical_touch and horizontal_overlap)
+
+func _room_trigger_rect(room: Node) -> Rect2:
+	if room != null and room.has_method("get_trigger_rect"):
+		return room.call("get_trigger_rect") as Rect2
+	if room != null and room.has_method("get_camera_rect"):
+		return room.call("get_camera_rect") as Rect2
+	return Rect2()
+
 func _safe_zoom_for_room(room_rect: Rect2, requested_zoom: Vector2) -> Vector2:
 	var viewport_size := get_viewport_rect().size
 	var minimum_zoom := maxf(viewport_size.x / room_rect.size.x, viewport_size.y / room_rect.size.y)
@@ -354,6 +451,7 @@ func _room_focus_position(room_rect: Rect2, room_zoom: Vector2, vertical_offset:
 	return _clamp_position_to_rect(focus_position, room_rect, room_zoom)
 
 func _start_smooth_transition(room: Node, next_room_rect: Rect2, next_room_name: String, next_zoom: Vector2, next_position: Vector2, next_camera_settings: Dictionary) -> void:
+	_clear_continuous_room_limits()
 	var old_room_rect := active_room_rect
 	_pending_room = room
 	_pending_room_rect = next_room_rect
@@ -423,6 +521,7 @@ func _activate_pending_room_after_smooth_transition() -> void:
 	_pending_camera_settings = {}
 
 func _start_fade_transition(room: Node, next_room_rect: Rect2, next_room_name: String, next_zoom: Vector2, next_position: Vector2, next_camera_settings: Dictionary) -> void:
+	_clear_continuous_room_limits()
 	_is_room_transitioning = false
 	_is_fade_transitioning = true
 	is_room_transitioning = true
@@ -491,6 +590,7 @@ func _activate_pending_fade_room() -> void:
 	_activate_room_immediately(_pending_room, _pending_room_rect, _pending_room_name, _pending_room_zoom, _pending_room_position, _pending_camera_settings)
 
 func _activate_room_immediately(room: Node, room_rect: Rect2, room_name: String, room_zoom: Vector2, room_position: Vector2, room_settings: Dictionary) -> void:
+	_clear_continuous_room_limits()
 	active_room = room
 	active_room_rect = room_rect
 	active_room_name = room_name
@@ -500,6 +600,44 @@ func _activate_room_immediately(room: Node, room_rect: Rect2, room_name: String,
 	_apply_native_camera_limits(active_room_rect)
 	global_position = _clamp_to_room(room_position)
 	desired_position = global_position
+
+func _activate_connected_room(room: Node, room_rect: Rect2, room_name: String, room_zoom: Vector2, room_settings: Dictionary) -> void:
+	var previous_room_rect := active_room_rect
+	_is_room_transitioning = false
+	_is_fade_transitioning = false
+	is_room_transitioning = false
+	transition_mask_alpha = 0.0
+	_pending_room = null
+	_pending_camera_settings = {}
+	active_room = room
+	active_room_rect = room_rect
+	active_room_name = room_name
+	target_zoom = room_zoom
+	_apply_camera_settings(room_settings)
+	_continuous_room_limit_rect = _continuous_limit_rect_for_rooms(previous_room_rect, room_rect)
+	_continuous_room_limits_active = true
+	_apply_native_camera_limits(_continuous_room_limit_rect)
+	desired_position = _clamp_position_to_rect(desired_position, _continuous_room_limit_rect, zoom)
+	global_position = _clamp_position_to_rect(global_position, _continuous_room_limit_rect, zoom)
+
+func _continuous_limit_rect_for_rooms(from_rect: Rect2, to_rect: Rect2) -> Rect2:
+	var from_center := from_rect.get_center()
+	var to_center := to_rect.get_center()
+	var delta := to_center - from_center
+	if absf(delta.x) >= absf(delta.y):
+		var left := minf(from_rect.position.x, to_rect.position.x)
+		var right := maxf(from_rect.end.x, to_rect.end.x)
+		return Rect2(Vector2(left, to_rect.position.y), Vector2(right - left, to_rect.size.y))
+	var top := minf(from_rect.position.y, to_rect.position.y)
+	var bottom := maxf(from_rect.end.y, to_rect.end.y)
+	return Rect2(Vector2(to_rect.position.x, top), Vector2(to_rect.size.x, bottom - top))
+
+func _active_camera_limit_rect() -> Rect2:
+	return _continuous_room_limit_rect if _continuous_room_limits_active else active_room_rect
+
+func _clear_continuous_room_limits() -> void:
+	_continuous_room_limits_active = false
+	_continuous_room_limit_rect = Rect2()
 
 func _default_camera_settings() -> Dictionary:
 	return {

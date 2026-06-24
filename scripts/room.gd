@@ -34,6 +34,11 @@ extends Area2D
 	set(value):
 		transition_mode = value
 		queue_redraw()
+@export_group("Connected Rooms")
+@export var connected_room := false:
+	set(value):
+		connected_room = value
+		queue_redraw()
 @export var lookahead_distance: float = 96.0:
 	set(value):
 		lookahead_distance = value
@@ -69,6 +74,10 @@ extends Area2D
 @export var camera_view_color := Color(0.35, 1.0, 0.55, 0.9):
 	set(value):
 		camera_view_color = value
+		queue_redraw()
+@export var show_debug_guides := false:
+	set(value):
+		show_debug_guides = value
 		queue_redraw()
 
 func _ready() -> void:
@@ -136,6 +145,9 @@ func get_resolved_camera_view_mode() -> String:
 
 func get_transition_mode() -> String:
 	return transition_mode
+
+func is_connected_room() -> bool:
+	return connected_room
 
 func get_camera_profile() -> String:
 	return camera_profile
@@ -271,6 +283,9 @@ func _on_body_entered(body: Node2D) -> void:
 	get_tree().call_group("room_cameras", "request_room_refresh")
 
 func _draw() -> void:
+	if not Engine.is_editor_hint() and not show_debug_guides:
+		return
+
 	var camera_rect_value := get_camera_rect()
 	var local_rect := Rect2(to_local(camera_rect_value.position), camera_rect_value.size)
 	draw_rect(local_rect, debug_color, false, 4.0)
@@ -285,6 +300,10 @@ func _draw() -> void:
 func _draw_center_marker(center: Vector2, marker_color: Color) -> void:
 	draw_line(center + Vector2(-10.0, 0.0), center + Vector2(10.0, 0.0), marker_color, 2.0)
 	draw_line(center + Vector2(0.0, -10.0), center + Vector2(0.0, 10.0), marker_color, 2.0)
+
+func set_debug_guides_visible(value: bool) -> void:
+	show_debug_guides = value
+	queue_redraw()
 
 func _trigger_rect() -> Rect2:
 	var collision_shape := get_node_or_null("CollisionShape2D") as CollisionShape2D

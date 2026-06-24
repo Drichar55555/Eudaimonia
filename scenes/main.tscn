@@ -3,7 +3,6 @@
 [ext_resource type="Script" uid="uid://dncun1qr2i7vr" path="res://scripts/player.gd" id="1_player"]
 [ext_resource type="Script" uid="uid://bsjuh0nkimu4g" path="res://scripts/platform_camera.gd" id="2_camera"]
 [ext_resource type="Script" uid="uid://dsheg3d47hxj5" path="res://scripts/debug_hud.gd" id="3_debug_hud"]
-[ext_resource type="Script" uid="uid://bptwpxybw4bh3" path="res://scripts/player_visual.gd" id="4_player_visual"]
 [ext_resource type="Texture2D" uid="uid://dkkrss5vfr15r" path="res://ArtWorks/20260606-120805.png" id="4_tel4y"]
 [ext_resource type="Script" uid="uid://db8b44vxbkjvs" path="res://scripts/room.gd" id="5_room"]
 [ext_resource type="Script" uid="uid://bq8p13iw18vod" path="res://scripts/room_transition_mask.gd" id="6_room_mask"]
@@ -25,13 +24,23 @@
 [ext_resource type="PackedScene" path="res://scenes/key_door.tscn" id="21_key_door"]
 [ext_resource type="PackedScene" path="res://scenes/key_chest.tscn" id="22_key_chest"]
 [ext_resource type="PackedScene" path="res://scenes/soul_lamp.tscn" id="23_soul_lamp"]
+[ext_resource type="Texture2D" uid="uid://2k5hkig8w3ce" path="res://ArtWorks/Euda/Euda-run/Euda-run-1.png" id="23_txyw0"]
 [ext_resource type="Script" uid="uid://cstn4ye10c2ax" path="res://scripts/death_respawn_controller.gd" id="24_death_respawn"]
+[ext_resource type="Texture2D" uid="uid://dbjit4blayas5" path="res://ArtWorks/Euda/Euda-2.png" id="24_euda_idle"]
 [ext_resource type="Script" uid="uid://utvm8bghsn26" path="res://scripts/story_controller.gd" id="25_story_controller"]
 [ext_resource type="Script" uid="uid://bbhxpl2qon1w" path="res://scripts/dialogue_box.gd" id="26_dialogue_box"]
+[ext_resource type="Texture2D" uid="uid://c2fo8l8yye1um" path="res://ArtWorks/Euda/Euda-run/Euda-run-2.png" id="26_vc5cj"]
+[ext_resource type="Texture2D" uid="uid://bhgrwecrqc4y0" path="res://ArtWorks/Euda/Euda-run/Euda-run-3.png" id="27_nvyfr"]
 [ext_resource type="Texture2D" uid="uid://cb2n85lsrk4mo" path="res://ArtWorks/20260606-102151.png" id="27_vxglm"]
+[ext_resource type="Texture2D" uid="uid://bucwgrs6tedtp" path="res://ArtWorks/Euda/Euda-run/Euda-run-4.png" id="28_ty1g6"]
+[ext_resource type="Texture2D" uid="uid://gasllikb3wa5" path="res://ArtWorks/Euda/Euda-run/Euda-run-5.png" id="29_j2jfr"]
 [ext_resource type="Texture2D" uid="uid://dgjrjoj51opxh" path="res://ArtWorks/20260606-120749.png" id="29_yq6so"]
+[ext_resource type="Texture2D" uid="uid://dt78ti6sschcj" path="res://ArtWorks/Euda/Euda-run/Euda-run-6.png" id="30_bjg73"]
 [ext_resource type="Texture2D" uid="uid://b5c0typn0fgwf" path="res://ArtWorks/20260606-120800.png" id="30_fv21b"]
+[ext_resource type="Texture2D" uid="uid://tc1w4h3p1bo5" path="res://ArtWorks/Euda/Euda-run/Euda-run-7.png" id="31_bu4jf"]
+[ext_resource type="Texture2D" uid="uid://cw2fgb32wm834" path="res://ArtWorks/Euda/Euda-run/Euda-run-8.png" id="32_o7ddy"]
 [ext_resource type="Texture2D" uid="uid://c72ahuiyyf3kf" path="res://ArtWorks/20260606-120815.png" id="32_qkpxi"]
+[ext_resource type="Texture2D" uid="uid://cobinm4jbtsfp" path="res://ArtWorks/Euda/Euda-run/Euda-run-9.png" id="33_0loja"]
 [ext_resource type="Texture2D" uid="uid://drijwx0cmputr" path="res://ArtWorks/20260606-120819.png" id="33_5q0nq"]
 [ext_resource type="Texture2D" uid="uid://dylm06nj75ag3" path="res://ArtWorks/img_v3_0212c_81fd8346-790a-450c-92ce-81a59bf12ecg.PNG" id="34_dgi5k"]
 [ext_resource type="Script" uid="uid://rg6o1n1e7by2" path="res://scripts/parallax_sprite.gd" id="35_parallax_sprite"]
@@ -41,10 +50,15 @@
 [ext_resource type="Script" uid="uid://deve56xbj05cq" path="res://scripts/background_light_rays.gd" id="39_background_light_rays"]
 [ext_resource type="Script" uid="uid://8teu508ifaq0" path="res://scripts/sun_light_handle.gd" id="40_sun_light_handle"]
 [ext_resource type="Texture2D" uid="uid://42pbi1cbpnd7" path="res://ArtWorks/editor_sun_handle.png" id="41_editor_sun_handle"]
-[ext_resource type="Script" path="res://scripts/damage_vignette.gd" id="42_damage_vignette"]
-[ext_resource type="Script" path="res://scripts/pause_menu.gd" id="43_pause_menu"]
+[ext_resource type="Script" uid="uid://bdj8bm2eu6vbt" path="res://scripts/damage_vignette.gd" id="42_damage_vignette"]
+[ext_resource type="Script" uid="uid://dt6psnvbsalmf" path="res://scripts/pause_menu.gd" id="43_pause_menu"]
+[ext_resource type="Script" uid="uid://bmf3gbbnsrgcq" path="res://scripts/game_start_gate.gd" id="44_game_start_gate"]
+[ext_resource type="Script" uid="uid://crbui3ym73e4b" path="res://scripts/player_environment_light.gd" id="45_player_environment_light"]
+[ext_resource type="Script" uid="uid://ccxlfe4sckccl" path="res://scripts/character_eye_glow.gd" id="46_character_eye_glow"]
+[ext_resource type="Script" uid="uid://dmsnx42j005lv" path="res://scripts/death_return_gate_glow.gd" id="47_death_return_gate_glow"]
+[ext_resource type="Script" uid="uid://bvv4hdbu1rors" path="res://scripts/death_space_filter.gd" id="48_death_space_filter"]
 
-[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_5poiv"]
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_1v6qk"]
 blend_mode = 1
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_room_start"]
@@ -80,41 +94,177 @@ size = Vector2(90, 150)
 [sub_resource type="CircleShape2D" id="CircleShape2D_save_point"]
 radius = 96.0
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_2cjbq"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_augu2"]
 size = Vector2(78, 28)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_chjal"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_tm6hj"]
 size = Vector2(78, 28)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_cjqg0"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_kf5aa"]
 size = Vector2(78, 28)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_vchkt"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_t5ykj"]
 size = Vector2(78, 28)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_txyw0"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_e755i"]
 size = Vector2(78, 28)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_fv21b"]
 size = Vector2(225, 88.00006)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_vc5cj"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ro3en"]
 size = Vector2(78, 28)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_tel4y"]
 size = Vector2(22.00003, 341)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_nvyfr"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_od4ux"]
 size = Vector2(42.00003, 361)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_ty1g6"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_xhfw6"]
 size = Vector2(78, 28)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_j2jfr"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_1epgm"]
+size = Vector2(78, 28)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_152kg"]
 size = Vector2(78, 28)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
-size = Vector2(36, 36)
+size = Vector2(29, 92)
+
+[sub_resource type="Animation" id="Animation_txyw0"]
+resource_name = "Euda-run"
+length = 0.9
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:texture")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [ExtResource("23_txyw0"), ExtResource("26_vc5cj"), ExtResource("27_nvyfr"), ExtResource("28_ty1g6"), ExtResource("29_j2jfr"), ExtResource("30_bjg73"), ExtResource("31_bu4jf"), ExtResource("32_o7ddy"), ExtResource("33_0loja")]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Sprite2D:scale")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [Vector2(0.084666, 0.084666), Vector2(0.084666, 0.084666), Vector2(0.084666, 0.084666), Vector2(0.084666, 0.084666), Vector2(0.084666, 0.084666), Vector2(0.084666, 0.084666), Vector2(0.084666, 0.084666), Vector2(0.084666, 0.084666), Vector2(0.084666, 0.084666)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("EyeGlow/LeftEyePoint:position")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [Vector2(-11.383, -46.05), Vector2(-11.393, -45.566), Vector2(-9.796, -42.702), Vector2(-11.383, -46.05), Vector2(-11.383, -46.05), Vector2(-11.388, -46.052), Vector2(-11.383, -46.05), Vector2(-9.796, -42.702), Vector2(-11.383, -46.05)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("EyeGlow/RightEyePoint:position")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [Vector2(-9.183, -46.45), Vector2(-9.193, -45.966), Vector2(-7.596, -43.102), Vector2(-9.183, -46.45), Vector2(-9.183, -46.45), Vector2(-9.188, -46.452), Vector2(-9.183, -46.45), Vector2(-7.596, -43.102), Vector2(-9.183, -46.45)]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Sprite2D:position")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8),
+"transitions": PackedFloat32Array(1, 1, 1, 1, 1, 1, 1, 1, 1),
+"update": 1,
+"values": [Vector2(2, -111.5), Vector2(2, -111.5), Vector2(2, -111.5), Vector2(2, -111.5), Vector2(2, -111.5), Vector2(2, -111.5), Vector2(2, -111.5), Vector2(2, -111.5), Vector2(2, -111.5)]
+}
+
+[sub_resource type="Animation" id="Animation_vc5cj"]
+length = 0.001
+tracks/0/type = "value"
+tracks/0/imported = false
+tracks/0/enabled = true
+tracks/0/path = NodePath("Sprite2D:texture")
+tracks/0/interp = 1
+tracks/0/loop_wrap = true
+tracks/0/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [ExtResource("24_euda_idle")]
+}
+tracks/1/type = "value"
+tracks/1/imported = false
+tracks/1/enabled = true
+tracks/1/path = NodePath("Sprite2D:scale")
+tracks/1/interp = 1
+tracks/1/loop_wrap = true
+tracks/1/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [Vector2(0.20014, 0.20013992)]
+}
+tracks/2/type = "value"
+tracks/2/imported = false
+tracks/2/enabled = true
+tracks/2/path = NodePath("EyeGlow/LeftEyePoint:position")
+tracks/2/interp = 1
+tracks/2/loop_wrap = true
+tracks/2/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [Vector2(2, -43)]
+}
+tracks/3/type = "value"
+tracks/3/imported = false
+tracks/3/enabled = true
+tracks/3/path = NodePath("EyeGlow/RightEyePoint:position")
+tracks/3/interp = 1
+tracks/3/loop_wrap = true
+tracks/3/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [Vector2(17, -44)]
+}
+tracks/4/type = "value"
+tracks/4/imported = false
+tracks/4/enabled = true
+tracks/4/path = NodePath("Sprite2D:position")
+tracks/4/interp = 1
+tracks/4/loop_wrap = true
+tracks/4/keys = {
+"times": PackedFloat32Array(0),
+"transitions": PackedFloat32Array(1),
+"update": 1,
+"values": [Vector2(2, -100)]
+}
+
+[sub_resource type="AnimationLibrary" id="AnimationLibrary_vc5cj"]
+_data = {
+&"Euda-run": SubResource("Animation_txyw0"),
+&"RESET": SubResource("Animation_vc5cj")
+}
 
 [sub_resource type="SystemFont" id="SystemFont_dialogue"]
 font_names = PackedStringArray("Arial Unicode MS", "PingFang SC", "Heiti SC", "Noto Sans CJK SC")
@@ -146,22 +296,24 @@ offset_right = 12486.111
 offset_bottom = -1049.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.055, 0.062, 0.075, 1)
+color = Color(0.17, 0.18, 0.17, 1)
 
 [node name="WorldDarkness" type="CanvasModulate" parent="." unique_id=1547900000]
-color = Color(0.68, 0.7, 0.72, 1)
+color = Color(0.56, 0.58, 0.56, 1)
 
 [node name="BackgroundFog" type="Node2D" parent="." unique_id=1547900001]
 z_index = -12
 z_as_relative = false
 script = ExtResource("37_background_fog")
+fog_color = Color(0.82, 0.86, 0.8, 0.11)
 
 [node name="PhysicalSunLight" type="Node2D" parent="." unique_id=1547900003]
+process_mode = 3
 z_index = 1024
 z_as_relative = false
-material = SubResource("CanvasItemMaterial_5poiv")
+material = SubResource("CanvasItemMaterial_1v6qk")
 script = ExtResource("39_background_light_rays")
-light_direction = Vector2(-0.73660547, 0.67632276)
+light_direction = Vector2(-0.64561, 0.7636673)
 source_handle_path = NodePath("../SunLightEditorHandles/SourceHandle")
 direction_handle_path = NodePath("../SunLightEditorHandles/DirectionHandle")
 
@@ -173,7 +325,8 @@ z_as_relative = false
 modulate = Color(1, 0.78, 0.24, 0.92)
 z_index = 1025
 z_as_relative = false
-position = Vector2(952, -179)
+position = Vector2(918, -117.500046)
+scale = Vector2(1.0818181, 1.0227277)
 texture = ExtResource("41_editor_sun_handle")
 script = ExtResource("40_sun_light_handle")
 
@@ -181,11 +334,30 @@ script = ExtResource("40_sun_light_handle")
 modulate = Color(0.25, 0.85, 1, 0.88)
 z_index = 1025
 z_as_relative = false
-position = Vector2(60, 640)
+position = Vector2(264.5, 655.5)
+scale = Vector2(0.8590909, 0.8590909)
 texture = ExtResource("41_editor_sun_handle")
 script = ExtResource("40_sun_light_handle")
 handle_color = Color(0.25, 0.85, 1, 0.88)
 draw_arrow = true
+
+[node name="SourceHandle2" type="Sprite2D" parent="SunLightEditorHandles" unique_id=1007023303]
+modulate = Color(1, 0.78, 0.24, 0.92)
+z_index = 1025
+z_as_relative = false
+position = Vector2(633, -1140.6683)
+scale = Vector2(0.9272728, 0.95153016)
+texture = ExtResource("41_editor_sun_handle")
+script = ExtResource("40_sun_light_handle")
+
+[node name="SourceHandle3" type="Sprite2D" parent="SunLightEditorHandles" unique_id=1894337955]
+modulate = Color(1, 0.78, 0.24, 0.92)
+z_index = 1025
+z_as_relative = false
+position = Vector2(940.5, -1680.229)
+scale = Vector2(1.2863635, 1.2161006)
+texture = ExtResource("41_editor_sun_handle")
+script = ExtResource("40_sun_light_handle")
 
 [node name="RoomFillLights" type="Node2D" parent="." unique_id=1547900002]
 visible = false
@@ -195,13 +367,12 @@ script = ExtResource("38_room_fill_lights")
 
 [node name="Background" type="Polygon2D" parent="." unique_id=74526128]
 z_index = -100
-position = Vector2(-446.0001, -1139)
+position = Vector2(-444.99997, -1154)
 scale = Vector2(1.6497395, 1.5511242)
 color = Color(0.055, 0.062, 0.075, 1)
 polygon = PackedVector2Array(-1200, -800, 3600, -800, 3600, 517.4121, 3600, 1800, -1200, 1800)
 
 [node name="Rooms" type="Node2D" parent="." unique_id=808420006]
-metadata/_edit_lock_ = true
 
 [node name="1-0" type="Area2D" parent="Rooms" unique_id=808420007]
 script = ExtResource("5_room")
@@ -209,12 +380,10 @@ room_id = "Start Room"
 camera_profile = "vertical_shaft"
 camera_view_mode = "no_follow"
 camera_view_width = 320.0
-metadata/_edit_lock_ = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-0" unique_id=808420008]
 position = Vector2(-10.5, 392.5)
 shape = SubResource("RectangleShape2D_room_start")
-metadata/_edit_lock_ = true
 
 [node name="1-1" type="Area2D" parent="Rooms" unique_id=808420009]
 script = ExtResource("5_room")
@@ -222,13 +391,12 @@ room_id = "Cliff Room"
 camera_profile = "platforming"
 camera_rect = Rect2(1420, -40, 1500, 760)
 camera_view_width = 664.0
+connected_room = true
 debug_color = Color(0.36, 0.76, 0.92, 0.5)
-metadata/_edit_lock_ = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-1" unique_id=808420010]
 position = Vector2(697, 246)
 shape = SubResource("RectangleShape2D_room_cliff")
-metadata/_edit_lock_ = true
 
 [node name="1-2" type="Area2D" parent="Rooms" unique_id=88414947]
 script = ExtResource("5_room")
@@ -237,12 +405,10 @@ camera_profile = "platforming"
 camera_rect = Rect2(1420, -40, 1500, 760)
 camera_view_width = 320.0
 debug_color = Color(0.36, 0.76, 0.92, 0.5)
-metadata/_edit_lock_ = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-2" unique_id=434725420]
 position = Vector2(1526.5, 557)
 shape = SubResource("RectangleShape2D_tipki")
-metadata/_edit_lock_ = true
 
 [node name="1-3" type="Area2D" parent="Rooms" unique_id=444878778]
 script = ExtResource("5_room")
@@ -251,12 +417,10 @@ camera_profile = "platforming"
 camera_rect = Rect2(1420, -40, 1500, 760)
 camera_view_width = 1264.0
 debug_color = Color(0.36, 0.76, 0.92, 0.5)
-metadata/_edit_lock_ = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-3" unique_id=202252574]
 position = Vector2(2712.875, 334.25)
 shape = SubResource("RectangleShape2D_85g3d")
-metadata/_edit_lock_ = true
 
 [node name="1-4" type="Area2D" parent="Rooms" unique_id=2011644398]
 script = ExtResource("5_room")
@@ -265,12 +429,10 @@ camera_profile = "platforming"
 camera_rect = Rect2(1420, -40, 1500, 760)
 camera_view_width = 1312.0
 debug_color = Color(0.36, 0.76, 0.92, 0.5)
-metadata/_edit_lock_ = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-4" unique_id=456369310]
 position = Vector2(4058.9375, -257)
 shape = SubResource("RectangleShape2D_choun")
-metadata/_edit_lock_ = true
 
 [node name="DeathSpaceRoom" type="Area2D" parent="Rooms" unique_id=1547800001]
 script = ExtResource("5_room")
@@ -278,12 +440,10 @@ room_id = "Death Space"
 camera_profile = "cinematic"
 camera_view_mode = "no_follow"
 debug_color = Color(0.5, 0.5, 0.62, 0.45)
-metadata/_edit_lock_ = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/DeathSpaceRoom" unique_id=1547800002]
 position = Vector2(8000, 360)
 shape = SubResource("RectangleShape2D_death_room")
-metadata/_edit_lock_ = true
 
 [node name="1-5" type="Area2D" parent="Rooms" unique_id=1124244050]
 script = ExtResource("5_room")
@@ -292,12 +452,10 @@ camera_profile = "platforming"
 camera_rect = Rect2(1420, -40, 1500, 760)
 camera_view_width = 1312.0
 debug_color = Color(0.36, 0.76, 0.92, 0.5)
-metadata/_edit_lock_ = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-5" unique_id=735551492]
 position = Vector2(2721.8125, -782.5)
 shape = SubResource("RectangleShape2D_2wyq8")
-metadata/_edit_lock_ = true
 
 [node name="1-6" type="Area2D" parent="Rooms" unique_id=1493778581]
 script = ExtResource("5_room")
@@ -306,12 +464,10 @@ camera_profile = "platforming"
 camera_rect = Rect2(1420, -40, 1500, 760)
 camera_view_width = 1312.0
 debug_color = Color(0.36, 0.76, 0.92, 0.5)
-metadata/_edit_lock_ = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-6" unique_id=19884755]
 position = Vector2(1509.5, -503.15625)
 shape = SubResource("RectangleShape2D_vxglm")
-metadata/_edit_lock_ = true
 
 [node name="1-7" type="Area2D" parent="Rooms" unique_id=441668884]
 script = ExtResource("5_room")
@@ -320,13 +476,12 @@ camera_profile = "platforming"
 camera_view_mode = "free_size"
 camera_rect = Rect2(1420, -40, 1500, 760)
 camera_view_width = 1728.0
+connected_room = true
 debug_color = Color(0.36, 0.76, 0.92, 0.5)
-metadata/_edit_lock_ = true
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-7" unique_id=684373168]
 position = Vector2(51, -824)
 shape = SubResource("RectangleShape2D_2f3dj")
-metadata/_edit_lock_ = true
 
 [node name="Level" type="Node2D" parent="." unique_id=1034204445]
 
@@ -344,15 +499,20 @@ polygon = PackedVector2Array(7480, 520, 8520, 520, 8520, 590, 7480, 590)
 [node name="DeathReturnGate" type="Area2D" parent="Level/DeathSpace" unique_id=1547800013]
 position = Vector2(8420, 450)
 collision_layer = 0
+script = ExtResource("47_death_return_gate_glow")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Level/DeathSpace/DeathReturnGate" unique_id=1547800014]
+visible = false
 shape = SubResource("RectangleShape2D_death_return_gate")
+debug_color = Color(1, 1, 1, 0)
 
 [node name="DoorVisual" type="Polygon2D" parent="Level/DeathSpace/DeathReturnGate" unique_id=1547800015]
+visible = false
 color = Color(0.2, 0.24, 0.32, 0.88)
 polygon = PackedVector2Array(-34, -72, 34, -72, 34, 72, -34, 72)
 
 [node name="DoorOutline" type="Line2D" parent="Level/DeathSpace/DeathReturnGate" unique_id=1547800016]
+visible = false
 points = PackedVector2Array(-34, -72, 34, -72, 34, 72, -34, 72, -34, -72)
 width = 4.0
 default_color = Color(0.55, 0.72, 1, 0.95)
@@ -401,18 +561,19 @@ position = Vector2(-0.765625, -5.3125)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton/PressSensor" index="0"]
 position = Vector2(-0.765625, -5.3125)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_2cjbq")
+shape = SubResource("RectangleShape2D_augu2")
 
 [node name="DemoMovingWall2" parent="Level/Mechanisms" unique_id=229016664 instance=ExtResource("15_mechanism_wall")]
-position = Vector2(1213, 598)
+position = Vector2(1358, 598)
 collision_mask = 0
 target_offset = Vector2(0, -200)
 move_time = 1.0
 break_animation_time = 0.3
 restore_animation_time = 0.15000000000000002
+vertical_impact_escape_direction = 2
 
 [node name="DemoButton2" parent="Level/Mechanisms" unique_id=1436383 instance=ExtResource("16_mechanism_button")]
-position = Vector2(1105, 672)
+position = Vector2(1172, 673)
 moving_wall_path = NodePath("../DemoMovingWall2")
 button_mode = 1
 detect_player_weapons = false
@@ -423,7 +584,7 @@ position = Vector2(0, -7)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton2/PressSensor" index="0"]
 position = Vector2(0, -7)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_chjal")
+shape = SubResource("RectangleShape2D_tm6hj")
 
 [node name="DemoMovingWall3" parent="Level/Mechanisms" unique_id=1783879147 instance=ExtResource("15_mechanism_wall")]
 position = Vector2(1064, 147)
@@ -441,7 +602,7 @@ polygon = PackedVector2Array(-29, -110, 23, -110, 23, 94, -25, 95)
 position = Vector2(-3, -7.5)
 
 [node name="DemoButton3" parent="Level/Mechanisms" unique_id=797012024 instance=ExtResource("16_mechanism_button")]
-position = Vector2(1836, 160)
+position = Vector2(1836, 174)
 rotation = 1.5707964
 moving_wall_path = NodePath("../DemoMovingWall3")
 button_mode = 2
@@ -452,7 +613,7 @@ position = Vector2(2, -12.5)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton3/PressSensor" index="0"]
 position = Vector2(2, -12.5)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_cjqg0")
+shape = SubResource("RectangleShape2D_kf5aa")
 
 [node name="DemoMovingWall4" parent="Level/Mechanisms" unique_id=466419786 instance=ExtResource("15_mechanism_wall")]
 position = Vector2(3437, -394)
@@ -477,7 +638,7 @@ detect_player_weapons = false
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton4/PressSensor" index="0"]
 position = Vector2(0, -14)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_vchkt")
+shape = SubResource("RectangleShape2D_t5ykj")
 
 [node name="DemoMovingWall5" parent="Level/Mechanisms" unique_id=345938204 instance=ExtResource("15_mechanism_wall")]
 position = Vector2(2502, -381)
@@ -504,10 +665,10 @@ position = Vector2(0, -6)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton5/PressSensor" index="0"]
 position = Vector2(0, -6)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_txyw0")
+shape = SubResource("RectangleShape2D_e755i")
 
 [node name="DemoMovingWall6" parent="Level/Mechanisms" unique_id=1159029069 instance=ExtResource("15_mechanism_wall")]
-position = Vector2(1304, -137)
+position = Vector2(1307, -106)
 collision_mask = 0
 target_offset = Vector2(250, 0)
 move_time = 1.0
@@ -537,7 +698,7 @@ position = Vector2(0, -6)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton6/PressSensor" index="0"]
 position = Vector2(0, -6)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_vc5cj")
+shape = SubResource("RectangleShape2D_ro3en")
 
 [node name="DemoMovingWall7" parent="Level/Mechanisms" unique_id=947364331 instance=ExtResource("15_mechanism_wall")]
 position = Vector2(-128, -250)
@@ -575,7 +736,7 @@ rotation = 1.5707964
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton7/PressSensor" index="0"]
 position = Vector2(9, 40.99997)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_nvyfr")
+shape = SubResource("RectangleShape2D_od4ux")
 
 [node name="DemoMovingWall8" parent="Level/Mechanisms" unique_id=1187421204 instance=ExtResource("15_mechanism_wall")]
 position = Vector2(-302, -1070)
@@ -603,7 +764,7 @@ position = Vector2(-26, -10.5)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton8/PressSensor" index="0"]
 position = Vector2(-26, -10.5)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_ty1g6")
+shape = SubResource("RectangleShape2D_xhfw6")
 
 [node name="DemoMovingWall9" parent="Level/Mechanisms" unique_id=845429669 instance=ExtResource("15_mechanism_wall")]
 position = Vector2(84, -1196)
@@ -641,7 +802,25 @@ rotation = 1.5707964
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton9/PressSensor" index="0"]
 position = Vector2(116, -29)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_j2jfr")
+shape = SubResource("RectangleShape2D_1epgm")
+
+[node name="DemoMovingWall10" parent="Level/Mechanisms" unique_id=2027598206 instance=ExtResource("15_mechanism_wall")]
+position = Vector2(3091, 68)
+collision_mask = 0
+target_offset = Vector2(0, -200)
+move_time = 1.0
+
+[node name="DemoButton10" parent="Level/Mechanisms" unique_id=635773942 instance=ExtResource("16_mechanism_button")]
+position = Vector2(3195, 141)
+moving_wall_path = NodePath("../DemoMovingWall10")
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton10" index="0"]
+position = Vector2(-0.765625, -5.3125)
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton10/PressSensor" index="0"]
+position = Vector2(-0.765625, -5.3125)
+rotation = 0.0
+shape = SubResource("RectangleShape2D_152kg")
 
 [node name="Tombstones" type="Node2D" parent="Level" unique_id=1547200000]
 
@@ -664,7 +843,7 @@ build_mode = 1
 polygon = PackedVector2Array(-136, 22, -134, 10, -125, 3, -124, 9, -120, 11, -113, 9, -110, 9, -106, 14, -100, 7, -95, 7, -91, 11, -88, 9, -84, 8, -78, 10, -73, 14, -70, 8, -67, 8, -58, 14, -53, 11, -49, 11, -44, 13, -39, 15, -34, 10, -29, 10, -24, 14, -19, 10, -17, 10, -13, 12, -9, 9, -6, 9, -1.2171936, 11.565157, 4, 10, 7, 12, 9, 20, 17, 12, 21, 15, 29, 15, 30, 15, 32, 11, 35, 11, 37, 10, 40, 10, 42, 15, 44, 18, 49, 17, 53, 12, 53, 13, 57, 12, 56, 15, 57, 14, 57, 15, 55, 18, 57, 21, 62, 19, 72, 15, 76, 15, 81, 21, 84, 20, 88, 19, 91, 20, 93, 19, 97, 15, 101, 14, 103, 15, 105, 17, 107, 16, 106.65344, 11.210398, 108, 11, 110, 16, 112, 17, 116, 14, 120, 18, 124, 17, 126, 15, 132, 11, 135, 13, 134, 17, 132, 21, 132, 25, 134, 25, 138, 19, 142, 15, 147, 14, 149, 15, 152, 18, 156, 23, 161, 23, 164, 18, 168, 15, 173, 14, 177, 16, 181, 20, 183, 19, 188, 15, 188, 18, 192, 16, 197, 14, 202, 15, 208, 23, 217, 16, 226, 16, 230, 10, 227, 0, 237, 12, 237, 7, 238, 5, 240, 6, 244, 2, 246, 13, 250, 1, 253, 2, 249, 19, 253, 15, 254, 32, -136, 33)
 
 [node name="SpikeCollision2" type="CollisionPolygon2D" parent="Level/SpikeBlocks" unique_id=861374387]
-position = Vector2(1550, -71)
+position = Vector2(1554, -12)
 build_mode = 1
 polygon = PackedVector2Array(-136, 22, -109, -10, -99, 16, -90, -10, -73, 18, -58, 8, -49, 21, -31, -7, -16, 21, 13, -15, 27, 17, 39, -14, 50, 19, 72, -17, 76, 16, 88, -5, 103, 19, 124, -12, 156, 20, 173, -8, 194, 16, 214, -28, 231, 6, 248, -18, 269, 12, 282, -17, 304, 24, -136, 33)
 
@@ -691,7 +870,7 @@ polygon = PackedVector2Array(-416, 320, -413, 184, 268, 180, 265, 194, 631, 194,
 [node name="WallCollision" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=222913767]
 position = Vector2(-456, -23)
 build_mode = 1
-polygon = PackedVector2Array(2306, 264, 2307, 106, 1867, -14, 2309, -25, 2310, -230, 2179, -230, 2178, -293, 3404, -298, 3406, -226, 2535, -225, 2536, 280, 2659, 280, 2995, 431, 2539, 428, 2539, 544, 1488, 552, 1478, 542, 1471, 505, 1474, 465, 1466, 432, 1476, 397, 1466, 377, 1464, 322, 1443, 313, 1409, 315, 1380, 327, 1364, 319, 1339, 327, 1331, 314, 1284, 318, 1264, 312, 1235, 323, 1232, 265)
+polygon = PackedVector2Array(2306, 264, 2307, 151, 1869, 38, 2310, 35, 2310, -230, 2179, -230, 2178, -293, 3404, -298, 3406, -226, 2535, -225, 2536, 280, 2659, 280, 2995, 431, 2539, 428, 2539, 544, 1488, 552, 1478, 542, 1471, 505, 1474, 465, 1466, 432, 1476, 397, 1466, 377, 1464, 322, 1443, 313, 1409, 315, 1380, 327, 1364, 319, 1339, 327, 1331, 314, 1284, 318, 1264, 312, 1235, 323, 1232, 265)
 
 [node name="FloatingRockCollision" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=408602743]
 position = Vector2(3, -46)
@@ -709,12 +888,12 @@ build_mode = 1
 polygon = PackedVector2Array(2826, 670, 2824, 771, 3749, 773, 3754, 388, 3276, 386)
 
 [node name="GroundCollision4" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1987168435]
-position = Vector2(116, -259)
+position = Vector2(81, -281)
 build_mode = 1
 polygon = PackedVector2Array(2826, 670, 2890, 711, 2971, 707, 3027, 674)
 
 [node name="GroundCollision5" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=63434091]
-position = Vector2(-200, -275)
+position = Vector2(-233, -298)
 build_mode = 1
 polygon = PackedVector2Array(2838, 671, 2890, 711, 2971, 707, 3008, 673)
 
@@ -729,7 +908,7 @@ build_mode = 1
 polygon = PackedVector2Array(2838, 671, 2890, 711, 2971, 707, 3008, 673)
 
 [node name="GroundCollision8" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=924228847]
-position = Vector2(-2180, -859)
+position = Vector2(-2221, -843)
 build_mode = 1
 polygon = PackedVector2Array(2838, 671, 2890, 711, 2971, 707, 3008, 673)
 
@@ -751,7 +930,7 @@ polygon = PackedVector2Array(2838, 671, 2890, 711, 2971, 707, 3008, 673)
 [node name="GroundCollision13" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1601121876]
 position = Vector2(-2262, -1354)
 build_mode = 1
-polygon = PackedVector2Array(2838, 671, 2890, 711, 3010, 709, 3012, 925, 2822, 925, 2860, 971, 3017, 975, 3019, 1126, 3286, 1129, 3297, 1392, 3349, 1393, 3348, 1236, 3468, 1236, 3466, 1195, 3344, 1196, 3331, 666)
+polygon = PackedVector2Array(2838, 671, 2890, 711, 3010, 709, 3012, 925, 2822, 925, 2855, 958, 3014, 967, 3019, 1126, 3286, 1129, 3297, 1392, 3349, 1393, 3347, 1267, 3469, 1267, 3467, 1227, 3345, 1227, 3331, 666)
 
 [node name="GroundCollision14" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1897127467]
 position = Vector2(-2543, -1455)
@@ -891,7 +1070,7 @@ body_color = Color(0.42, 0.58, 1, 1)
 edge_color = Color(0.04, 0.08, 0.18, 1)
 
 [node name="EnemyNormal7" parent="Level/Enemies" unique_id=1573298062 instance=ExtResource("11_enemy")]
-position = Vector2(3225, 108)
+position = Vector2(3321, 114)
 
 [node name="EnemyGhost3" parent="Level/Enemies" unique_id=1986287580 instance=ExtResource("11_enemy")]
 position = Vector2(2448, -353)
@@ -945,27 +1124,30 @@ boomerang_scene = ExtResource("9_mask_boomerang")
 [node name="ThrowPoint" type="Marker2D" parent="Player" unique_id=1129811178]
 position = Vector2(34, -20)
 
-[node name="PlayerRuntimeVisual" type="Node2D" parent="Player" unique_id=808420003]
-z_index = 1
-script = ExtResource("4_player_visual")
-
-[node name="SpawnMarker" type="Line2D" parent="Player" unique_id=990420001]
-points = PackedVector2Array(0, -44, 0, -24, -8, -32, 0, -24, 8, -32)
-width = 4.0
-default_color = Color(1, 0.86, 0.28, 1)
-
-[node name="Body" type="Polygon2D" parent="Player" unique_id=2124436141]
-color = Color(0.42, 0.82, 1, 1)
-polygon = PackedVector2Array(-20, -22, 20, -22, 20, 20, -20, 20)
-
-[node name="BodyOutline" type="Line2D" parent="Player" unique_id=990420002]
-points = PackedVector2Array(-20, -22, 20, -22, 20, 20, -20, 20, -20, -22)
-width = 4.0
-default_color = Color(0.02, 0.03, 0.04, 1)
-
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Player" unique_id=1557034633]
+position = Vector2(12.5, -16)
 shape = SubResource("RectangleShape2D_player")
 debug_color = Color(0.44705883, 0.60784316, 0.6509804, 0.41960785)
+
+[node name="Sprite2D" type="Sprite2D" parent="Player" unique_id=523277790]
+position = Vector2(2, -100)
+scale = Vector2(0.20014, 0.20013992)
+texture = ExtResource("24_euda_idle")
+
+[node name="EnvironmentLightReceiver" type="Node" parent="Player" unique_id=982826256]
+script = ExtResource("45_player_environment_light")
+
+[node name="EyeGlow" type="Node2D" parent="Player" unique_id=1976677149]
+script = ExtResource("46_character_eye_glow")
+
+[node name="LeftEyePoint" type="Marker2D" parent="Player/EyeGlow" unique_id=1641066728]
+position = Vector2(2, -43)
+
+[node name="RightEyePoint" type="Marker2D" parent="Player/EyeGlow" unique_id=680877341]
+position = Vector2(17, -44)
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="Player" unique_id=329359179]
+libraries/ = SubResource("AnimationLibrary_vc5cj")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1214959126]
 position = Vector2(80, 390)
@@ -978,6 +1160,7 @@ target_path = NodePath("../Player")
 
 [node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=702696265]
 layer = 100
+metadata/_edit_lock_ = true
 
 [node name="CameraZoneOverlay" type="Control" parent="CanvasLayer" unique_id=740569868]
 visible = false
@@ -990,6 +1173,7 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("7_camera_zone_overlay")
 camera_path = NodePath("../../Camera2D")
+metadata/_edit_lock_ = true
 
 [node name="RoomTransitionMask" type="ColorRect" parent="CanvasLayer" unique_id=808420011]
 visible = false
@@ -1002,6 +1186,7 @@ mouse_filter = 2
 color = Color(0.02, 0.025, 0.035, 0)
 script = ExtResource("6_room_mask")
 camera_path = NodePath("../../Camera2D")
+metadata/_edit_lock_ = true
 
 [node name="DeathRespawnMask" type="ColorRect" parent="CanvasLayer" unique_id=1547700000]
 visible = false
@@ -1016,6 +1201,18 @@ script = ExtResource("24_death_respawn")
 player_path = NodePath("../../Player")
 save_manager_path = NodePath("../../SaveManager")
 camera_path = NodePath("../../Camera2D")
+metadata/_edit_lock_ = true
+
+[node name="DeathSpaceFilter" type="ColorRect" parent="CanvasLayer" unique_id=1547800030]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("48_death_space_filter")
+metadata/_edit_lock_ = true
 
 [node name="DamageVignette" type="Control" parent="CanvasLayer" unique_id=1548000000]
 visible = false
@@ -1028,6 +1225,7 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("42_damage_vignette")
 player_path = NodePath("../../Player")
+metadata/_edit_lock_ = true
 
 [node name="PauseMenu" type="Control" parent="CanvasLayer" unique_id=1548000001]
 visible = false
@@ -1040,6 +1238,20 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("43_pause_menu")
+metadata/_edit_lock_ = true
+
+[node name="GameStartGate" type="Control" parent="CanvasLayer" unique_id=1548000002]
+z_index = 100
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("44_game_start_gate")
+player_path = NodePath("../../Player")
+metadata/_edit_lock_ = true
 
 [node name="DialogueBox" type="Control" parent="CanvasLayer" unique_id=1547800020]
 visible = false
@@ -1054,6 +1266,7 @@ script = ExtResource("26_dialogue_box")
 speaker_label_path = NodePath("Panel/Speaker")
 body_label_path = NodePath("Panel/Body")
 continue_label_path = NodePath("Panel/Continue")
+metadata/_edit_lock_ = true
 
 [node name="Panel" type="ColorRect" parent="CanvasLayer/DialogueBox" unique_id=1547800021]
 layout_mode = 1
@@ -1063,6 +1276,7 @@ anchor_top = 0.68
 anchor_right = 0.88
 anchor_bottom = 0.94
 color = Color(0.02, 0.025, 0.035, 0.9)
+metadata/_edit_lock_ = true
 
 [node name="Speaker" type="Label" parent="CanvasLayer/DialogueBox/Panel" unique_id=1547800022]
 layout_mode = 1
@@ -1073,6 +1287,7 @@ offset_bottom = 46.0
 theme_override_colors/font_color = Color(1, 0.86, 0.28, 1)
 theme_override_fonts/font = SubResource("SystemFont_dialogue")
 theme_override_font_sizes/font_size = 22
+metadata/_edit_lock_ = true
 
 [node name="Body" type="Label" parent="CanvasLayer/DialogueBox/Panel" unique_id=1547800023]
 layout_mode = 1
@@ -1084,6 +1299,7 @@ theme_override_colors/font_color = Color(0.94, 0.96, 1, 1)
 theme_override_fonts/font = SubResource("SystemFont_dialogue")
 theme_override_font_sizes/font_size = 24
 autowrap_mode = 3
+metadata/_edit_lock_ = true
 
 [node name="Continue" type="Label" parent="CanvasLayer/DialogueBox/Panel" unique_id=1547800024]
 layout_mode = 1
@@ -1095,6 +1311,7 @@ theme_override_colors/font_color = Color(0.68, 0.76, 0.86, 1)
 theme_override_fonts/font = SubResource("SystemFont_dialogue")
 theme_override_font_sizes/font_size = 16
 horizontal_alignment = 2
+metadata/_edit_lock_ = true
 
 [node name="Hint" type="Label" parent="CanvasLayer" unique_id=689025645]
 offset_left = -121.0
@@ -1106,6 +1323,7 @@ theme_override_font_sizes/font_size = 18
 script = ExtResource("3_debug_hud")
 player_path = NodePath("../../Player")
 camera_path = NodePath("../../Camera2D")
+metadata/_edit_lock_ = true
 
 [node name="SaveStatus" type="Label" parent="CanvasLayer" unique_id=1547000004]
 anchors_preset = 2
@@ -1120,10 +1338,12 @@ theme_override_colors/font_color = Color(1, 0.9, 0.35, 1)
 theme_override_font_sizes/font_size = 20
 script = ExtResource("14_save_status_label")
 save_manager_path = NodePath("../../SaveManager")
+metadata/_edit_lock_ = true
 
 [node name="UnlockPopup" parent="CanvasLayer" unique_id=1547200002 instance=ExtResource("18_unlock_popup")]
 grow_horizontal = 2
 grow_vertical = 2
+metadata/_edit_lock_ = true
 
 [node name="20260606102151" type="Sprite2D" parent="." unique_id=280165619]
 position = Vector2(651, 490)
@@ -1194,3 +1414,5 @@ script = ExtResource("36_fixed_camera_sprite")
 [editable path="Level/Mechanisms/DemoButton8"]
 [editable path="Level/Mechanisms/DemoMovingWall9"]
 [editable path="Level/Mechanisms/DemoButton9"]
+[editable path="Level/Mechanisms/DemoMovingWall10"]
+[editable path="Level/Mechanisms/DemoButton10"]

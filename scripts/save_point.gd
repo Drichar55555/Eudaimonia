@@ -26,6 +26,7 @@ var _player_inside := false
 var _last_exit_time := -INF
 
 func _ready() -> void:
+	add_to_group("save_debug_areas")
 	monitoring = true
 	monitorable = true
 	body_entered.connect(_on_body_entered)
@@ -87,6 +88,10 @@ func _is_player(node: Node) -> bool:
 
 func _now_seconds() -> float:
 	return Time.get_ticks_msec() / 1000.0
+
+func set_debug_visuals_visible(value: bool) -> void:
+	show_runtime_visual = value
+	queue_redraw()
 
 func _update_shape() -> void:
 	var collision_shape := get_node_or_null("CollisionShape2D") as CollisionShape2D

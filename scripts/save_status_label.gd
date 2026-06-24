@@ -1,8 +1,8 @@
 extends Label
 
 @export var save_manager_path: NodePath
-@export var saving_text := "存储中..."
-@export var finished_text := "已存档"
+@export var saving_text := "Saving..."
+@export var finished_text := "Saved"
 @export var finished_visible_time := 0.9
 
 var save_manager: Node

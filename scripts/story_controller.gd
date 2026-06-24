@@ -80,6 +80,7 @@ func _move_player_to_death_space() -> void:
 		(_player as CharacterBody2D).velocity = Vector2.ZERO
 	(_player as Node2D).global_position = death_space_spawn
 	_in_death_space = true
+	_set_death_space_filter_visible(true)
 
 func _on_death_return_gate_body_entered(body: Node) -> void:
 	if not _in_death_space or body == null or not body.is_in_group("players"):
@@ -90,6 +91,7 @@ func return_from_death_space(player: Node) -> void:
 	if player == null or not player.is_in_group("players"):
 		return
 	_in_death_space = false
+	_set_death_space_filter_visible(false)
 	_player = player
 	_request_black_transition(player, Callable(self, "_return_to_checkpoint"), Callable(self, "_maybe_show_ghost_death_dialogue"))
 
@@ -208,3 +210,6 @@ func _resolve_respawn_controller() -> void:
 	if _respawn_controller != null and is_instance_valid(_respawn_controller):
 		return
 	_respawn_controller = get_tree().get_first_node_in_group("death_respawn_controllers")
+
+func _set_death_space_filter_visible(value: bool) -> void:
+	get_tree().call_group("death_space_filters", "set_filter_visible", value)

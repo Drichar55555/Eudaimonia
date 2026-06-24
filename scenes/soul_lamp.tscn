@@ -11,7 +11,7 @@ z_as_relative = false
 collision_layer = 0
 collision_mask = 1
 script = ExtResource("1_soul_lamp")
-show_runtime_visual = true
+show_runtime_visual = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("CircleShape2D_soul_lamp_save")
