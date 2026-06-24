@@ -112,6 +112,7 @@ var _ghost_block_context_timer := 0.0
 var _jump_was_down := false
 var _throw_was_down := false
 var _mask_cycle_was_down := false
+var _jump_ascent_room_gate_active := false
 var _test_mode_enabled := false
 var _test_mode_was_down := false
 var _test_mode_collision_shape_states := {}
@@ -179,6 +180,8 @@ func _physics_process(delta: float) -> void:
 
 	if on_floor:
 		_coyote_timer = coyote_time
+		if velocity.y >= 0.0:
+			_jump_ascent_room_gate_active = false
 
 	var jump_down := _jump_is_down()
 	var jump_pressed := jump_down and not _jump_was_down
@@ -462,6 +465,7 @@ func take_environment_hit(damage: int = 1, hit_source: Node = null, hit_directio
 	var horizontal_direction := -signf(hit_direction.x) if absf(hit_direction.x) > absf(hit_direction.y) else signf(hit_direction.x)
 	if is_zero_approx(horizontal_direction):
 		horizontal_direction = -facing_direction
+	_jump_ascent_room_gate_active = false
 	velocity.x = absf(knockback.x) * horizontal_direction
 	velocity.y = minf(velocity.y, knockback.y)
 	mask_health_changed.emit(current_mask_state, next_health, max_health_per_mask)
@@ -477,6 +481,17 @@ func apply_ground_speed_multiplier(multiplier: float, duration: float = 0.08) ->
 
 func get_ground_speed_multiplier() -> float:
 	return _ground_speed_multiplier
+
+func is_current_jump_ascent_active() -> bool:
+	return _jump_ascent_room_gate_active and velocity.y < 0.0 and not _test_mode_enabled
+
+func get_current_jump_apex_y() -> float:
+	if velocity.y >= 0.0:
+		return global_position.y
+	var gravity := ProjectSettings.get_setting("physics/2d/default_gravity") as float
+	var gravity_multiplier := low_jump_gravity_multiplier if not _jump_is_down() else 1.0
+	var upward_acceleration := maxf(gravity * gravity_scale * gravity_multiplier, 0.001)
+	return global_position.y - (velocity.y * velocity.y) / (2.0 * upward_acceleration)
 
 func add_keys(amount: int = 1) -> int:
 	if amount <= 0:
@@ -526,6 +541,7 @@ func take_mechanism_crush(damage: int = 1, hit_source: Node = null, hit_directio
 		horizontal_direction = signf(global_position.x - source.global_position.x) if source != null else -facing_direction
 		if is_zero_approx(horizontal_direction):
 			horizontal_direction = -facing_direction
+	_jump_ascent_room_gate_active = false
 	velocity.x = absf(knockback.x) * horizontal_direction
 	if is_falling_wall_crush:
 		velocity.y = maxf(velocity.y, 0.0)
@@ -553,6 +569,7 @@ func _apply_damage_knockback(hit_source: Node) -> void:
 			knockback_direction = -facing_direction
 	velocity.x = hit_knockback.x * knockback_direction
 	velocity.y = minf(velocity.y, hit_knockback.y)
+	_jump_ascent_room_gate_active = false
 
 func _die_and_load_checkpoint() -> void:
 	var defeated_mask_state := current_mask_state
@@ -787,6 +804,7 @@ func _apply_jump(jump_released: bool) -> void:
 		velocity.y = jump_velocity
 		_jump_buffer_timer = 0.0
 		_coyote_timer = 0.0
+		_jump_ascent_room_gate_active = true
 		return
 
 	if jump_released and velocity.y < 0.0:
@@ -806,6 +824,8 @@ func _apply_gravity(on_floor: bool, jump_down: bool, delta: float) -> void:
 
 	velocity.y += gravity * gravity_scale * gravity_multiplier * delta
 	velocity.y = minf(velocity.y, max_fall_speed)
+	if velocity.y >= 0.0:
+		_jump_ascent_room_gate_active = false
 
 func _try_step_up(horizontal_input: float, on_floor: bool) -> bool:
 	if not can_step_over_small_obstacles or max_step_height <= 0.0 or not on_floor:
@@ -886,6 +906,7 @@ func _set_test_mode_enabled(enabled: bool) -> void:
 	_test_mode_enabled = enabled
 	velocity = Vector2.ZERO
 	_fall_respawn_pending = false
+	_jump_ascent_room_gate_active = false
 	_damage_invulnerability_timer = 0.0
 	if _test_mode_enabled:
 		_disable_test_mode_collisions()

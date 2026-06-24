@@ -1,6 +1,7 @@
 extends Camera2D
 
 const CONNECTED_ROOM_ADJACENCY_TOLERANCE := 8.0
+const UPPER_ROOM_JUMP_APEX_MARGIN := 4.0
 
 @export var target_path: NodePath
 @export var lookahead_distance: float = 96.0
@@ -370,6 +371,8 @@ func _room_at_point(point: Vector2) -> Node:
 	for room in get_tree().get_nodes_in_group("camera_rooms"):
 		if not room.has_method("contains_point") or not room.contains_point(point):
 			continue
+		if _should_defer_upper_jump_room_switch(room):
+			continue
 
 		var distance := _room_selection_distance(room, point)
 		if distance < best_distance:
@@ -402,6 +405,8 @@ func _connected_room_at_point(point: Vector2, active_contains: bool) -> Node:
 		if room == active_room or not _rooms_are_continuously_connected(active_room, room):
 			continue
 		if not room.has_method("contains_point") or not bool(room.contains_point(point)):
+			continue
+		if _should_defer_upper_jump_room_switch(room):
 			continue
 		var distance := point.distance_squared_to(_room_selection_center(room))
 		if not active_contains or distance + 1.0 < best_distance:
@@ -439,6 +444,34 @@ func _room_trigger_rect(room: Node) -> Rect2:
 	if room != null and room.has_method("get_camera_rect"):
 		return room.call("get_camera_rect") as Rect2
 	return Rect2()
+
+func _should_defer_upper_jump_room_switch(room: Node) -> bool:
+	if active_room == null or room == null or room == active_room or target == null:
+		return false
+	if not target.has_method("is_current_jump_ascent_active") or not bool(target.call("is_current_jump_ascent_active")):
+		return false
+	if not _room_is_above(active_room, room):
+		return false
+	var room_rect := _room_trigger_rect(room)
+	if room_rect.size.x <= 0.0 or room_rect.size.y <= 0.0:
+		return false
+	var apex_y := _target_jump_apex_y()
+	return apex_y > room_rect.end.y - UPPER_ROOM_JUMP_APEX_MARGIN
+
+func _room_is_above(from_room: Node, to_room: Node) -> bool:
+	var from_rect := _room_trigger_rect(from_room)
+	var to_rect := _room_trigger_rect(to_room)
+	if from_rect.size.x <= 0.0 or from_rect.size.y <= 0.0 or to_rect.size.x <= 0.0 or to_rect.size.y <= 0.0:
+		return false
+	return to_rect.get_center().y < from_rect.get_center().y
+
+func _target_jump_apex_y() -> float:
+	if target.has_method("get_current_jump_apex_y"):
+		return float(target.call("get_current_jump_apex_y"))
+	if target.velocity.y >= 0.0:
+		return target.global_position.y
+	var gravity := ProjectSettings.get_setting("physics/2d/default_gravity") as float
+	return target.global_position.y - (target.velocity.y * target.velocity.y) / (2.0 * maxf(gravity, 0.001))
 
 func _safe_zoom_for_room(room_rect: Rect2, requested_zoom: Vector2) -> Vector2:
 	var viewport_size := get_viewport_rect().size
