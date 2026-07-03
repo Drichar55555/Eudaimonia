@@ -24,6 +24,8 @@ var _finished_callback := Callable()
 
 func _ready() -> void:
 	add_to_group("death_respawn_controllers")
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	z_index = maxi(z_index, 120)
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	color = Color(fade_color.r, fade_color.g, fade_color.b, 0.0)

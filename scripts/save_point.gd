@@ -3,6 +3,7 @@ extends Area2D
 
 @export var save_manager_path: NodePath
 @export var reenter_cooldown := 20.0
+@export var checkpoint_display_name := "初始洞穴"
 @export var show_editor_visual := true:
 	set(value):
 		show_editor_visual = value
@@ -78,10 +79,17 @@ func _try_start_save(_player: Node) -> void:
 	_player_inside = true
 	if _now_seconds() - _last_exit_time < reenter_cooldown:
 		return
+	_request_save()
+
+func _request_save() -> void:
 	if _save_manager == null:
 		_save_manager = get_node_or_null(save_manager_path)
 	if _save_manager != null and _save_manager.has_method("request_save"):
-		_save_manager.request_save(global_position)
+		_save_manager.request_save(global_position, _checkpoint_display_name())
+
+func _checkpoint_display_name() -> String:
+	var display_name := checkpoint_display_name.strip_edges()
+	return display_name if not display_name.is_empty() else name
 
 func _is_player(node: Node) -> bool:
 	return node != null and node.is_in_group("players")

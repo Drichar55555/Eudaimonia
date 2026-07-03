@@ -4,7 +4,7 @@ extends StaticBody2D
 const TERRAIN_LAYER := 1 << 0
 
 enum UnlockMask { EUDA_MASK = 1, GHOST_MASK = 2 }
-enum SpawnEnemyKind { NORMAL, GHOST }
+enum SpawnEnemyKind { NORMAL, GHOST, INVINCIBLE_NORMAL, INVINCIBLE_GHOST }
 enum SpawnEnemyFacing { LEFT, RIGHT }
 
 @export_enum("Euda Mask", "Ghost Mask") var unlock_mask := 0:
@@ -22,7 +22,7 @@ enum SpawnEnemyFacing { LEFT, RIGHT }
 @export_group("Monster Spawning")
 @export var spawn_monsters_before_break := true
 @export var enemy_scene: PackedScene
-@export_enum("Normal Enemy", "Ghost Enemy") var spawned_enemy_kind := 0
+@export_enum("Normal Enemy", "Ghost Enemy", "Invincible Normal Enemy", "Invincible Ghost Enemy") var spawned_enemy_kind := 0
 @export_enum("Left", "Right") var spawned_enemy_facing := 0
 @export var spawn_on_hit_before_break := true
 @export_range(1, 8, 1) var spawn_count_per_hit := 1
@@ -238,12 +238,18 @@ func _configure_spawned_enemy(enemy: Node2D) -> void:
 		enemy.call("set_spawn_facing_direction", facing_direction)
 	else:
 		enemy.set("initial_patrol_direction", facing_direction)
-	if spawned_enemy_kind == SpawnEnemyKind.GHOST:
+	var spawned_is_ghost := spawned_enemy_kind == SpawnEnemyKind.GHOST or spawned_enemy_kind == SpawnEnemyKind.INVINCIBLE_GHOST
+	var spawned_is_invincible := spawned_enemy_kind == SpawnEnemyKind.INVINCIBLE_NORMAL or spawned_enemy_kind == SpawnEnemyKind.INVINCIBLE_GHOST
+	enemy.set("invincible", spawned_is_invincible)
+	if spawned_is_ghost:
 		enemy.set("can_touch_ghost_blocks", true)
-		enemy.set("body_color", Color(0.42, 0.58, 1.0, 1.0))
-		enemy.set("edge_color", Color(0.04, 0.08, 0.18, 1.0))
+		enemy.set("body_color", Color(0.45, 0.62, 1.0, 1.0) if spawned_is_invincible else Color(0.42, 0.58, 1.0, 1.0))
+		enemy.set("edge_color", Color(0.02, 0.04, 0.12, 1.0) if spawned_is_invincible else Color(0.04, 0.08, 0.18, 1.0))
 	else:
 		enemy.set("can_touch_ghost_blocks", false)
+		if spawned_is_invincible:
+			enemy.set("body_color", Color(0.52, 0.54, 0.58, 1.0))
+			enemy.set("edge_color", Color(0.05, 0.055, 0.065, 1.0))
 
 func _spawned_enemy_facing_direction() -> float:
 	return 1.0 if spawned_enemy_facing == SpawnEnemyFacing.RIGHT else -1.0

@@ -2,6 +2,7 @@ extends Camera2D
 
 const CONNECTED_ROOM_ADJACENCY_TOLERANCE := 8.0
 const UPPER_ROOM_JUMP_APEX_MARGIN := 4.0
+const DEFAULT_ZOOM_SMOOTHING_SPEED := 5.0
 
 @export var target_path: NodePath
 @export var lookahead_distance: float = 96.0
@@ -13,6 +14,7 @@ const UPPER_ROOM_JUMP_APEX_MARGIN := 4.0
 @export var default_room_rect := Rect2(-180.0, -120.0, 1280.0, 720.0)
 @export var default_zoom := Vector2.ONE
 @export var room_transition_duration: float = 0.58
+@export_range(0.2, 10.0, 0.1) var connected_room_zoom_speed := 2.0
 @export var room_switch_pause_duration: float = 0.3
 @export var fade_out_duration: float = 0.16
 @export var fade_hold_duration: float = 0.08
@@ -70,6 +72,8 @@ var _restore_tree_paused_after_room_switch := false
 var _facing_lookahead_offset := 0.0
 var _continuous_room_limits_active := false
 var _continuous_room_limit_rect := Rect2()
+var _continuous_room_limit_target_rect := Rect2()
+var _continuous_zoom_limit_rect := Rect2()
 var _test_mode_free_camera := false
 
 func _ready() -> void:
@@ -154,11 +158,16 @@ func _physics_process(delta: float) -> void:
 		_update_room_transition(delta)
 		return
 
+	_update_continuous_room_limit(delta)
+
 	if active_no_follow:
-		zoom = target_zoom
+		var no_follow_smoothing := _zoom_smoothing_for_active_room(delta)
+		zoom = zoom.lerp(target_zoom, no_follow_smoothing)
+		zoom = _safe_zoom_for_room(_active_zoom_limit_rect(), zoom)
 		var no_follow_limit_rect := _active_camera_limit_rect()
 		_apply_native_camera_limits(no_follow_limit_rect)
-		global_position = _clamp_position_to_rect(active_room_rect.get_center(), no_follow_limit_rect, zoom)
+		var no_follow_position := _clamp_position_to_rect(active_room_rect.get_center(), no_follow_limit_rect, zoom)
+		global_position = global_position.lerp(no_follow_position, no_follow_smoothing) if _continuous_room_limits_active else no_follow_position
 		desired_position = global_position
 		return
 
@@ -173,11 +182,13 @@ func _physics_process(delta: float) -> void:
 	if active_camera_view_mode == "horizontal_follow":
 		tracked_position.y = fixed_axis_position.y
 		next_position.y = fixed_axis_position.y
-		desired_position.y = fixed_axis_position.y
+		if not _continuous_room_limits_active:
+			desired_position.y = fixed_axis_position.y
 	elif active_camera_view_mode == "vertical_follow":
 		tracked_position.x = fixed_axis_position.x
 		next_position.x = fixed_axis_position.x
-		desired_position.x = fixed_axis_position.x
+		if not _continuous_room_limits_active:
+			desired_position.x = fixed_axis_position.x
 	var horizontal_delta := tracked_position.x - desired_position.x
 	var vertical_delta := tracked_position.y - desired_position.y
 
@@ -213,9 +224,9 @@ func _physics_process(delta: float) -> void:
 	desired_position.y = lerpf(desired_position.y, next_position.y, 1.0 - exp(-follow_damping.y * delta))
 
 	var unclamped_position := desired_position
-	var smoothing := 1.0 - exp(5.0 * -delta)
+	var smoothing := _zoom_smoothing_for_active_room(delta)
 	zoom = zoom.lerp(target_zoom, smoothing)
-	zoom = _safe_zoom_for_room(active_room_rect, zoom)
+	zoom = _safe_zoom_for_room(_active_zoom_limit_rect(), zoom)
 	var camera_limit_rect := _active_camera_limit_rect()
 	_apply_native_camera_limits(camera_limit_rect)
 	global_position = _clamp_position_to_rect(unclamped_position, camera_limit_rect, zoom)
@@ -647,11 +658,14 @@ func _activate_connected_room(room: Node, room_rect: Rect2, room_name: String, r
 	active_room_name = room_name
 	target_zoom = room_zoom
 	_apply_camera_settings(room_settings)
-	_continuous_room_limit_rect = _continuous_limit_rect_for_rooms(previous_room_rect, room_rect)
+	_continuous_zoom_limit_rect = previous_room_rect.merge(room_rect)
+	_continuous_room_limit_target_rect = _continuous_limit_rect_for_rooms(previous_room_rect, room_rect)
+	if not _continuous_room_limits_active or _continuous_room_limit_rect.size.x <= 0.0 or _continuous_room_limit_rect.size.y <= 0.0:
+		_continuous_room_limit_rect = _continuous_zoom_limit_rect
 	_continuous_room_limits_active = true
-	_apply_native_camera_limits(_continuous_room_limit_rect)
-	desired_position = _clamp_position_to_rect(desired_position, _continuous_room_limit_rect, zoom)
-	global_position = _clamp_position_to_rect(global_position, _continuous_room_limit_rect, zoom)
+	_apply_native_camera_limits(_active_camera_limit_rect())
+	desired_position = _clamp_position_to_rect(desired_position, _active_camera_limit_rect(), zoom)
+	global_position = _clamp_position_to_rect(global_position, _active_camera_limit_rect(), zoom)
 
 func _continuous_limit_rect_for_rooms(from_rect: Rect2, to_rect: Rect2) -> Rect2:
 	var from_center := from_rect.get_center()
@@ -668,9 +682,33 @@ func _continuous_limit_rect_for_rooms(from_rect: Rect2, to_rect: Rect2) -> Rect2
 func _active_camera_limit_rect() -> Rect2:
 	return _continuous_room_limit_rect if _continuous_room_limits_active else active_room_rect
 
+func _active_zoom_limit_rect() -> Rect2:
+	if _continuous_room_limits_active and _continuous_zoom_limit_rect.size.x > 0.0 and _continuous_zoom_limit_rect.size.y > 0.0:
+		return _continuous_zoom_limit_rect
+	return active_room_rect
+
+func _update_continuous_room_limit(delta: float) -> void:
+	if not _continuous_room_limits_active:
+		return
+	if _continuous_room_limit_target_rect.size.x <= 0.0 or _continuous_room_limit_target_rect.size.y <= 0.0:
+		return
+	var smoothing := _zoom_smoothing_for_active_room(delta)
+	_continuous_room_limit_rect = _lerp_rect(_continuous_room_limit_rect, _continuous_room_limit_target_rect, smoothing)
+	if _continuous_room_limit_rect.position.distance_to(_continuous_room_limit_target_rect.position) <= 0.05 and _continuous_room_limit_rect.size.distance_to(_continuous_room_limit_target_rect.size) <= 0.05:
+		_continuous_room_limit_rect = _continuous_room_limit_target_rect
+
+func _zoom_smoothing_for_active_room(delta: float) -> float:
+	var speed := connected_room_zoom_speed if _continuous_room_limits_active else DEFAULT_ZOOM_SMOOTHING_SPEED
+	return 1.0 - exp(-maxf(speed, 0.001) * delta)
+
+func _lerp_rect(from_rect: Rect2, to_rect: Rect2, weight: float) -> Rect2:
+	return Rect2(from_rect.position.lerp(to_rect.position, weight), from_rect.size.lerp(to_rect.size, weight))
+
 func _clear_continuous_room_limits() -> void:
 	_continuous_room_limits_active = false
 	_continuous_room_limit_rect = Rect2()
+	_continuous_room_limit_target_rect = Rect2()
+	_continuous_zoom_limit_rect = Rect2()
 
 func _default_camera_settings() -> Dictionary:
 	return {

@@ -9,6 +9,7 @@ extends Node2D
 @export var core_color := Color(1.0, 1.0, 1.0, 1.0)
 
 var direction := Vector2.RIGHT
+var hard_hit := false
 var _age := 0.0
 var _rng := RandomNumberGenerator.new()
 var _sparks: Array[Dictionary] = []
@@ -21,15 +22,23 @@ func _ready() -> void:
 	_build_sparks()
 	queue_redraw()
 
-func setup(hit_direction: Vector2, color: Color, is_finisher: bool = false) -> void:
+func setup(hit_direction: Vector2, color: Color, is_finisher: bool = false, is_hard_hit: bool = false) -> void:
 	if hit_direction.length_squared() > 0.001:
 		direction = hit_direction.normalized()
 	primary_color = color
+	hard_hit = is_hard_hit
 	if is_finisher:
 		duration = 0.32
 		ring_radius = 48.0
 		spark_count = 16
 		spark_length = 36.0
+	elif hard_hit:
+		duration = 0.18
+		ring_radius = 24.0
+		spark_count = 12
+		spark_length = 15.0
+		secondary_color = Color(0.62, 0.9, 1.0, 1.0)
+		core_color = Color(0.88, 0.98, 1.0, 1.0)
 
 	_sparks.clear()
 	_build_sparks()
@@ -58,8 +67,12 @@ func _draw() -> void:
 	var slash_color := secondary_color
 	slash_color.a = fade
 	var slash_normal := direction.rotated(PI * 0.5)
-	draw_line(-direction * 14.0 - slash_normal * 8.0, direction * 22.0 + slash_normal * 8.0, slash_color, 4.0 * fade + 1.0)
-	draw_line(-direction * 8.0 + slash_normal * 10.0, direction * 16.0 - slash_normal * 10.0, ring_color, 2.0 * fade + 1.0)
+	if hard_hit:
+		draw_line(-slash_normal * 18.0, slash_normal * 18.0, slash_color, 5.0 * fade + 1.0, true)
+		draw_line(-direction * 12.0, direction * 12.0, ring_color, 3.0 * fade + 1.0, true)
+	else:
+		draw_line(-direction * 14.0 - slash_normal * 8.0, direction * 22.0 + slash_normal * 8.0, slash_color, 4.0 * fade + 1.0)
+		draw_line(-direction * 8.0 + slash_normal * 10.0, direction * 16.0 - slash_normal * 10.0, ring_color, 2.0 * fade + 1.0)
 
 	for spark in _sparks:
 		var spark_direction := spark["direction"] as Vector2

@@ -21,6 +21,10 @@ window/size/viewport_height=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/mechanism_wire_editor/plugin.cfg")
+
 [physics]
 
 2d/default_gravity=1350.0

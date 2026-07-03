@@ -7,6 +7,7 @@ enum CinematicState { NONE, MOVE_IN, WALL_MOVE, MOVE_OUT }
 enum ButtonMode { LATCH, HOLD, SHOT }
 
 @export var moving_wall_path: NodePath
+@export var mechanism_wire_path: NodePath
 @export_enum("latch", "hold", "shot") var button_mode := 0
 @export var trigger_once := true
 @export var latch_when_activated := true
@@ -69,6 +70,9 @@ enum ButtonMode { LATCH, HOLD, SHOT }
 		queue_redraw()
 
 var _moving_wall: Node
+var _mechanism_wire: Node
+var _bound_moving_wall: Node
+var _bound_mechanism_wire: Node
 var _sensor: Area2D
 var _pressed := false
 var _press_visual_depth := 0.0
@@ -76,6 +80,7 @@ var _activated := false
 var _release_timer := 0.0
 var _shot_reset_timer := 0.0
 var _watching_wall_finish := false
+var _waiting_for_wire_activation := false
 var _last_wall_moving := false
 var _moving_shake_timer := 0.0
 var _finish_shake_sent := false
@@ -105,6 +110,7 @@ func _ready() -> void:
 		_sensor.area_entered.connect(_on_area_entered)
 	_sync_sensor_to_button_shape()
 	_resolve_wall()
+	_resolve_wire()
 	set_process(Engine.is_editor_hint())
 	set_physics_process(not Engine.is_editor_hint())
 	queue_redraw()
@@ -173,6 +179,8 @@ func apply_save_state(state: Dictionary) -> void:
 	_last_wall_moving = false
 	_moving_shake_timer = 0.0
 	_finish_shake_sent = false
+	_resolve_wire()
+	_sync_wire_to_activation_state()
 	if button_mode == ButtonMode.HOLD:
 		call_deferred("_refresh_hold_state_after_load")
 	_ensure_process_needed()
@@ -188,8 +196,7 @@ func _refresh_hold_state_after_load() -> void:
 	if _has_trigger_body_inside():
 		_pressed = true
 		_activated = true
-		_activate_target()
-		_start_wall_finish_watch()
+		_activate_mechanism()
 	else:
 		_pressed = false
 		_activated = false
@@ -238,7 +245,9 @@ func _on_area_entered(area: Area2D) -> void:
 	_trigger_mechanism()
 
 func _trigger_mechanism() -> void:
+	_resolve_wire()
 	if trigger_once and _activated and button_mode == ButtonMode.LATCH:
+		_sync_wire_to_activation_state()
 		return
 	_resolve_wall()
 	if _moving_wall == null:
@@ -251,8 +260,7 @@ func _trigger_mechanism() -> void:
 	if play_cinematic:
 		_start_cinematic()
 	else:
-		_activate_target()
-		_start_wall_finish_watch()
+		_activate_mechanism()
 	queue_redraw()
 
 func _press_from_body() -> void:
@@ -277,8 +285,7 @@ func _update_overlap_held_triggers() -> void:
 func _start_cinematic() -> void:
 	_camera = _current_camera()
 	if _camera == null:
-		_activate_target()
-		_start_wall_finish_watch()
+		_activate_mechanism()
 		return
 
 	_pause_gameplay_nodes()
@@ -299,13 +306,14 @@ func _update_cinematic(delta: float) -> void:
 			var progress := _smooth_progress(_cinematic_timer / maxf(camera_move_in_time, 0.001))
 			_update_camera(_camera_start_position.lerp(_camera_focus_position, progress), _camera_start_zoom.lerp(_camera_focus_zoom, progress))
 			if progress >= 1.0:
-				_activate_target()
-				_start_wall_finish_watch()
+				_activate_mechanism()
 				_cinematic_state = CinematicState.WALL_MOVE
 				_cinematic_timer = 0.0
 		CinematicState.WALL_MOVE:
 			_cinematic_timer += delta
 			_update_camera(_camera_focus_position, _camera_focus_zoom)
+			if _waiting_for_wire_activation:
+				return
 			var wall_done: bool = not _moving_wall.has_method("is_moving") or not bool(_moving_wall.call("is_moving"))
 			if wall_done and _cinematic_timer >= camera_hold_time:
 				_emit_finish_shake_once()
@@ -399,7 +407,27 @@ func _activate_target() -> void:
 	elif _moving_wall.has_method("trigger_open"):
 		_moving_wall.trigger_open()
 
+func _activate_mechanism() -> void:
+	_resolve_wire()
+	_resolve_wall()
+	if _moving_wall == null:
+		return
+	if _mechanism_wire != null and _mechanism_wire.has_method("activate_wire"):
+		_waiting_for_wire_activation = true
+		_mechanism_wire.call("activate_wire", Callable(self, "_activate_target_after_wire"))
+		return
+	_activate_target_after_wire()
+
+func _activate_target_after_wire() -> void:
+	_waiting_for_wire_activation = false
+	_activate_target()
+	_start_wall_finish_watch()
+
 func _deactivate_target() -> void:
+	_waiting_for_wire_activation = false
+	_resolve_wire()
+	if _mechanism_wire != null and _mechanism_wire.has_method("deactivate_wire"):
+		_mechanism_wire.call("deactivate_wire")
 	if _moving_wall == null:
 		_resolve_wall()
 	if _moving_wall == null:
@@ -829,7 +857,48 @@ func _shake_camera(amount: float) -> void:
 		camera.add_hit_shake(amount)
 
 func _resolve_wall() -> void:
-	_moving_wall = get_node_or_null(moving_wall_path)
+	if not moving_wall_path.is_empty():
+		_moving_wall = get_node_or_null(moving_wall_path)
+		return
+	if _bound_moving_wall != null and is_instance_valid(_bound_moving_wall):
+		_moving_wall = _bound_moving_wall
+		return
+	_resolve_wire()
+	if _mechanism_wire != null and _mechanism_wire.has_method("get_target_node"):
+		_moving_wall = _mechanism_wire.call("get_target_node") as Node
+	else:
+		_moving_wall = null
+
+func _resolve_wire() -> void:
+	if not mechanism_wire_path.is_empty():
+		_mechanism_wire = get_node_or_null(mechanism_wire_path)
+		return
+	if _bound_mechanism_wire != null and is_instance_valid(_bound_mechanism_wire):
+		_mechanism_wire = _bound_mechanism_wire
+		return
+	_mechanism_wire = null
+	if not is_inside_tree():
+		return
+	for wire in get_tree().get_nodes_in_group("mechanism_wires"):
+		var wire_node := wire as Node
+		if wire_node != null and wire_node.has_method("connects_button") and bool(wire_node.call("connects_button", self)):
+			_mechanism_wire = wire_node
+			return
+		if wire_node != null and _moving_wall != null and wire_node.has_method("connects_target") and bool(wire_node.call("connects_target", _moving_wall)):
+			_mechanism_wire = wire_node
+			return
+
+func bind_mechanism_wire(wire: Node, target: Node = null) -> void:
+	_bound_mechanism_wire = wire
+	_mechanism_wire = wire
+	_bound_moving_wall = target
+	_moving_wall = target
+	_sync_wire_to_activation_state()
+	_ensure_process_needed()
+
+func _sync_wire_to_activation_state() -> void:
+	if _mechanism_wire != null and _mechanism_wire.has_method("set_wire_active"):
+		_mechanism_wire.call("set_wire_active", _activated)
 
 func _current_camera() -> Camera2D:
 	var viewport_camera := get_viewport().get_camera_2d()

@@ -7,14 +7,19 @@ signal checkpoint_loaded(checkpoint_position: Vector2)
 @export var save_duration := 0.75
 @export var saveable_group := "saveable"
 @export var transient_group := "save_transients"
+@export_range(1, 6, 1) var max_rollback_entries := 3
+@export var default_checkpoint_name := "初始洞穴"
+@export var screenshot_size := Vector2i(320, 180)
 
 var current_snapshot := {}
 var is_saving := false
 var current_checkpoint_position := Vector2.ZERO
+var rollback_entries: Array[Dictionary] = []
 var _save_timer := 0.0
 
 func _ready() -> void:
 	add_to_group("save_managers")
+	process_mode = Node.PROCESS_MODE_ALWAYS
 
 func _process(delta: float) -> void:
 	if not is_saving:
@@ -25,9 +30,13 @@ func _process(delta: float) -> void:
 		is_saving = false
 		save_finished.emit(current_checkpoint_position)
 
-func request_save(checkpoint_position: Vector2) -> void:
+func request_save(checkpoint_position: Vector2, checkpoint_name: String = "") -> void:
 	current_checkpoint_position = checkpoint_position
 	current_snapshot = _capture_scene_snapshot(checkpoint_position)
+	var entry := _make_rollback_entry(current_snapshot, checkpoint_position, checkpoint_name)
+	rollback_entries.push_front(entry)
+	_trim_rollback_entries()
+	_capture_rollback_thumbnail(entry)
 	is_saving = true
 	_save_timer = save_duration
 	save_started.emit(checkpoint_position)
@@ -42,6 +51,103 @@ func load_checkpoint() -> void:
 	_remove_transient_nodes()
 	_restore_scene_snapshot(current_snapshot)
 	checkpoint_loaded.emit(current_checkpoint_position)
+
+func get_rollback_entries() -> Array[Dictionary]:
+	return rollback_entries.duplicate()
+
+func get_rollback_entry_count() -> int:
+	return rollback_entries.size()
+
+func load_rollback_entry(index: int) -> bool:
+	if index < 0 or index >= rollback_entries.size():
+		return false
+	var entry := rollback_entries[index]
+	var snapshot := entry.get("snapshot", {}) as Dictionary
+	if snapshot.is_empty():
+		return false
+	current_snapshot = snapshot.duplicate(true)
+	current_checkpoint_position = entry.get("checkpoint_position", Vector2.ZERO)
+	_remove_transient_nodes()
+	_restore_scene_snapshot(current_snapshot)
+	checkpoint_loaded.emit(current_checkpoint_position)
+	return true
+
+func _make_rollback_entry(snapshot: Dictionary, checkpoint_position: Vector2, checkpoint_name: String) -> Dictionary:
+	var resolved_name := checkpoint_name.strip_edges()
+	if resolved_name.is_empty():
+		resolved_name = default_checkpoint_name
+	var now := Time.get_datetime_dict_from_system()
+	return {
+		"snapshot": snapshot.duplicate(true),
+		"checkpoint_position": checkpoint_position,
+		"checkpoint_name": resolved_name,
+		"saved_at": now,
+		"saved_at_text": _format_datetime_minute(now),
+		"thumbnail": null,
+	}
+
+func _trim_rollback_entries() -> void:
+	var limit := maxi(max_rollback_entries, 1)
+	while rollback_entries.size() > limit:
+		rollback_entries.pop_back()
+
+func _format_datetime_minute(datetime: Dictionary) -> String:
+	return "%04d-%02d-%02d %02d:%02d" % [
+		int(datetime.get("year", 0)),
+		int(datetime.get("month", 0)),
+		int(datetime.get("day", 0)),
+		int(datetime.get("hour", 0)),
+		int(datetime.get("minute", 0)),
+	]
+
+func _capture_rollback_thumbnail(entry: Dictionary) -> void:
+	_capture_rollback_thumbnail_async(entry)
+
+func _capture_rollback_thumbnail_async(entry: Dictionary) -> void:
+	var hidden_layers := _set_canvas_layers_visible(false)
+	await RenderingServer.frame_post_draw
+	var viewport_texture := get_viewport().get_texture()
+	if viewport_texture != null:
+		var image := viewport_texture.get_image()
+		if image != null and not image.is_empty():
+			var target_size := _thumbnail_size_for_image(image.get_size())
+			image.resize(target_size.x, target_size.y, Image.INTERPOLATE_LANCZOS)
+			entry["thumbnail"] = ImageTexture.create_from_image(image)
+	_set_canvas_layers_from_records(hidden_layers)
+
+func _thumbnail_size_for_image(source_size: Vector2i) -> Vector2i:
+	if source_size.x <= 0 or source_size.y <= 0:
+		return screenshot_size
+	var max_size := Vector2(maxi(screenshot_size.x, 1), maxi(screenshot_size.y, 1))
+	var source := Vector2(source_size)
+	var scale := minf(max_size.x / source.x, max_size.y / source.y)
+	return Vector2i(maxi(roundi(source.x * scale), 1), maxi(roundi(source.y * scale), 1))
+
+func _set_canvas_layers_visible(is_visible: bool) -> Array[Dictionary]:
+	var records: Array[Dictionary] = []
+	for layer in _find_canvas_layers(get_tree().current_scene):
+		var canvas_layer := layer as CanvasLayer
+		if canvas_layer == null or not is_instance_valid(canvas_layer):
+			continue
+		records.append({"layer": canvas_layer, "visible": canvas_layer.visible})
+		canvas_layer.visible = is_visible
+	return records
+
+func _find_canvas_layers(root: Node) -> Array[CanvasLayer]:
+	var layers: Array[CanvasLayer] = []
+	if root == null:
+		return layers
+	if root is CanvasLayer:
+		layers.append(root as CanvasLayer)
+	for child in root.get_children():
+		layers.append_array(_find_canvas_layers(child))
+	return layers
+
+func _set_canvas_layers_from_records(records: Array[Dictionary]) -> void:
+	for record in records:
+		var canvas_layer := record.get("layer") as CanvasLayer
+		if canvas_layer != null and is_instance_valid(canvas_layer):
+			canvas_layer.visible = bool(record.get("visible", true))
 
 func _capture_scene_snapshot(checkpoint_position: Vector2) -> Dictionary:
 	var saved_nodes := {}

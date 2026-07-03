@@ -99,11 +99,12 @@ func _try_start_save(player: Node) -> void:
 		_try_start_inside_heal()
 		return
 	_player_inside = true
-	if not _has_active_heal_sequence() and _start_heal_sequence(player):
-		return
 	if _now_seconds() - _last_exit_time < reenter_cooldown:
+		_try_start_inside_heal()
 		return
 	_request_save()
+	if not _has_active_heal_sequence():
+		_start_heal_sequence(player)
 
 func _on_body_exited(body: Node) -> void:
 	if Engine.is_editor_hint() or not _is_player(body):
@@ -161,7 +162,7 @@ func _request_save() -> void:
 	if _save_manager == null:
 		_save_manager = get_node_or_null(save_manager_path)
 	if _save_manager != null and _save_manager.has_method("request_save"):
-		_save_manager.request_save(global_position)
+		_save_manager.request_save(global_position, name)
 
 func _mask_state_value() -> int:
 	return SoulMask.GHOST_MASK if soul_mask_state == 1 else SoulMask.EUDA_MASK
@@ -306,7 +307,6 @@ func _update_healing_particles(delta: float) -> void:
 			_free_particle_light(particle)
 			_heal_particles.remove_at(index)
 	if _healing_player != null and _heal_queue.is_empty() and _heal_particles.is_empty():
-		_request_save()
 		_healing_player = null
 	queue_redraw()
 

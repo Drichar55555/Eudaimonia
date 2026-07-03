@@ -82,6 +82,10 @@ enum EnemyState { PATROL, CHASE }
 
 @export_group("Stats")
 @export var max_health := 3
+@export var invincible := false:
+	set(value):
+		invincible = value
+		queue_redraw()
 @export var can_touch_ghost_blocks := false:
 	set(value):
 		can_touch_ghost_blocks = value
@@ -116,6 +120,12 @@ enum EnemyState { PATROL, CHASE }
 @export var hit_spark_color := Color(1.0, 0.82, 0.24, 1.0)
 @export var hit_shake_amount := 0.18
 @export var defeat_shake_amount := 0.32
+@export_group("Invincible Feedback")
+@export var armor_flash_time := 0.16
+@export var armor_flash_color := Color(0.78, 0.94, 1.0, 1.0)
+@export var armor_spark_color := Color(0.58, 0.88, 1.0, 1.0)
+@export var armor_shake_amount := 0.1
+@export var armor_returns_boomerang := true
 
 var health := 3
 var target: Node2D
@@ -127,6 +137,7 @@ var _patrol_direction := -1.0
 var _attack_cooldown_timer := 0.0
 var _hit_flash_timer := 0.0
 var _hit_squash_timer := 0.0
+var _armor_flash_timer := 0.0
 var _hit_push_direction := Vector2.ZERO
 var _home_room: Node
 var _home_room_rect := Rect2()
@@ -178,16 +189,22 @@ func _physics_process(delta: float) -> void:
 func _process(delta: float) -> void:
 	_hit_flash_timer = maxf(_hit_flash_timer - delta, 0.0)
 	_hit_squash_timer = maxf(_hit_squash_timer - delta, 0.0)
+	_armor_flash_timer = maxf(_armor_flash_timer - delta, 0.0)
 	queue_redraw()
-	if _hit_flash_timer <= 0.0 and _hit_squash_timer <= 0.0:
+	if _hit_flash_timer <= 0.0 and _hit_squash_timer <= 0.0 and _armor_flash_timer <= 0.0:
 		set_process(false)
 
-func take_boomerang_hit(_boomerang: Node) -> void:
+func take_boomerang_hit(boomerang: Node) -> void:
+	if invincible:
+		_play_armor_hit_feedback(boomerang)
+		if armor_returns_boomerang and boomerang != null and boomerang.has_method("start_return"):
+			boomerang.call("start_return")
+		return
 	health -= 1
 	_hit_flash_timer = hit_flash_time
 	_hit_squash_timer = hit_flash_time
-	_update_hit_push_direction(_boomerang)
-	_spawn_hit_spark(_boomerang, health <= 0)
+	_update_hit_push_direction(boomerang)
+	_spawn_hit_spark(boomerang, health <= 0)
 	_shake_camera(defeat_shake_amount if health <= 0 else hit_shake_amount)
 	set_process(not Engine.is_editor_hint())
 	if health <= 0:
@@ -198,6 +215,9 @@ func take_boomerang_hit(_boomerang: Node) -> void:
 func take_environment_hit(damage: int = 1, hit_source: Node = null, hit_direction: Vector2 = Vector2.ZERO, knockback: Vector2 = Vector2(220.0, -160.0)) -> bool:
 	if damage <= 0:
 		return false
+	if invincible:
+		_play_armor_hit_feedback(hit_source)
+		return true
 	health -= damage
 	_hit_flash_timer = hit_flash_time
 	_hit_squash_timer = hit_flash_time
@@ -301,6 +321,7 @@ func _get_save_config() -> Dictionary:
 		"show_runtime_ai_ranges": show_runtime_ai_ranges,
 		"ai_visual_alpha": ai_visual_alpha,
 		"max_health": max_health,
+		"invincible": invincible,
 		"can_touch_ghost_blocks": can_touch_ghost_blocks,
 		"body_size": body_size,
 		"body_color": body_color,
@@ -312,6 +333,11 @@ func _get_save_config() -> Dictionary:
 		"hit_spark_color": hit_spark_color,
 		"hit_shake_amount": hit_shake_amount,
 		"defeat_shake_amount": defeat_shake_amount,
+		"armor_flash_time": armor_flash_time,
+		"armor_flash_color": armor_flash_color,
+		"armor_spark_color": armor_spark_color,
+		"armor_shake_amount": armor_shake_amount,
+		"armor_returns_boomerang": armor_returns_boomerang,
 	}
 
 func _apply_save_config(config: Dictionary) -> void:
@@ -358,6 +384,7 @@ func _apply_save_config(config: Dictionary) -> void:
 	show_runtime_ai_ranges = bool(config.get("show_runtime_ai_ranges", show_runtime_ai_ranges))
 	ai_visual_alpha = float(config.get("ai_visual_alpha", ai_visual_alpha))
 	max_health = int(config.get("max_health", max_health))
+	invincible = bool(config.get("invincible", invincible))
 	can_touch_ghost_blocks = bool(config.get("can_touch_ghost_blocks", can_touch_ghost_blocks))
 	body_size = config.get("body_size", body_size)
 	body_color = config.get("body_color", body_color)
@@ -369,6 +396,11 @@ func _apply_save_config(config: Dictionary) -> void:
 	hit_spark_color = config.get("hit_spark_color", hit_spark_color)
 	hit_shake_amount = float(config.get("hit_shake_amount", hit_shake_amount))
 	defeat_shake_amount = float(config.get("defeat_shake_amount", defeat_shake_amount))
+	armor_flash_time = float(config.get("armor_flash_time", armor_flash_time))
+	armor_flash_color = config.get("armor_flash_color", armor_flash_color)
+	armor_spark_color = config.get("armor_spark_color", armor_spark_color)
+	armor_shake_amount = float(config.get("armor_shake_amount", armor_shake_amount))
+	armor_returns_boomerang = bool(config.get("armor_returns_boomerang", armor_returns_boomerang))
 
 func _apply_minimum_detection_ranges() -> void:
 	if not enforce_minimum_detection_ranges:
@@ -382,20 +414,37 @@ func _draw() -> void:
 
 	var draw_size := body_size
 	var hit_amount := _hit_squash_timer / maxf(hit_flash_time, 0.001)
+	var armor_amount := _armor_flash_timer / maxf(armor_flash_time, 0.001)
 	if _hit_squash_timer > 0.0:
 		draw_size = Vector2(body_size.x * (1.0 + 0.12 * hit_amount), body_size.y * (1.0 - 0.08 * hit_amount))
 
 	var hit_offset := _hit_push_direction * hit_push_distance * hit_amount
 	var rect := Rect2(-draw_size * 0.5 + hit_offset, draw_size)
 	var fill_color := hit_flash_color if _hit_flash_timer > 0.0 else body_color
+	if _armor_flash_timer > 0.0:
+		fill_color = body_color.lerp(armor_flash_color, 0.75 * armor_amount)
 	draw_rect(rect, fill_color, true)
 	draw_rect(rect, edge_color, false, 3.0)
+	if invincible:
+		_draw_armor_plating(rect, armor_amount)
 	draw_circle(hit_offset + Vector2(-8.0, -7.0), 3.0, edge_color)
 	draw_circle(hit_offset + Vector2(8.0, -7.0), 3.0, edge_color)
 	draw_line(hit_offset + Vector2(-8.0, 9.0), hit_offset + Vector2(8.0, 9.0), edge_color, 3.0)
-	_draw_health_pips(rect)
+	if not invincible:
+		_draw_health_pips(rect)
 	if can_touch_ghost_blocks:
 		_draw_ghost_mark(rect)
+
+func _draw_armor_plating(rect: Rect2, flash_amount: float) -> void:
+	var plate_color := armor_flash_color.lerp(edge_color, 0.55)
+	plate_color.a = 0.92
+	var line_width := 2.0 + 2.0 * flash_amount
+	draw_line(rect.position + Vector2(7.0, 9.0), rect.end - Vector2(7.0, 9.0), plate_color, line_width, true)
+	draw_line(Vector2(rect.end.x - 7.0, rect.position.y + 9.0), Vector2(rect.position.x + 7.0, rect.end.y - 9.0), plate_color, line_width, true)
+	if flash_amount > 0.0:
+		var pulse_color := armor_flash_color
+		pulse_color.a = 0.55 * flash_amount
+		draw_rect(rect.grow(4.0 + 4.0 * flash_amount), pulse_color, false, 2.0 + 2.0 * flash_amount)
 
 func _draw_health_pips(rect: Rect2) -> void:
 	for index in max_health:
@@ -797,7 +846,17 @@ func _update_hit_push_direction(hit_source: Node) -> void:
 
 	_hit_push_direction = away_from_source.normalized()
 
-func _spawn_hit_spark(hit_source: Node, is_finisher: bool) -> void:
+func _play_armor_hit_feedback(hit_source: Node) -> void:
+	_armor_flash_timer = armor_flash_time
+	_hit_flash_timer = 0.0
+	_hit_squash_timer = 0.0
+	_update_hit_push_direction(hit_source)
+	_spawn_hit_spark(hit_source, false, true)
+	_shake_camera(armor_shake_amount)
+	set_process(not Engine.is_editor_hint())
+	queue_redraw()
+
+func _spawn_hit_spark(hit_source: Node, is_finisher: bool, hard_hit: bool = false) -> void:
 	if Engine.is_editor_hint() or HIT_SPARK_SCENE == null:
 		return
 
@@ -824,7 +883,8 @@ func _spawn_hit_spark(hit_source: Node, is_finisher: bool) -> void:
 		impact_direction = Vector2.RIGHT
 
 	if spark.has_method("setup"):
-		spark.setup(impact_direction, hit_spark_color, is_finisher)
+		var spark_color := armor_spark_color if hard_hit else hit_spark_color
+		spark.setup(impact_direction, spark_color, is_finisher, hard_hit)
 
 func _shake_camera(amount: float) -> void:
 	if Engine.is_editor_hint():
