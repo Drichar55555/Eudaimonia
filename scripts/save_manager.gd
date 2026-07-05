@@ -4,12 +4,16 @@ signal save_started(checkpoint_position: Vector2)
 signal save_finished(checkpoint_position: Vector2)
 signal checkpoint_loaded(checkpoint_position: Vector2)
 
+const SAVE_DATA_VERSION := 1
+const HARD_MAX_SAVE_ENTRIES := 3
+
 @export var save_duration := 0.75
 @export var saveable_group := "saveable"
 @export var transient_group := "save_transients"
-@export_range(1, 6, 1) var max_rollback_entries := 3
+@export_range(1, 3, 1) var max_rollback_entries := 3
 @export var default_checkpoint_name := "初始洞穴"
 @export var screenshot_size := Vector2i(320, 180)
+@export var local_save_path := "user://eudaimonia_saves.dat"
 
 var current_snapshot := {}
 var is_saving := false
@@ -22,6 +26,7 @@ var _initial_checkpoint_position := Vector2.ZERO
 func _ready() -> void:
 	add_to_group("save_managers")
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_load_local_saves()
 	call_deferred("_capture_initial_snapshot")
 
 func _process(delta: float) -> void:
@@ -39,6 +44,7 @@ func request_save(checkpoint_position: Vector2, checkpoint_name: String = "") ->
 	var entry := _make_rollback_entry(current_snapshot, checkpoint_position, checkpoint_name)
 	rollback_entries.push_front(entry)
 	_trim_rollback_entries()
+	_save_local_saves()
 	_capture_rollback_thumbnail(entry)
 	is_saving = true
 	_save_timer = save_duration
@@ -70,6 +76,7 @@ func load_rollback_entry(index: int) -> bool:
 		return false
 	current_snapshot = snapshot.duplicate(true)
 	current_checkpoint_position = entry.get("checkpoint_position", Vector2.ZERO)
+	_save_local_saves()
 	_remove_transient_nodes()
 	_restore_scene_snapshot(current_snapshot)
 	checkpoint_loaded.emit(current_checkpoint_position)
@@ -80,13 +87,17 @@ func reset_to_initial_state() -> bool:
 		_capture_initial_snapshot()
 	if _initial_snapshot.is_empty():
 		return false
-	current_snapshot.clear()
-	rollback_entries.clear()
+	current_snapshot = _initial_snapshot.duplicate(true)
 	current_checkpoint_position = _initial_checkpoint_position
+	var entry := _make_rollback_entry(current_snapshot, current_checkpoint_position, default_checkpoint_name)
+	rollback_entries.push_front(entry)
+	_trim_rollback_entries()
 	is_saving = false
 	_save_timer = 0.0
+	_save_local_saves()
 	_remove_transient_nodes()
 	_restore_scene_snapshot(_initial_snapshot)
+	_capture_rollback_thumbnail(entry)
 	checkpoint_loaded.emit(current_checkpoint_position)
 	return true
 
@@ -122,7 +133,7 @@ func _make_rollback_entry(snapshot: Dictionary, checkpoint_position: Vector2, ch
 	}
 
 func _trim_rollback_entries() -> void:
-	var limit := maxi(max_rollback_entries, 1)
+	var limit := clampi(max_rollback_entries, 1, HARD_MAX_SAVE_ENTRIES)
 	while rollback_entries.size() > limit:
 		rollback_entries.pop_back()
 
@@ -148,7 +159,86 @@ func _capture_rollback_thumbnail_async(entry: Dictionary) -> void:
 			var target_size := _thumbnail_size_for_image(image.get_size())
 			image.resize(target_size.x, target_size.y, Image.INTERPOLATE_LANCZOS)
 			entry["thumbnail"] = ImageTexture.create_from_image(image)
+			entry["thumbnail_png"] = image.save_png_to_buffer()
+			_save_local_saves()
 	_set_canvas_layers_from_records(hidden_layers)
+
+func _save_local_saves() -> void:
+	_trim_rollback_entries()
+	var payload := {
+		"version": SAVE_DATA_VERSION,
+		"current_snapshot": current_snapshot.duplicate(true),
+		"current_checkpoint_position": current_checkpoint_position,
+		"rollback_entries": _serialized_rollback_entries(),
+	}
+	var file := FileAccess.open(local_save_path, FileAccess.WRITE)
+	if file == null:
+		push_warning("Unable to write save file: %s" % local_save_path)
+		return
+	file.store_var(payload)
+
+func _load_local_saves() -> void:
+	current_snapshot.clear()
+	rollback_entries.clear()
+	current_checkpoint_position = Vector2.ZERO
+	if local_save_path.strip_edges().is_empty() or not FileAccess.file_exists(local_save_path):
+		return
+	var file := FileAccess.open(local_save_path, FileAccess.READ)
+	if file == null:
+		push_warning("Unable to read save file: %s" % local_save_path)
+		return
+	var payload: Variant = file.get_var()
+	if not payload is Dictionary:
+		return
+	var data := payload as Dictionary
+	current_snapshot = (data.get("current_snapshot", {}) as Dictionary).duplicate(true)
+	current_checkpoint_position = data.get("current_checkpoint_position", Vector2.ZERO)
+	var loaded_entries := data.get("rollback_entries", []) as Array
+	for entry_data in loaded_entries:
+		if not entry_data is Dictionary:
+			continue
+		var entry := _deserialized_rollback_entry(entry_data as Dictionary)
+		if not (entry.get("snapshot", {}) as Dictionary).is_empty():
+			rollback_entries.append(entry)
+	_trim_rollback_entries()
+	_save_local_saves()
+
+func _serialized_rollback_entries() -> Array[Dictionary]:
+	var serialized: Array[Dictionary] = []
+	for entry in rollback_entries:
+		serialized.append(_serialized_rollback_entry(entry))
+	return serialized
+
+func _serialized_rollback_entry(entry: Dictionary) -> Dictionary:
+	return {
+		"snapshot": (entry.get("snapshot", {}) as Dictionary).duplicate(true),
+		"checkpoint_position": entry.get("checkpoint_position", Vector2.ZERO),
+		"checkpoint_name": str(entry.get("checkpoint_name", default_checkpoint_name)),
+		"saved_at": (entry.get("saved_at", {}) as Dictionary).duplicate(true),
+		"saved_at_text": str(entry.get("saved_at_text", "--")),
+		"thumbnail_png": entry.get("thumbnail_png", PackedByteArray()),
+	}
+
+func _deserialized_rollback_entry(entry_data: Dictionary) -> Dictionary:
+	var entry := {
+		"snapshot": (entry_data.get("snapshot", {}) as Dictionary).duplicate(true),
+		"checkpoint_position": entry_data.get("checkpoint_position", Vector2.ZERO),
+		"checkpoint_name": str(entry_data.get("checkpoint_name", default_checkpoint_name)),
+		"saved_at": (entry_data.get("saved_at", {}) as Dictionary).duplicate(true),
+		"saved_at_text": str(entry_data.get("saved_at_text", "--")),
+		"thumbnail": null,
+		"thumbnail_png": entry_data.get("thumbnail_png", PackedByteArray()),
+	}
+	entry["thumbnail"] = _thumbnail_texture_from_png(entry.get("thumbnail_png", PackedByteArray()))
+	return entry
+
+func _thumbnail_texture_from_png(bytes: PackedByteArray) -> Texture2D:
+	if bytes.is_empty():
+		return null
+	var image := Image.new()
+	if image.load_png_from_buffer(bytes) != OK:
+		return null
+	return ImageTexture.create_from_image(image)
 
 func _thumbnail_size_for_image(source_size: Vector2i) -> Vector2i:
 	if source_size.x <= 0 or source_size.y <= 0:
