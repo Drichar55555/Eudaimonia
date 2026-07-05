@@ -5,36 +5,26 @@ extends Line2D
 @export var start_button_path: NodePath:
 	set(value):
 		start_button_path = value if value is NodePath else NodePath("")
-		_request_connection_points_refresh()
-@export var target_path: NodePath:
-	set(value):
-		target_path = value if value is NodePath else NodePath("")
-		_request_connection_points_refresh()
 @export var auto_bind_button := true:
 	set(value):
 		auto_bind_button = true if value == null else value == true
-@export var auto_route_from_start_end := true:
-	set(value):
-		auto_route_from_start_end = true if value == null else value == true
-		_request_connection_points_refresh()
-@export var start_offset := Vector2.ZERO:
-	set(value):
-		start_offset = value if value is Vector2 else Vector2.ZERO
-		_request_connection_points_refresh()
-@export var end_offset := Vector2.ZERO:
-	set(value):
-		end_offset = value if value is Vector2 else Vector2.ZERO
-		_request_connection_points_refresh()
 
 @export_group("Editing")
+@export var bake_transform_in_editor := true
 @export var snap_points_in_editor := true:
 	set(value):
 		snap_points_in_editor = true if value == null else value == true
 		_snap_points_to_axes()
 		queue_redraw()
+@export_range(4.0, 64.0, 1.0) var editor_pick_radius := 18.0
 
 @export_group("Timing")
-@export_range(0.04, 2.0, 0.01) var activation_time := 0.22
+@export_range(0.04, 2.0, 0.01) var activation_time := 0.22:
+	set(value):
+		activation_time = 0.22 if value == null else maxf(float(value), 0.04)
+@export_range(0.04, 2.0, 0.01) var deactivation_time := 0.18:
+	set(value):
+		deactivation_time = 0.18 if value == null else maxf(float(value), 0.04)
 
 @export_group("Visual")
 @export var inactive_color := Color(0.055, 0.062, 0.07, 1.0):
@@ -45,6 +35,10 @@ extends Line2D
 	set(value):
 		active_color = value
 		_update_visual_color()
+@export_range(-4096, 4096, 1) var display_z_index := 120:
+	set(value):
+		display_z_index = int(value)
+		_apply_display_layer()
 @export_range(1.0, 24.0, 0.5) var wire_width := 5.0:
 	set(value):
 		wire_width = value
@@ -56,19 +50,16 @@ extends Line2D
 		queue_redraw()
 
 var _activation_progress := 0.0
-var _activating := false
+var _animation_direction := 0.0
 var _pending_callback := Callable()
-var _connection_refresh_requested := false
 
 func _ready() -> void:
 	add_to_group("mechanism_wires")
+	_apply_display_layer()
 	width = wire_width
 	joint_mode = Line2D.LINE_JOINT_ROUND
 	begin_cap_mode = Line2D.LINE_CAP_ROUND
 	end_cap_mode = Line2D.LINE_CAP_ROUND
-	if _connection_refresh_requested or points.size() < 2 or _has_default_template_points():
-		_refresh_connection_points()
-	_connection_refresh_requested = false
 	_update_visual_color()
 	if not Engine.is_editor_hint() and auto_bind_button:
 		call_deferred("bind_to_button_now")
@@ -76,44 +67,59 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	if Engine.is_editor_hint():
+		if bake_transform_in_editor:
+			_bake_editor_transform_into_points()
 		if snap_points_in_editor:
 			_snap_points_to_axes()
 		return
-	if not _activating:
+	if is_zero_approx(_animation_direction):
 		set_process(false)
 		return
-	_activation_progress = clampf(_activation_progress + delta / maxf(activation_time, 0.001), 0.0, 1.0)
+	var animation_time := activation_time if _animation_direction > 0.0 else deactivation_time
+	_activation_progress = clampf(_activation_progress + _animation_direction * delta / maxf(animation_time, 0.001), 0.0, 1.0)
 	_update_visual_color()
-	if _activation_progress >= 1.0:
-		_activating = false
+	if _animation_direction > 0.0 and _activation_progress >= 1.0:
+		_animation_direction = 0.0
 		_finish_activation()
+	elif _animation_direction < 0.0 and _activation_progress <= 0.0:
+		_animation_direction = 0.0
+		_pending_callback = Callable()
+		set_process(false)
 
 func _draw() -> void:
-	if glow_width <= 0.0 or points.size() < 2 or _activation_progress <= 0.01:
+	if points.size() < 2 or _activation_progress <= 0.01:
 		return
+	var active_points := _progress_points(_ease_out_cubic(_activation_progress))
+	if active_points.size() < 2:
+		return
+	if glow_width > 0.0:
+		var glow_color := active_color
+		glow_color.a = 0.22
+		draw_polyline(active_points, glow_color, width + glow_width, true)
 	var glow_color := active_color
-	glow_color.a = 0.22 * _activation_progress
-	draw_polyline(points, glow_color, width + glow_width, true)
+	glow_color.a = active_color.a
+	draw_polyline(active_points, glow_color, wire_width, true)
 
 func activate_wire(finished_callback: Callable = Callable()) -> void:
 	_pending_callback = finished_callback
 	if _activation_progress >= 1.0:
 		_finish_activation()
 		return
-	_activating = true
+	_animation_direction = 1.0
 	set_process(true)
 	_update_visual_color()
 
 func deactivate_wire() -> void:
-	_activating = false
+	_animation_direction = -1.0
 	_pending_callback = Callable()
-	_activation_progress = 0.0
+	if _activation_progress <= 0.0:
+		_animation_direction = 0.0
 	_update_visual_color()
 	if not Engine.is_editor_hint():
-		set_process(false)
+		set_process(_animation_direction != 0.0)
 
 func set_wire_active(is_active: bool) -> void:
-	_activating = false
+	_animation_direction = 0.0
 	_pending_callback = Callable()
 	_activation_progress = 1.0 if is_active else 0.0
 	_update_visual_color()
@@ -127,27 +133,25 @@ func snap_points_now() -> void:
 	_snap_points_to_axes()
 	queue_redraw()
 
-func route_points_from_start_end_now() -> void:
-	_connection_refresh_requested = false
-	_refresh_connection_points(true)
-
 func bind_to_button_now() -> void:
 	var button := get_start_button()
 	if button == null or not button.has_method("bind_mechanism_wire"):
 		return
-	button.call("bind_mechanism_wire", self, get_target_node())
+	button.call("bind_mechanism_wire", self)
 
 func get_start_button() -> Node:
 	return get_node_or_null(start_button_path)
 
-func get_target_node() -> Node:
-	return get_node_or_null(target_path)
-
 func connects_button(button: Node) -> bool:
 	return button != null and get_start_button() == button
 
-func connects_target(target: Node) -> bool:
-	return target != null and get_target_node() == target
+func is_point_near_wire(local_point: Vector2, radius: float) -> bool:
+	if points.size() < 2:
+		return false
+	for index in range(points.size() - 1):
+		if _distance_to_segment(local_point, points[index], points[index + 1]) <= radius:
+			return true
+	return false
 
 func _finish_activation() -> void:
 	_update_visual_color()
@@ -155,66 +159,67 @@ func _finish_activation() -> void:
 		var callback := _pending_callback
 		_pending_callback = Callable()
 		callback.call()
-		return
-	_activate_target()
-
-func _activate_target() -> void:
-	var target := get_target_node()
-	if target == null:
-		return
-	if target.has_method("activate"):
-		target.call("activate")
-	elif target.has_method("trigger_open"):
-		target.call("trigger_open")
 
 func _update_visual_color() -> void:
-	default_color = inactive_color.lerp(active_color, _ease_out_cubic(_activation_progress))
+	default_color = inactive_color
 	width = wire_width
 	queue_redraw()
 
-func _request_connection_points_refresh() -> void:
-	_connection_refresh_requested = true
-	if is_inside_tree():
-		call_deferred("_run_requested_connection_points_refresh")
+func _apply_display_layer() -> void:
+	z_as_relative = false
+	z_index = display_z_index
 
-func _run_requested_connection_points_refresh() -> void:
-	if not _connection_refresh_requested:
-		return
-	_connection_refresh_requested = false
-	_refresh_connection_points()
+func _progress_points(progress: float) -> PackedVector2Array:
+	var total_length := _wire_length()
+	if total_length <= 0.001:
+		return PackedVector2Array()
+	var remaining_length := total_length * clampf(progress, 0.0, 1.0)
+	var visible_points := PackedVector2Array()
+	visible_points.append(points[0])
+	for index in range(1, points.size()):
+		var start_point := points[index - 1]
+		var end_point := points[index]
+		var segment_length := start_point.distance_to(end_point)
+		if segment_length <= 0.001:
+			continue
+		if remaining_length >= segment_length:
+			visible_points.append(end_point)
+			remaining_length -= segment_length
+			continue
+		visible_points.append(start_point.lerp(end_point, remaining_length / segment_length))
+		break
+	return visible_points
 
-func _refresh_connection_points(force_update := false) -> void:
-	if not auto_route_from_start_end or not is_inside_tree():
+func _wire_length() -> float:
+	var total_length := 0.0
+	for index in range(1, points.size()):
+		total_length += points[index - 1].distance_to(points[index])
+	return total_length
+
+func _distance_to_segment(point: Vector2, start_point: Vector2, end_point: Vector2) -> float:
+	var segment := end_point - start_point
+	var length_squared := segment.length_squared()
+	if length_squared <= 0.001:
+		return point.distance_to(start_point)
+	var progress := clampf((point - start_point).dot(segment) / length_squared, 0.0, 1.0)
+	return point.distance_to(start_point + segment * progress)
+
+func _bake_editor_transform_into_points() -> void:
+	if points.is_empty():
 		return
-	if not force_update and points.size() >= 2 and not _has_default_template_points():
+	if position.is_equal_approx(Vector2.ZERO) and is_zero_approx(rotation) and scale.is_equal_approx(Vector2.ONE) and is_zero_approx(skew):
 		return
-	var start_node := get_start_button() as Node2D
-	var end_node := get_target_node() as Node2D
-	if start_node == null or end_node == null:
-		return
-	points = _routed_points(to_local(start_node.global_position) + start_offset, to_local(end_node.global_position) + end_offset)
+	var local_transform := transform
+	var baked_points := PackedVector2Array()
+	baked_points.resize(points.size())
+	for index in range(points.size()):
+		baked_points[index] = local_transform * points[index]
+	points = baked_points
+	position = Vector2.ZERO
+	rotation = 0.0
+	scale = Vector2.ONE
+	skew = 0.0
 	queue_redraw()
-
-func _routed_points(start_point: Vector2, end_point: Vector2) -> PackedVector2Array:
-	var routed := PackedVector2Array()
-	routed.append(start_point)
-	var delta := end_point - start_point
-	if not _is_snapped_direction(delta):
-		var elbow := Vector2(end_point.x, start_point.y) if absf(delta.x) >= absf(delta.y) else Vector2(start_point.x, end_point.y)
-		if elbow.distance_squared_to(start_point) > 0.001 and elbow.distance_squared_to(end_point) > 0.001:
-			routed.append(elbow)
-	routed.append(end_point)
-	return routed
-
-func _is_snapped_direction(delta: Vector2) -> bool:
-	if delta.length_squared() <= 0.001:
-		return true
-	if absf(delta.x) <= 0.001 or absf(delta.y) <= 0.001:
-		return true
-	return absf(absf(delta.x) - absf(delta.y)) <= 0.001
-
-func _has_default_template_points() -> bool:
-	return points.size() == 2 and points[0].is_equal_approx(Vector2.ZERO) and points[1].is_equal_approx(Vector2(96.0, 0.0))
 
 func _snap_points_to_axes() -> void:
 	if points.size() < 2:

@@ -42,6 +42,7 @@ const TERRAIN_LAYER := 1 << 0
 
 var _time := 0.0
 var _runtime_rendering_enabled := false
+var _no_light_mode_enabled := false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -56,6 +57,8 @@ func _ready() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if Engine.is_editor_hint():
+		return
+	if _no_light_mode_enabled:
 		return
 	if event is InputEventKey and event.pressed and not event.echo and (event.keycode == runtime_toggle_key or event.physical_keycode == runtime_toggle_key):
 		_runtime_rendering_enabled = not _runtime_rendering_enabled
@@ -77,7 +80,7 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 func _draw() -> void:
-	if not enabled or (not Engine.is_editor_hint() and not _runtime_rendering_enabled):
+	if not enabled or (not Engine.is_editor_hint() and (not _runtime_rendering_enabled or _no_light_mode_enabled)):
 		return
 	var camera := _current_camera()
 	if camera == null:
@@ -109,11 +112,18 @@ func _apply_editor_layering() -> void:
 	z_index = editor_z_index if Engine.is_editor_hint() else runtime_z_index
 
 func _apply_runtime_rendering_state() -> void:
-	visible = Engine.is_editor_hint() or _runtime_rendering_enabled
+	visible = Engine.is_editor_hint() or (_runtime_rendering_enabled and not _no_light_mode_enabled)
 	set_process(Engine.is_editor_hint() or _should_render_runtime())
 
 func _should_render_runtime() -> bool:
-	return enabled and _runtime_rendering_enabled
+	return enabled and _runtime_rendering_enabled and not _no_light_mode_enabled
+
+func set_no_light_mode_enabled(value: bool) -> void:
+	if _no_light_mode_enabled == value:
+		return
+	_no_light_mode_enabled = value
+	_apply_runtime_rendering_state()
+	queue_redraw()
 
 func _current_source_center(camera: Camera2D, view_size: Vector2) -> Vector2:
 	var source_handle := _source_handle()

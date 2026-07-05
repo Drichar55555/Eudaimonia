@@ -59,6 +59,7 @@
 [ext_resource type="Script" uid="uid://dmsnx42j005lv" path="res://scripts/death_return_gate_glow.gd" id="47_death_return_gate_glow"]
 [ext_resource type="Script" uid="uid://bvv4hdbu1rors" path="res://scripts/death_space_filter.gd" id="48_death_space_filter"]
 [ext_resource type="Script" uid="uid://2fud6qxsb0hp" path="res://scripts/key_chest_prompt_ui.gd" id="49_key_chest_prompt_ui"]
+[ext_resource type="Script" path="res://scripts/no_light_mode.gd" id="50_no_light_mode"]
 
 [sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_tm6hj"]
 blend_mode = 1
@@ -285,6 +286,9 @@ dialogue_box_path = NodePath("../CanvasLayer/DialogueBox")
 death_space_spawn = Vector2(7800, 480)
 death_return_gate_path = NodePath("../Level/DeathSpace/DeathReturnGate")
 
+[node name="NoLightMode" type="Node" parent="."]
+script = ExtResource("50_no_light_mode")
+
 [node name="RuntimeBackgroundLayer" type="CanvasLayer" parent="." unique_id=808420001]
 layer = -100
 
@@ -366,13 +370,6 @@ visible = false
 z_index = 1
 z_as_relative = false
 script = ExtResource("38_room_fill_lights")
-
-[node name="Background" type="Polygon2D" parent="." unique_id=74526128]
-z_index = -100
-position = Vector2(-444.99997, -1154)
-scale = Vector2(1.6497395, 1.5511242)
-color = Color(0.055, 0.062, 0.075, 1)
-polygon = PackedVector2Array(-1200, -800, 3600, -800, 3600, 517.4121, 3600, 1800, -1200, 1800)
 
 [node name="Rooms" type="Node2D" parent="." unique_id=808420006]
 
@@ -545,302 +542,6 @@ position = Vector2(2015, -320)
 flame_color = Color(0.64, 0.9, 1, 0.95)
 save_manager_path = NodePath("../../../SaveManager")
 
-[node name="Mechanisms" type="Node2D" parent="Level" unique_id=1547100000]
-
-[node name="DemoMovingWall" parent="Level/Mechanisms" unique_id=1547100001 instance=ExtResource("15_mechanism_wall")]
-position = Vector2(1931, 598)
-collision_mask = 0
-target_offset = Vector2(0, -200)
-move_time = 1.0
-
-[node name="DemoButton" parent="Level/Mechanisms" unique_id=1547100002 instance=ExtResource("16_mechanism_button")]
-position = Vector2(1829, 671)
-moving_wall_path = NodePath("../DemoMovingWall")
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton" index="0"]
-position = Vector2(-0.765625, -5.3125)
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton/PressSensor" index="0"]
-position = Vector2(-0.765625, -5.3125)
-rotation = 0.0
-shape = SubResource("RectangleShape2D_kf5aa")
-
-[node name="DemoMovingWall2" parent="Level/Mechanisms" unique_id=229016664 instance=ExtResource("15_mechanism_wall")]
-position = Vector2(1358, 598)
-collision_mask = 0
-target_offset = Vector2(0, -200)
-move_time = 1.0
-break_animation_time = 0.3
-restore_animation_time = 0.15000000000000002
-vertical_impact_escape_direction = 2
-
-[node name="DemoButton2" parent="Level/Mechanisms" unique_id=1436383 instance=ExtResource("16_mechanism_button")]
-position = Vector2(1172, 673)
-moving_wall_path = NodePath("../DemoMovingWall2")
-button_mode = 1
-detect_player_weapons = false
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton2" index="0"]
-position = Vector2(0, -7)
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton2/PressSensor" index="0"]
-position = Vector2(0, -7)
-rotation = 0.0
-shape = SubResource("RectangleShape2D_t5ykj")
-
-[node name="MechanismWire2" parent="Level/Mechanisms" unique_id=374300171 instance=ExtResource("15_tm6hj")]
-points = PackedVector2Array(1172, 707, 1172, 729.0357, 1369.7189, 729.0357, 1369.7189, 688.1643)
-default_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
-joint_mode = 2
-begin_cap_mode = 2
-end_cap_mode = 2
-start_button_path = NodePath("../DemoButton2")
-target_path = NodePath("../DemoMovingWall2")
-activation_time = 1.0
-inactive_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
-
-[node name="DemoMovingWall3" parent="Level/Mechanisms" unique_id=1783879147 instance=ExtResource("15_mechanism_wall")]
-position = Vector2(1064, 147)
-collision_mask = 0
-wall_mode = 1
-target_offset = Vector2(0, -200)
-move_time = 1.0
-break_animation_time = 0.3
-restore_animation_time = 0.15000000000000002
-
-[node name="WallCollision" parent="Level/Mechanisms/DemoMovingWall3" index="0"]
-polygon = PackedVector2Array(-29, -110, 23, -110, 23, 94, -25, 95)
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoMovingWall3/ImpactSensor" index="0"]
-position = Vector2(-3, -7.5)
-
-[node name="DemoButton3" parent="Level/Mechanisms" unique_id=797012024 instance=ExtResource("16_mechanism_button")]
-position = Vector2(1836, 174)
-rotation = 1.5707964
-moving_wall_path = NodePath("../DemoMovingWall3")
-button_mode = 2
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton3" index="0"]
-position = Vector2(2, -12.5)
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton3/PressSensor" index="0"]
-position = Vector2(2, -12.5)
-rotation = 0.0
-shape = SubResource("RectangleShape2D_e755i")
-
-[node name="DemoMovingWall4" parent="Level/Mechanisms" unique_id=466419786 instance=ExtResource("15_mechanism_wall")]
-position = Vector2(3437, -394)
-collision_mask = 0
-target_offset = Vector2(0, -200)
-move_time = 1.0
-break_animation_time = 0.3
-restore_animation_time = 0.15000000000000002
-
-[node name="WallCollision" parent="Level/Mechanisms/DemoMovingWall4" index="0"]
-polygon = PackedVector2Array(-23, -163, 24, -164, 24, 72, -24, 72)
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoMovingWall4/ImpactSensor" index="0"]
-position = Vector2(0, -46)
-
-[node name="DemoButton4" parent="Level/Mechanisms" unique_id=2138327210 instance=ExtResource("16_mechanism_button")]
-position = Vector2(4437, -325)
-moving_wall_path = NodePath("../DemoMovingWall4")
-button_mode = 1
-detect_player_weapons = false
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton4/PressSensor" index="0"]
-position = Vector2(0, -14)
-rotation = 0.0
-shape = SubResource("RectangleShape2D_ro3en")
-
-[node name="DemoMovingWall5" parent="Level/Mechanisms" unique_id=345938204 instance=ExtResource("15_mechanism_wall")]
-position = Vector2(2502, -381)
-collision_mask = 0
-target_offset = Vector2(0, -200)
-move_time = 1.0
-break_animation_time = 0.3
-restore_animation_time = 0.15000000000000002
-
-[node name="WallCollision" parent="Level/Mechanisms/DemoMovingWall5" index="0"]
-polygon = PackedVector2Array(-23, -215, 24, -217, 24, 72, -24, 72)
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoMovingWall5/ImpactSensor" index="0"]
-position = Vector2(0, -72.5)
-
-[node name="DemoButton5" parent="Level/Mechanisms" unique_id=868622542 instance=ExtResource("16_mechanism_button")]
-position = Vector2(3128, -911)
-moving_wall_path = NodePath("../DemoMovingWall5")
-detect_player_weapons = false
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton5" index="0"]
-position = Vector2(0, -6)
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton5/PressSensor" index="0"]
-position = Vector2(0, -6)
-rotation = 0.0
-shape = SubResource("RectangleShape2D_od4ux")
-
-[node name="DemoMovingWall6" parent="Level/Mechanisms" unique_id=1159029069 instance=ExtResource("15_mechanism_wall")]
-position = Vector2(1307, -106)
-collision_mask = 0
-target_offset = Vector2(250, 0)
-move_time = 1.0
-break_animation_time = 0.3
-restore_animation_time = 0.15000000000000002
-
-[node name="WallCollision" parent="Level/Mechanisms/DemoMovingWall6" index="0"]
-position = Vector2(716.69995, -187.7)
-polygon = PackedVector2Array(-816.69995, 166.70001, -523.69995, 166.70001, -524.69995, 203.70001, -814.69995, 206.70001)
-
-[node name="ImpactSensor" parent="Level/Mechanisms/DemoMovingWall6" index="1"]
-position = Vector2(-7.300049, -3.699997)
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoMovingWall6/ImpactSensor" index="0"]
-position = Vector2(46.5, -0.99998474)
-shape = SubResource("RectangleShape2D_fv21b")
-
-[node name="DemoButton6" parent="Level/Mechanisms" unique_id=821220556 instance=ExtResource("16_mechanism_button")]
-position = Vector2(1460, -315)
-moving_wall_path = NodePath("../DemoMovingWall6")
-button_mode = 1
-detect_player_weapons = false
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton6" index="0"]
-position = Vector2(0, -6)
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton6/PressSensor" index="0"]
-position = Vector2(0, -6)
-rotation = 0.0
-shape = SubResource("RectangleShape2D_xhfw6")
-
-[node name="DemoMovingWall7" parent="Level/Mechanisms" unique_id=947364331 instance=ExtResource("15_mechanism_wall")]
-position = Vector2(-128, -250)
-collision_mask = 0
-target_offset = Vector2(0, -375)
-move_time = 1.0
-break_animation_time = 0.3
-restore_animation_time = 0.15000000000000002
-
-[node name="WallCollision" parent="Level/Mechanisms/DemoMovingWall7" index="0"]
-position = Vector2(716.69995, -187.7)
-polygon = PackedVector2Array(-769.69995, 167.70001, -523.69995, 166.70001, -524.69995, 203.70001, -768.69995, 206.70001)
-
-[node name="ImpactSensor" parent="Level/Mechanisms/DemoMovingWall7" index="1"]
-position = Vector2(-7.300049, -3.699997)
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoMovingWall7/ImpactSensor" index="0"]
-position = Vector2(70, -0.99998474)
-shape = SubResource("RectangleShape2D_fv21b")
-
-[node name="DemoButton7" parent="Level/Mechanisms" unique_id=1860076570 instance=ExtResource("16_mechanism_button")]
-position = Vector2(-520, -397)
-rotation = 1.5707964
-moving_wall_path = NodePath("../DemoMovingWall7")
-button_mode = 2
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton7" index="0"]
-position = Vector2(-41, 9)
-rotation = 1.5707964
-shape = SubResource("RectangleShape2D_tel4y")
-
-[node name="PressSensor" parent="Level/Mechanisms/DemoButton7" index="1"]
-rotation = 1.5707964
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton7/PressSensor" index="0"]
-position = Vector2(9, 40.99997)
-rotation = 0.0
-shape = SubResource("RectangleShape2D_1epgm")
-
-[node name="DemoMovingWall8" parent="Level/Mechanisms" unique_id=1187421204 instance=ExtResource("15_mechanism_wall")]
-position = Vector2(-291, -1070)
-collision_mask = 0
-target_offset = Vector2(0, 350)
-move_time = 1.0
-break_animation_time = 0.3
-restore_animation_time = 0.15000000000000002
-
-[node name="WallCollision" parent="Level/Mechanisms/DemoMovingWall8" index="0"]
-polygon = PackedVector2Array(-24, -147, 23, -147, 24, 72, -24, 72)
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoMovingWall8/ImpactSensor" index="0"]
-position = Vector2(0, -37.5)
-
-[node name="DemoButton8" parent="Level/Mechanisms" unique_id=117977892 instance=ExtResource("16_mechanism_button")]
-position = Vector2(-199, -631)
-moving_wall_path = NodePath("../DemoMovingWall8")
-button_mode = 1
-detect_player_weapons = false
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton8" index="0"]
-position = Vector2(-26, -10.5)
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton8/PressSensor" index="0"]
-position = Vector2(-26, -10.5)
-rotation = 0.0
-shape = SubResource("RectangleShape2D_152kg")
-
-[node name="DemoMovingWall9" parent="Level/Mechanisms" unique_id=845429669 instance=ExtResource("15_mechanism_wall")]
-position = Vector2(84, -1196)
-collision_mask = 0
-target_offset = Vector2(0, 220)
-move_time = 1.0
-break_animation_time = 0.3
-restore_animation_time = 0.15000000000000002
-
-[node name="WallCollision" parent="Level/Mechanisms/DemoMovingWall9" index="0"]
-position = Vector2(716.69995, -187.7)
-polygon = PackedVector2Array(-769.69995, 167.70001, -576.69995, 166.69995, -576.69995, 205.69995, -768.69995, 206.70001)
-
-[node name="ImpactSensor" parent="Level/Mechanisms/DemoMovingWall9" index="1"]
-position = Vector2(-7.300049, -3.699997)
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoMovingWall9/ImpactSensor" index="0"]
-position = Vector2(43.5, -1.0000153)
-shape = SubResource("RectangleShape2D_fv21b")
-
-[node name="DemoButton9" parent="Level/Mechanisms" unique_id=1739949168 instance=ExtResource("16_mechanism_button")]
-position = Vector2(-22, -1030)
-rotation = 1.5707964
-moving_wall_path = NodePath("../DemoMovingWall9")
-button_mode = 1
-detect_player_weapons = false
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton9" index="0"]
-position = Vector2(29.000004, 116)
-rotation = 1.5707964
-
-[node name="PressSensor" parent="Level/Mechanisms/DemoButton9" index="1"]
-rotation = 1.5707964
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton9/PressSensor" index="0"]
-position = Vector2(116, -29)
-rotation = 0.0
-shape = SubResource("RectangleShape2D_r4e17")
-
-[node name="DemoMovingWall10" parent="Level/Mechanisms" unique_id=2027598206 instance=ExtResource("15_mechanism_wall")]
-position = Vector2(3493, 76)
-collision_mask = 0
-target_offset = Vector2(0, -200)
-move_time = 1.0
-
-[node name="WallCollision" parent="Level/Mechanisms/DemoMovingWall10" index="0"]
-polygon = PackedVector2Array(-24, -155, 24, -156, 24, 72, -24, 72)
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoMovingWall10/ImpactSensor" index="0"]
-position = Vector2(0, -42)
-
-[node name="DemoButton10" parent="Level/Mechanisms" unique_id=635773942 instance=ExtResource("16_mechanism_button")]
-position = Vector2(3550, 141)
-moving_wall_path = NodePath("../DemoMovingWall10")
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton10" index="0"]
-position = Vector2(-0.765625, -5.3125)
-
-[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton10/PressSensor" index="0"]
-position = Vector2(-0.765625, -5.3125)
-rotation = 0.0
-shape = SubResource("RectangleShape2D_y57op")
-
 [node name="Tombstones" type="Node2D" parent="Level" unique_id=1547200000]
 
 [node name="EudaTombstone" parent="Level/Tombstones" unique_id=1547200001 instance=ExtResource("17_tombstone")]
@@ -1005,6 +706,391 @@ polygon = PackedVector2Array(3002, 667, 3002, 714, 3301, 713, 3299, 667)
 position = Vector2(427, -994)
 build_mode = 1
 polygon = PackedVector2Array(2826, 670, 2828, 746, 3655, 744, 3653, 672)
+
+[node name="Mechanisms" type="Node2D" parent="Level" unique_id=1547100000]
+
+[node name="DemoMovingWall" parent="Level/Mechanisms" unique_id=1547100001 instance=ExtResource("15_mechanism_wall")]
+position = Vector2(1931, 598)
+collision_mask = 0
+target_offset = Vector2(0, -200)
+move_time = 1.0
+
+[node name="MechanismWire" parent="Level/Mechanisms" unique_id=36648430 instance=ExtResource("15_tm6hj")]
+points = PackedVector2Array(1826, 706, 1826, 723, 1935.4652, 723, 1935.4652, 682.9964)
+default_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+start_button_path = NodePath("../DemoButton")
+activation_time = 0.4
+inactive_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+
+[node name="DemoButton" parent="Level/Mechanisms" unique_id=1547100002 instance=ExtResource("16_mechanism_button")]
+position = Vector2(1829, 671)
+moving_wall_path = NodePath("../DemoMovingWall")
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton" index="0"]
+position = Vector2(-0.765625, -5.3125)
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton/PressSensor" index="0"]
+position = Vector2(-0.765625, -5.3125)
+rotation = 0.0
+shape = SubResource("RectangleShape2D_kf5aa")
+
+[node name="DemoMovingWall2" parent="Level/Mechanisms" unique_id=229016664 instance=ExtResource("15_mechanism_wall")]
+position = Vector2(1358, 598)
+collision_mask = 0
+target_offset = Vector2(0, -200)
+move_time = 1.0
+break_animation_time = 0.3
+restore_animation_time = 0.15000000000000002
+vertical_impact_escape_direction = 2
+
+[node name="DemoButton2" parent="Level/Mechanisms" unique_id=1436383 instance=ExtResource("16_mechanism_button")]
+position = Vector2(1172, 673)
+moving_wall_path = NodePath("../DemoMovingWall2")
+button_mode = 1
+detect_player_weapons = false
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton2" index="0"]
+position = Vector2(0, -7)
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton2/PressSensor" index="0"]
+position = Vector2(0, -7)
+rotation = 0.0
+shape = SubResource("RectangleShape2D_t5ykj")
+
+[node name="MechanismWire2" parent="Level/Mechanisms" unique_id=374300171 instance=ExtResource("15_tm6hj")]
+points = PackedVector2Array(1172, 707, 1172, 729.08105, 1361, 729.08105, 1361, 687.8412)
+default_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+start_button_path = NodePath("../DemoButton2")
+activation_time = 0.4
+inactive_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+
+[node name="DemoMovingWall3" parent="Level/Mechanisms" unique_id=1783879147 instance=ExtResource("15_mechanism_wall")]
+position = Vector2(1064, 147)
+collision_mask = 0
+wall_mode = 1
+target_offset = Vector2(0, -200)
+move_time = 1.0
+break_animation_time = 0.3
+restore_animation_time = 0.15000000000000002
+
+[node name="WallCollision" parent="Level/Mechanisms/DemoMovingWall3" index="0"]
+polygon = PackedVector2Array(-29, -110, 23, -110, 23, 94, -25, 95)
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoMovingWall3/ImpactSensor" index="0"]
+position = Vector2(-3, -7.5)
+
+[node name="DemoButton3" parent="Level/Mechanisms" unique_id=797012024 instance=ExtResource("16_mechanism_button")]
+position = Vector2(1836, 174)
+rotation = 1.5707964
+moving_wall_path = NodePath("../DemoMovingWall3")
+button_mode = 2
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton3" index="0"]
+position = Vector2(2, -12.5)
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton3/PressSensor" index="0"]
+position = Vector2(2, -12.5)
+rotation = 0.0
+shape = SubResource("RectangleShape2D_e755i")
+
+[node name="MechanismWire3" parent="Level/Mechanisms" unique_id=1473114172 instance=ExtResource("15_tm6hj")]
+points = PackedVector2Array(1877, 174, 1906.0172, 174, 1906.0172, 290, 1069.9309, 290, 1069.9309, 259.9999)
+default_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+start_button_path = NodePath("../DemoButton3")
+activation_time = 0.4
+inactive_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+
+[node name="DemoMovingWall4" parent="Level/Mechanisms" unique_id=466419786 instance=ExtResource("15_mechanism_wall")]
+position = Vector2(3437, -394)
+collision_mask = 0
+target_offset = Vector2(0, -200)
+move_time = 1.0
+break_animation_time = 0.3
+restore_animation_time = 0.15000000000000002
+
+[node name="WallCollision" parent="Level/Mechanisms/DemoMovingWall4" index="0"]
+polygon = PackedVector2Array(-23, -163, 24, -164, 24, 72, -24, 72)
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoMovingWall4/ImpactSensor" index="0"]
+position = Vector2(0, -46)
+
+[node name="DemoButton4" parent="Level/Mechanisms" unique_id=2138327210 instance=ExtResource("16_mechanism_button")]
+position = Vector2(4437, -325)
+moving_wall_path = NodePath("../DemoMovingWall4")
+button_mode = 1
+detect_player_weapons = false
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton4/PressSensor" index="0"]
+position = Vector2(0, -14)
+rotation = 0.0
+shape = SubResource("RectangleShape2D_ro3en")
+
+[node name="MechanismWire4" parent="Level/Mechanisms" unique_id=1442750400 instance=ExtResource("15_tm6hj")]
+points = PackedVector2Array(4437, -296, 4437, -269.7004, 3440.9995, -269.7004, 3440.9995, -303.0151)
+default_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+start_button_path = NodePath("../DemoButton4")
+activation_time = 0.4
+inactive_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+
+[node name="DemoMovingWall5" parent="Level/Mechanisms" unique_id=345938204 instance=ExtResource("15_mechanism_wall")]
+position = Vector2(2502, -381)
+collision_mask = 0
+target_offset = Vector2(0, -200)
+move_time = 1.0
+break_animation_time = 0.3
+restore_animation_time = 0.15000000000000002
+
+[node name="WallCollision" parent="Level/Mechanisms/DemoMovingWall5" index="0"]
+polygon = PackedVector2Array(-23, -215, 24, -217, 24, 72, -24, 72)
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoMovingWall5/ImpactSensor" index="0"]
+position = Vector2(0, -72.5)
+
+[node name="DemoButton5" parent="Level/Mechanisms" unique_id=868622542 instance=ExtResource("16_mechanism_button")]
+position = Vector2(3128, -911)
+moving_wall_path = NodePath("../DemoMovingWall5")
+detect_player_weapons = false
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton5" index="0"]
+position = Vector2(0, -6)
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton5/PressSensor" index="0"]
+position = Vector2(0, -6)
+rotation = 0.0
+shape = SubResource("RectangleShape2D_od4ux")
+
+[node name="MechanismWire5" parent="Level/Mechanisms" unique_id=544980897 instance=ExtResource("15_tm6hj")]
+points = PackedVector2Array(3128, -885, 3128, -729.99677, 2803.4827, -405.47946, 2498.9995, -405.47946)
+default_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+start_button_path = NodePath("../DemoButton5")
+activation_time = 0.4
+inactive_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+
+[node name="DemoMovingWall6" parent="Level/Mechanisms" unique_id=1159029069 instance=ExtResource("15_mechanism_wall")]
+position = Vector2(1307, -106)
+collision_mask = 0
+target_offset = Vector2(250, 0)
+move_time = 1.0
+break_animation_time = 0.3
+restore_animation_time = 0.15000000000000002
+
+[node name="WallCollision" parent="Level/Mechanisms/DemoMovingWall6" index="0"]
+position = Vector2(716.69995, -187.7)
+polygon = PackedVector2Array(-816.69995, 166.70001, -523.69995, 166.70001, -524.69995, 203.70001, -814.69995, 206.70001)
+
+[node name="ImpactSensor" parent="Level/Mechanisms/DemoMovingWall6" index="1"]
+position = Vector2(-7.300049, -3.699997)
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoMovingWall6/ImpactSensor" index="0"]
+position = Vector2(46.5, -0.99998474)
+shape = SubResource("RectangleShape2D_fv21b")
+
+[node name="DemoButton6" parent="Level/Mechanisms" unique_id=821220556 instance=ExtResource("16_mechanism_button")]
+position = Vector2(1460, -315)
+moving_wall_path = NodePath("../DemoMovingWall6")
+button_mode = 1
+detect_player_weapons = false
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton6" index="0"]
+position = Vector2(0, -6)
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton6/PressSensor" index="0"]
+position = Vector2(0, -6)
+rotation = 0.0
+shape = SubResource("RectangleShape2D_xhfw6")
+
+[node name="MechanismWire6" parent="Level/Mechanisms" unique_id=1966892610 instance=ExtResource("15_tm6hj")]
+points = PackedVector2Array(1461, -292, 1461, -191.995, 1337.9958, -191.995, 1337.9958, -113.993645)
+default_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+start_button_path = NodePath("../DemoButton6")
+activation_time = 0.4
+inactive_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+
+[node name="DemoMovingWall7" parent="Level/Mechanisms" unique_id=947364331 instance=ExtResource("15_mechanism_wall")]
+position = Vector2(-128, -250)
+collision_mask = 0
+target_offset = Vector2(0, -375)
+move_time = 1.0
+break_animation_time = 0.3
+restore_animation_time = 0.15000000000000002
+
+[node name="WallCollision" parent="Level/Mechanisms/DemoMovingWall7" index="0"]
+position = Vector2(716.69995, -187.7)
+polygon = PackedVector2Array(-769.69995, 167.70001, -523.69995, 166.70001, -524.69995, 203.70001, -768.69995, 206.70001)
+
+[node name="ImpactSensor" parent="Level/Mechanisms/DemoMovingWall7" index="1"]
+position = Vector2(-7.300049, -3.699997)
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoMovingWall7/ImpactSensor" index="0"]
+position = Vector2(70, -0.99998474)
+shape = SubResource("RectangleShape2D_fv21b")
+
+[node name="DemoButton7" parent="Level/Mechanisms" unique_id=1860076570 instance=ExtResource("16_mechanism_button")]
+position = Vector2(-520, -397)
+rotation = 1.5707964
+moving_wall_path = NodePath("../DemoMovingWall7")
+button_mode = 2
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton7" index="0"]
+position = Vector2(-41, 9)
+rotation = 1.5707964
+shape = SubResource("RectangleShape2D_tel4y")
+
+[node name="PressSensor" parent="Level/Mechanisms/DemoButton7" index="1"]
+rotation = 1.5707964
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton7/PressSensor" index="0"]
+position = Vector2(9, 40.99997)
+rotation = 0.0
+shape = SubResource("RectangleShape2D_1epgm")
+
+[node name="MechanismWire7" parent="Level/Mechanisms" unique_id=369191169 instance=ExtResource("15_tm6hj")]
+points = PackedVector2Array(-532, -414, -188.99841, -414, -97.21152, -322.2131, -97.21152, -263.97253)
+default_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+start_button_path = NodePath("../DemoButton7")
+activation_time = 0.4
+inactive_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+
+[node name="DemoMovingWall8" parent="Level/Mechanisms" unique_id=1187421204 instance=ExtResource("15_mechanism_wall")]
+position = Vector2(-291, -1070)
+collision_mask = 0
+target_offset = Vector2(0, 350)
+move_time = 1.0
+break_animation_time = 0.3
+restore_animation_time = 0.15000000000000002
+
+[node name="WallCollision" parent="Level/Mechanisms/DemoMovingWall8" index="0"]
+polygon = PackedVector2Array(-24, -147, 23, -147, 24, 72, -24, 72)
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoMovingWall8/ImpactSensor" index="0"]
+position = Vector2(0, -37.5)
+
+[node name="DemoButton8" parent="Level/Mechanisms" unique_id=117977892 instance=ExtResource("16_mechanism_button")]
+position = Vector2(-199, -631)
+moving_wall_path = NodePath("../DemoMovingWall8")
+button_mode = 1
+detect_player_weapons = false
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton8" index="0"]
+position = Vector2(-26, -10.5)
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton8/PressSensor" index="0"]
+position = Vector2(-26, -10.5)
+rotation = 0.0
+shape = SubResource("RectangleShape2D_152kg")
+
+[node name="MechanismWire8" parent="Level/Mechanisms" unique_id=1793507952 instance=ExtResource("15_tm6hj")]
+points = PackedVector2Array(-227, -644, -227, -746.07837, -290.50848, -809.58685, -290.50848, -1020.0006)
+default_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+start_button_path = NodePath("../DemoButton8")
+activation_time = 0.4
+inactive_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+
+[node name="DemoMovingWall9" parent="Level/Mechanisms" unique_id=845429669 instance=ExtResource("15_mechanism_wall")]
+position = Vector2(84, -1196)
+collision_mask = 0
+target_offset = Vector2(0, 220)
+move_time = 1.0
+break_animation_time = 0.3
+restore_animation_time = 0.15000000000000002
+
+[node name="WallCollision" parent="Level/Mechanisms/DemoMovingWall9" index="0"]
+position = Vector2(716.69995, -187.7)
+polygon = PackedVector2Array(-769.69995, 167.70001, -576.69995, 166.69995, -576.69995, 205.69995, -768.69995, 206.70001)
+
+[node name="ImpactSensor" parent="Level/Mechanisms/DemoMovingWall9" index="1"]
+position = Vector2(-7.300049, -3.699997)
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoMovingWall9/ImpactSensor" index="0"]
+position = Vector2(43.5, -1.0000153)
+shape = SubResource("RectangleShape2D_fv21b")
+
+[node name="DemoButton9" parent="Level/Mechanisms" unique_id=1739949168 instance=ExtResource("16_mechanism_button")]
+position = Vector2(-22, -1030)
+rotation = 1.5707964
+moving_wall_path = NodePath("../DemoMovingWall9")
+button_mode = 1
+detect_player_weapons = false
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton9" index="0"]
+position = Vector2(29.000004, 116)
+rotation = 1.5707964
+
+[node name="PressSensor" parent="Level/Mechanisms/DemoButton9" index="1"]
+rotation = 1.5707964
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton9/PressSensor" index="0"]
+position = Vector2(116, -29)
+rotation = 0.0
+shape = SubResource("RectangleShape2D_r4e17")
+
+[node name="MechanismWire9" parent="Level/Mechanisms" unique_id=671822958 instance=ExtResource("15_tm6hj")]
+points = PackedVector2Array(-139, -1003, -139, -1198.041, 52.066513, -1198.041)
+default_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+start_button_path = NodePath("../DemoButton9")
+activation_time = 0.4
+inactive_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+
+[node name="DemoMovingWall10" parent="Level/Mechanisms" unique_id=2027598206 instance=ExtResource("15_mechanism_wall")]
+position = Vector2(3493, 76)
+collision_mask = 0
+target_offset = Vector2(0, -200)
+move_time = 1.0
+
+[node name="WallCollision" parent="Level/Mechanisms/DemoMovingWall10" index="0"]
+polygon = PackedVector2Array(-24, -155, 24, -156, 24, 72, -24, 72)
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoMovingWall10/ImpactSensor" index="0"]
+position = Vector2(0, -42)
+
+[node name="MechanismWire10" parent="Level/Mechanisms" unique_id=1726920810 instance=ExtResource("15_tm6hj")]
+points = PackedVector2Array(3550, 157, 3550, 169, 3481.67, 169, 3481.67, 149.69984)
+default_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+joint_mode = 2
+begin_cap_mode = 2
+end_cap_mode = 2
+start_button_path = NodePath("../DemoButton10")
+activation_time = 0.4
+inactive_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+
+[node name="DemoButton10" parent="Level/Mechanisms" unique_id=635773942 instance=ExtResource("16_mechanism_button")]
+position = Vector2(3550, 141)
+moving_wall_path = NodePath("../DemoMovingWall10")
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton10" index="0"]
+position = Vector2(-0.765625, -5.3125)
+
+[node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton10/PressSensor" index="0"]
+position = Vector2(-0.765625, -5.3125)
+rotation = 0.0
+shape = SubResource("RectangleShape2D_y57op")
 
 [node name="GhostBlocks" type="StaticBody2D" parent="Level" unique_id=1943537721]
 collision_layer = 8

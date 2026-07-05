@@ -19,6 +19,7 @@ const TERRAIN_LAYER := 1 << 0
 var _visual: CanvasItem
 var _sunlight: Node2D
 var _light_amount := 1.0
+var _no_light_mode_enabled := false
 
 func _ready() -> void:
 	_visual = get_node_or_null(visual_path) as CanvasItem
@@ -28,10 +29,21 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if _visual == null:
 		return
+	if _no_light_mode_enabled:
+		_visual.self_modulate = Color.WHITE
+		return
 	var target_light := _sample_environment_light()
 	var smoothing := 1.0 - exp(-response_speed * delta)
 	_light_amount = lerpf(_light_amount, target_light, smoothing)
 	_visual.self_modulate = _tint_for_light(_light_amount)
+
+func set_no_light_mode_enabled(value: bool) -> void:
+	if _no_light_mode_enabled == value:
+		return
+	_no_light_mode_enabled = value
+	if _visual != null:
+		_visual.self_modulate = Color.WHITE if _no_light_mode_enabled else _tint_for_light(_light_amount)
+	set_process(not Engine.is_editor_hint() and not _no_light_mode_enabled)
 
 func _sample_environment_light() -> float:
 	if _sunlight == null or sample_offsets.is_empty():

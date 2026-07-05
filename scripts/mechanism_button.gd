@@ -863,11 +863,7 @@ func _resolve_wall() -> void:
 	if _bound_moving_wall != null and is_instance_valid(_bound_moving_wall):
 		_moving_wall = _bound_moving_wall
 		return
-	_resolve_wire()
-	if _mechanism_wire != null and _mechanism_wire.has_method("get_target_node"):
-		_moving_wall = _mechanism_wire.call("get_target_node") as Node
-	else:
-		_moving_wall = null
+	_moving_wall = null
 
 func _resolve_wire() -> void:
 	if not mechanism_wire_path.is_empty():
@@ -884,15 +880,13 @@ func _resolve_wire() -> void:
 		if wire_node != null and wire_node.has_method("connects_button") and bool(wire_node.call("connects_button", self)):
 			_mechanism_wire = wire_node
 			return
-		if wire_node != null and _moving_wall != null and wire_node.has_method("connects_target") and bool(wire_node.call("connects_target", _moving_wall)):
-			_mechanism_wire = wire_node
-			return
 
 func bind_mechanism_wire(wire: Node, target: Node = null) -> void:
 	_bound_mechanism_wire = wire
 	_mechanism_wire = wire
-	_bound_moving_wall = target
-	_moving_wall = target
+	if target != null:
+		_bound_moving_wall = target
+		_moving_wall = target
 	_sync_wire_to_activation_state()
 	_ensure_process_needed()
 

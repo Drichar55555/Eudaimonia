@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://scripts/mechanism_wire.gd" id="1_mechanism_wire"]
 
 [node name="MechanismWire" type="Line2D"]
-z_index = 5
+z_index = 120
 z_as_relative = false
 points = PackedVector2Array(0, 0, 96, 0)
 width = 5.0
