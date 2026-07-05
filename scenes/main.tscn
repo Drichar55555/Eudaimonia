@@ -59,9 +59,9 @@
 [ext_resource type="Script" uid="uid://dmsnx42j005lv" path="res://scripts/death_return_gate_glow.gd" id="47_death_return_gate_glow"]
 [ext_resource type="Script" uid="uid://bvv4hdbu1rors" path="res://scripts/death_space_filter.gd" id="48_death_space_filter"]
 [ext_resource type="Script" uid="uid://2fud6qxsb0hp" path="res://scripts/key_chest_prompt_ui.gd" id="49_key_chest_prompt_ui"]
-[ext_resource type="Script" path="res://scripts/no_light_mode.gd" id="50_no_light_mode"]
+[ext_resource type="Script" uid="uid://mlkoc2q0yqh6" path="res://scripts/no_light_mode.gd" id="50_no_light_mode"]
 
-[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_tm6hj"]
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_kf5aa"]
 blend_mode = 1
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_room_start"]
@@ -97,9 +97,6 @@ size = Vector2(90, 150)
 [sub_resource type="CircleShape2D" id="CircleShape2D_save_point"]
 radius = 96.0
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_kf5aa"]
-size = Vector2(78, 28)
-
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_t5ykj"]
 size = Vector2(78, 28)
 
@@ -112,25 +109,28 @@ size = Vector2(78, 28)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_od4ux"]
 size = Vector2(78, 28)
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_xhfw6"]
+size = Vector2(78, 28)
+
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_fv21b"]
 size = Vector2(225, 88.00006)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_xhfw6"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_1epgm"]
 size = Vector2(78, 28)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_tel4y"]
 size = Vector2(22.00003, 341)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_1epgm"]
-size = Vector2(42.00003, 361)
-
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_152kg"]
-size = Vector2(78, 28)
+size = Vector2(42.00003, 361)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_r4e17"]
 size = Vector2(78, 28)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_y57op"]
+size = Vector2(78, 28)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_mlv25"]
 size = Vector2(78, 28)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
@@ -286,7 +286,7 @@ dialogue_box_path = NodePath("../CanvasLayer/DialogueBox")
 death_space_spawn = Vector2(7800, 480)
 death_return_gate_path = NodePath("../Level/DeathSpace/DeathReturnGate")
 
-[node name="NoLightMode" type="Node" parent="."]
+[node name="NoLightMode" type="Node" parent="." unique_id=1483840847]
 script = ExtResource("50_no_light_mode")
 
 [node name="RuntimeBackgroundLayer" type="CanvasLayer" parent="." unique_id=808420001]
@@ -317,7 +317,7 @@ fog_color = Color(0.82, 0.86, 0.8, 0.11)
 process_mode = 3
 z_index = 1024
 z_as_relative = false
-material = SubResource("CanvasItemMaterial_tm6hj")
+material = SubResource("CanvasItemMaterial_kf5aa")
 script = ExtResource("39_background_light_rays")
 light_direction = Vector2(-0.64561, 0.7636673)
 source_handle_path = NodePath("../SunLightEditorHandles/SourceHandle")
@@ -735,7 +735,7 @@ position = Vector2(-0.765625, -5.3125)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton/PressSensor" index="0"]
 position = Vector2(-0.765625, -5.3125)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_kf5aa")
+shape = SubResource("RectangleShape2D_t5ykj")
 
 [node name="DemoMovingWall2" parent="Level/Mechanisms" unique_id=229016664 instance=ExtResource("15_mechanism_wall")]
 position = Vector2(1358, 598)
@@ -758,7 +758,7 @@ position = Vector2(0, -7)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton2/PressSensor" index="0"]
 position = Vector2(0, -7)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_t5ykj")
+shape = SubResource("RectangleShape2D_e755i")
 
 [node name="MechanismWire2" parent="Level/Mechanisms" unique_id=374300171 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(1172, 707, 1172, 729.08105, 1361, 729.08105, 1361, 687.8412)
@@ -797,7 +797,7 @@ position = Vector2(2, -12.5)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton3/PressSensor" index="0"]
 position = Vector2(2, -12.5)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_e755i")
+shape = SubResource("RectangleShape2D_ro3en")
 
 [node name="MechanismWire3" parent="Level/Mechanisms" unique_id=1473114172 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(1877, 174, 1906.0172, 174, 1906.0172, 290, 1069.9309, 290, 1069.9309, 259.9999)
@@ -832,7 +832,7 @@ detect_player_weapons = false
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton4/PressSensor" index="0"]
 position = Vector2(0, -14)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_ro3en")
+shape = SubResource("RectangleShape2D_od4ux")
 
 [node name="MechanismWire4" parent="Level/Mechanisms" unique_id=1442750400 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(4437, -296, 4437, -269.7004, 3440.9995, -269.7004, 3440.9995, -303.0151)
@@ -869,7 +869,7 @@ position = Vector2(0, -6)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton5/PressSensor" index="0"]
 position = Vector2(0, -6)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_od4ux")
+shape = SubResource("RectangleShape2D_xhfw6")
 
 [node name="MechanismWire5" parent="Level/Mechanisms" unique_id=544980897 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(3128, -885, 3128, -729.99677, 2803.4827, -405.47946, 2498.9995, -405.47946)
@@ -912,7 +912,7 @@ position = Vector2(0, -6)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton6/PressSensor" index="0"]
 position = Vector2(0, -6)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_xhfw6")
+shape = SubResource("RectangleShape2D_1epgm")
 
 [node name="MechanismWire6" parent="Level/Mechanisms" unique_id=1966892610 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(1461, -292, 1461, -191.995, 1337.9958, -191.995, 1337.9958, -113.993645)
@@ -960,7 +960,7 @@ rotation = 1.5707964
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton7/PressSensor" index="0"]
 position = Vector2(9, 40.99997)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_1epgm")
+shape = SubResource("RectangleShape2D_152kg")
 
 [node name="MechanismWire7" parent="Level/Mechanisms" unique_id=369191169 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(-532, -414, -188.99841, -414, -97.21152, -322.2131, -97.21152, -263.97253)
@@ -998,7 +998,7 @@ position = Vector2(-26, -10.5)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton8/PressSensor" index="0"]
 position = Vector2(-26, -10.5)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_152kg")
+shape = SubResource("RectangleShape2D_r4e17")
 
 [node name="MechanismWire8" parent="Level/Mechanisms" unique_id=1793507952 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(-227, -644, -227, -746.07837, -290.50848, -809.58685, -290.50848, -1020.0006)
@@ -1046,7 +1046,7 @@ rotation = 1.5707964
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton9/PressSensor" index="0"]
 position = Vector2(116, -29)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_r4e17")
+shape = SubResource("RectangleShape2D_y57op")
 
 [node name="MechanismWire9" parent="Level/Mechanisms" unique_id=671822958 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(-139, -1003, -139, -1198.041, 52.066513, -1198.041)
@@ -1090,7 +1090,7 @@ position = Vector2(-0.765625, -5.3125)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton10/PressSensor" index="0"]
 position = Vector2(-0.765625, -5.3125)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_y57op")
+shape = SubResource("RectangleShape2D_mlv25")
 
 [node name="GhostBlocks" type="StaticBody2D" parent="Level" unique_id=1943537721]
 collision_layer = 8
@@ -1378,6 +1378,8 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("44_game_start_gate")
 player_path = NodePath("../../Player")
+save_manager_path = NodePath("../../SaveManager")
+ui_font = SubResource("SystemFont_dialogue")
 metadata/_edit_lock_ = true
 
 [node name="DialogueBox" type="Control" parent="CanvasLayer" unique_id=1547800020]

@@ -129,6 +129,17 @@ func _resume_game() -> void:
 	_paused_by_menu = false
 	queue_redraw()
 
+func _return_to_main_menu() -> void:
+	var start_gate := get_node_or_null("../GameStartGate")
+	if start_gate != null and start_gate.has_method("show_main_menu"):
+		visible = false
+		_paused_by_menu = false
+		_view_mode = "main"
+		start_gate.call("show_main_menu")
+		queue_redraw()
+		return
+	get_tree().quit()
+
 func _resolve_save_manager() -> void:
 	if _save_manager != null and is_instance_valid(_save_manager):
 		return
@@ -161,7 +172,7 @@ func _handle_main_click(point: Vector2) -> void:
 				queue_redraw()
 			"quit":
 				_main_selection = 2
-				get_tree().quit()
+				_return_to_main_menu()
 		return
 
 func _handle_rollback_click(point: Vector2) -> void:
@@ -256,7 +267,7 @@ func _activate_selected_item() -> void:
 			_view_mode = "rollback"
 			queue_redraw()
 		2:
-			get_tree().quit()
+			_return_to_main_menu()
 
 func _sync_selection_to_point(point: Vector2) -> void:
 	if _view_mode == "confirm_rollback":
@@ -431,7 +442,7 @@ func _draw_main_view() -> void:
 	var button_y := panel_position.y + 96.0
 	_draw_button(Rect2(Vector2(button_x, button_y), button_size), "继续", "resume", font, 20, _main_selection == 0)
 	_draw_button(Rect2(Vector2(button_x, button_y + 58.0), button_size), "回档", "rollback", font, 20, _main_selection == 1)
-	_draw_button(Rect2(Vector2(button_x, button_y + 116.0), button_size), "退出", "quit", font, 20, _main_selection == 2)
+	_draw_button(Rect2(Vector2(button_x, button_y + 116.0), button_size), "返回主界面", "quit", font, 20, _main_selection == 2)
 
 func _draw_rollback_view() -> void:
 	_resolve_save_manager()

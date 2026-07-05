@@ -16,10 +16,13 @@ var is_saving := false
 var current_checkpoint_position := Vector2.ZERO
 var rollback_entries: Array[Dictionary] = []
 var _save_timer := 0.0
+var _initial_snapshot := {}
+var _initial_checkpoint_position := Vector2.ZERO
 
 func _ready() -> void:
 	add_to_group("save_managers")
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	call_deferred("_capture_initial_snapshot")
 
 func _process(delta: float) -> void:
 	if not is_saving:
@@ -71,6 +74,38 @@ func load_rollback_entry(index: int) -> bool:
 	_restore_scene_snapshot(current_snapshot)
 	checkpoint_loaded.emit(current_checkpoint_position)
 	return true
+
+func reset_to_initial_state() -> bool:
+	if _initial_snapshot.is_empty():
+		_capture_initial_snapshot()
+	if _initial_snapshot.is_empty():
+		return false
+	current_snapshot.clear()
+	rollback_entries.clear()
+	current_checkpoint_position = _initial_checkpoint_position
+	is_saving = false
+	_save_timer = 0.0
+	_remove_transient_nodes()
+	_restore_scene_snapshot(_initial_snapshot)
+	checkpoint_loaded.emit(current_checkpoint_position)
+	return true
+
+func has_initial_snapshot() -> bool:
+	return not _initial_snapshot.is_empty()
+
+func _capture_initial_snapshot() -> void:
+	_initial_checkpoint_position = _initial_player_checkpoint_position()
+	_initial_snapshot = _capture_scene_snapshot(_initial_checkpoint_position)
+
+func _initial_player_checkpoint_position() -> Vector2:
+	var player := get_tree().get_first_node_in_group("players")
+	if player != null:
+		var spawn_value: Variant = player.get("spawn_position")
+		if spawn_value is Vector2:
+			return spawn_value
+		if player is Node2D:
+			return (player as Node2D).global_position
+	return Vector2.ZERO
 
 func _make_rollback_entry(snapshot: Dictionary, checkpoint_position: Vector2, checkpoint_name: String) -> Dictionary:
 	var resolved_name := checkpoint_name.strip_edges()
