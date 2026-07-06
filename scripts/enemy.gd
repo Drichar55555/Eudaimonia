@@ -43,6 +43,7 @@ enum EnemyState { PATROL, CHASE }
 @export_range(0.0, 160.0, 1.0) var stop_distance := 34.0
 @export_range(0.0, 360.0, 1.0) var patrol_speed := 34.0
 @export_range(0.0, 480.0, 1.0) var chase_speed := 64.0
+@export_range(1.0, 2.0, 0.01) var chase_speed_multiplier := 1.15
 @export_range(0.0, 4000.0, 10.0) var ground_acceleration := 560.0
 @export_range(0.0, 4000.0, 10.0) var ground_deceleration := 760.0
 @export_range(0.1, 3.0, 0.05) var gravity_scale := 1.0
@@ -112,6 +113,11 @@ enum EnemyState { PATROL, CHASE }
 @export var ghost_mark_color := Color(0.55, 0.95, 1.0, 0.9):
 	set(value):
 		ghost_mark_color = value
+		queue_redraw()
+
+@export var angry_eye_color := Color(1.0, 0.82, 0.18, 1.0):
+	set(value):
+		angry_eye_color = value
 		queue_redraw()
 
 @export var hit_flash_time := 0.12
@@ -197,8 +203,11 @@ func _process(delta: float) -> void:
 func take_boomerang_hit(boomerang: Node) -> void:
 	if invincible:
 		_play_armor_hit_feedback(boomerang)
-		if armor_returns_boomerang and boomerang != null and boomerang.has_method("start_return"):
-			boomerang.call("start_return")
+		if armor_returns_boomerang and boomerang != null:
+			if boomerang.has_method("deflect_from"):
+				boomerang.call("deflect_from", global_position)
+			elif boomerang.has_method("start_return"):
+				boomerang.call("start_return")
 		return
 	health -= 1
 	_hit_flash_timer = hit_flash_time
@@ -299,6 +308,7 @@ func _get_save_config() -> Dictionary:
 		"stop_distance": stop_distance,
 		"patrol_speed": patrol_speed,
 		"chase_speed": chase_speed,
+		"chase_speed_multiplier": chase_speed_multiplier,
 		"ground_acceleration": ground_acceleration,
 		"ground_deceleration": ground_deceleration,
 		"gravity_scale": gravity_scale,
@@ -327,6 +337,7 @@ func _get_save_config() -> Dictionary:
 		"body_color": body_color,
 		"edge_color": edge_color,
 		"ghost_mark_color": ghost_mark_color,
+		"angry_eye_color": angry_eye_color,
 		"hit_flash_time": hit_flash_time,
 		"hit_flash_color": hit_flash_color,
 		"hit_push_distance": hit_push_distance,
@@ -362,6 +373,7 @@ func _apply_save_config(config: Dictionary) -> void:
 	stop_distance = float(config.get("stop_distance", stop_distance))
 	patrol_speed = float(config.get("patrol_speed", patrol_speed))
 	chase_speed = float(config.get("chase_speed", chase_speed))
+	chase_speed_multiplier = float(config.get("chase_speed_multiplier", chase_speed_multiplier))
 	ground_acceleration = float(config.get("ground_acceleration", ground_acceleration))
 	ground_deceleration = float(config.get("ground_deceleration", ground_deceleration))
 	gravity_scale = float(config.get("gravity_scale", gravity_scale))
@@ -390,6 +402,7 @@ func _apply_save_config(config: Dictionary) -> void:
 	body_color = config.get("body_color", body_color)
 	edge_color = config.get("edge_color", edge_color)
 	ghost_mark_color = config.get("ghost_mark_color", ghost_mark_color)
+	angry_eye_color = config.get("angry_eye_color", angry_eye_color)
 	hit_flash_time = float(config.get("hit_flash_time", hit_flash_time))
 	hit_flash_color = config.get("hit_flash_color", hit_flash_color)
 	hit_push_distance = float(config.get("hit_push_distance", hit_push_distance))
@@ -427,13 +440,27 @@ func _draw() -> void:
 	draw_rect(rect, edge_color, false, 3.0)
 	if invincible:
 		_draw_armor_plating(rect, armor_amount)
-	draw_circle(hit_offset + Vector2(-8.0, -7.0), 3.0, edge_color)
-	draw_circle(hit_offset + Vector2(8.0, -7.0), 3.0, edge_color)
-	draw_line(hit_offset + Vector2(-8.0, 9.0), hit_offset + Vector2(8.0, 9.0), edge_color, 3.0)
+	if current_state == EnemyState.CHASE:
+		_draw_angry_face(hit_offset)
+	else:
+		_draw_patrol_face(hit_offset)
 	if not invincible:
 		_draw_health_pips(rect)
 	if can_touch_ghost_blocks:
 		_draw_ghost_mark(rect)
+
+func _draw_patrol_face(offset: Vector2) -> void:
+	draw_circle(offset + Vector2(-8.0, -7.0), 3.0, edge_color)
+	draw_circle(offset + Vector2(8.0, -7.0), 3.0, edge_color)
+	draw_line(offset + Vector2(-8.0, 9.0), offset + Vector2(8.0, 9.0), edge_color, 3.0)
+
+func _draw_angry_face(offset: Vector2) -> void:
+	draw_line(offset + Vector2(-15.0, -15.0), offset + Vector2(-3.0, -9.0), edge_color, 3.0, true)
+	draw_line(offset + Vector2(15.0, -15.0), offset + Vector2(3.0, -9.0), edge_color, 3.0, true)
+	draw_circle(offset + Vector2(-8.0, -5.0), 3.5, angry_eye_color)
+	draw_circle(offset + Vector2(8.0, -5.0), 3.5, angry_eye_color)
+	draw_line(offset + Vector2(-10.0, 11.0), offset + Vector2(0.0, 7.0), edge_color, 3.0, true)
+	draw_line(offset + Vector2(0.0, 7.0), offset + Vector2(10.0, 11.0), edge_color, 3.0, true)
 
 func _draw_armor_plating(rect: Rect2, flash_amount: float) -> void:
 	var plate_color := armor_flash_color.lerp(edge_color, 0.55)
@@ -521,7 +548,7 @@ func _chase_desired_speed() -> float:
 		return 0.0
 
 	_patrol_direction = chase_direction
-	return chase_direction * chase_speed
+	return chase_direction * chase_speed * chase_speed_multiplier
 
 func _apply_gravity(delta: float) -> void:
 	if is_on_floor() and velocity.y > 0.0:

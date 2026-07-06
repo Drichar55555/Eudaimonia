@@ -10,6 +10,10 @@ signal player_damaged(damage: int, cause: String)
 const TERRAIN_LAYER := 1 << 0
 const GHOST_BLOCK_LAYER := 1 << 3
 const MASK_STATE_COUNT := 3
+const MASK_THROW_BLOCKED_DIALOGUE: Array[String] = [
+	"想要在戴上我的同时发射我？这当然是做不到的",
+	"要发射面具的时候，按1键摘下面具吧",
+]
 
 enum MaskState { NO_MASK, EUDA_MASK, GHOST_MASK }
 
@@ -43,6 +47,7 @@ enum MaskState { NO_MASK, EUDA_MASK, GHOST_MASK }
 @export var boomerang_scene: PackedScene
 @export var boomerang_throw_offset := Vector2(34.0, -20.0)
 @export var boomerang_cooldown: float = 0.18
+@export var dialogue_box_path: NodePath
 
 @export_group("Mask State")
 @export_enum("No Mask", "Euda Mask", "Ghost Mask") var starting_mask_state := 0
@@ -111,6 +116,8 @@ var _fall_respawn_pending := false
 var _ghost_block_context_timer := 0.0
 var _jump_was_down := false
 var _throw_was_down := false
+var _mask_throw_hint_was_down := false
+var _mask_throw_blocked_dialogue_seen := false
 var _mask_cycle_was_down := false
 var _jump_ascent_room_gate_active := false
 var _test_mode_enabled := false
@@ -881,8 +888,13 @@ func _handle_boomerang_throw() -> void:
 	var throw_down := _throw_is_down()
 	var throw_pressed := throw_down and not _throw_was_down
 	_throw_was_down = throw_down
+	var mask_throw_hint_down := Input.is_physical_key_pressed(KEY_X)
+	var mask_throw_hint_pressed := mask_throw_hint_down and not _mask_throw_hint_was_down
+	_mask_throw_hint_was_down = mask_throw_hint_down
 
 	if not can_throw_mask_boomerang():
+		if mask_throw_hint_pressed:
+			_show_mask_throw_blocked_dialogue()
 		return
 
 	if not throw_pressed or _throw_cooldown_timer > 0.0:
@@ -893,6 +905,17 @@ func _handle_boomerang_throw() -> void:
 
 	_throw_cooldown_timer = boomerang_cooldown
 	_throw_boomerang()
+
+func _show_mask_throw_blocked_dialogue() -> void:
+	if _mask_throw_blocked_dialogue_seen:
+		return
+	var dialogue_box := _dialogue_box()
+	if dialogue_box == null or not dialogue_box.has_method("show_dialogue"):
+		return
+	if dialogue_box.has_method("is_dialogue_active") and bool(dialogue_box.call("is_dialogue_active")):
+		return
+	_mask_throw_blocked_dialogue_seen = true
+	dialogue_box.call("show_dialogue", "面具", MASK_THROW_BLOCKED_DIALOGUE)
 
 func _handle_test_mode_toggle() -> void:
 	var test_mode_down := Input.is_physical_key_pressed(KEY_U)
@@ -1016,6 +1039,13 @@ func _jump_is_down() -> bool:
 
 func _throw_is_down() -> bool:
 	return Input.is_physical_key_pressed(KEY_J) or Input.is_physical_key_pressed(KEY_X)
+
+func _dialogue_box() -> Node:
+	if not dialogue_box_path.is_empty():
+		var configured_dialogue_box := get_node_or_null(dialogue_box_path)
+		if configured_dialogue_box != null:
+			return configured_dialogue_box
+	return get_tree().get_first_node_in_group("dialogue_boxes")
 
 func _respawn() -> void:
 	_last_damage_cause = "ghost_block" if _is_ghost_related_fall() else "fall"

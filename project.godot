@@ -32,3 +32,4 @@ enabled=PackedStringArray("res://addons/mechanism_wire_editor/plugin.cfg")
 [rendering]
 
 renderer/rendering_method="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true

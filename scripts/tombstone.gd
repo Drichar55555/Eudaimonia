@@ -243,8 +243,14 @@ func _configure_spawned_enemy(enemy: Node2D) -> void:
 	enemy.set("invincible", spawned_is_invincible)
 	if spawned_is_ghost:
 		enemy.set("can_touch_ghost_blocks", true)
-		enemy.set("body_color", Color(0.45, 0.62, 1.0, 1.0) if spawned_is_invincible else Color(0.42, 0.58, 1.0, 1.0))
-		enemy.set("edge_color", Color(0.02, 0.04, 0.12, 1.0) if spawned_is_invincible else Color(0.04, 0.08, 0.18, 1.0))
+		enemy.set("body_color", Color(0.48, 0.5, 0.54, 1.0) if spawned_is_invincible else Color(0.42, 0.58, 1.0, 1.0))
+		enemy.set("edge_color", Color(0.035, 0.04, 0.05, 1.0) if spawned_is_invincible else Color(0.04, 0.08, 0.18, 1.0))
+		if spawned_is_invincible:
+			enemy.set("ghost_mark_color", Color(0.82, 0.9, 0.96, 0.95))
+			enemy.set("armor_flash_time", 0.26)
+			enemy.set("armor_flash_color", Color(0.9, 0.96, 1.0, 1.0))
+			enemy.set("armor_spark_color", Color(0.76, 0.9, 1.0, 1.0))
+			enemy.set("armor_shake_amount", 0.24)
 	else:
 		enemy.set("can_touch_ghost_blocks", false)
 		if spawned_is_invincible:

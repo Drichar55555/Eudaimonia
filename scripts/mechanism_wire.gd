@@ -35,7 +35,7 @@ extends Line2D
 	set(value):
 		active_color = value
 		_update_visual_color()
-@export_range(-4096, 4096, 1) var display_z_index := 120:
+@export_range(-4096, 4096, 1) var display_z_index := 0:
 	set(value):
 		display_z_index = int(value)
 		_apply_display_layer()

@@ -40,6 +40,9 @@ var active_dead_zone := Vector2(42.0, 88.0)
 var active_border_zone := Vector2(180.0, 140.0)
 var active_follow_damping := Vector2(7.5, 4.5)
 var active_border_damping := Vector2(15.0, 10.0)
+var active_large_room_composition := false
+var active_large_room_edge_offset := 176.0
+var active_large_room_edge_zone := 420.0
 var active_room: Node
 var is_room_transitioning := false
 var transition_mask_alpha := 0.0
@@ -172,8 +175,7 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var target_position := target.global_position + Vector2(0.0, active_vertical_offset)
-	var facing := _target_facing_direction()
-	var target_lookahead_offset := facing * (active_lookahead_distance + active_dead_zone.x)
+	var target_lookahead_offset := _target_horizontal_tracking_offset()
 	_facing_lookahead_offset = lerpf(_facing_lookahead_offset, target_lookahead_offset, 1.0 - exp(-active_facing_lookahead_speed * delta))
 	var tracked_position := target_position + Vector2(_facing_lookahead_offset, 0.0)
 	var next_position := desired_position
@@ -721,7 +723,10 @@ func _default_camera_settings() -> Dictionary:
 		"dead_zone": Vector2(horizontal_dead_zone, vertical_dead_zone),
 		"border_zone": Vector2(180.0, 140.0),
 		"follow_damping": Vector2(catchup_speed, vertical_catchup_speed),
-		"border_damping": Vector2(15.0, 10.0)
+		"border_damping": Vector2(15.0, 10.0),
+		"large_room_composition": false,
+		"large_room_edge_offset": 176.0,
+		"large_room_edge_zone": 420.0
 	}
 
 func _camera_settings_from_room(room: Node) -> Dictionary:
@@ -749,6 +754,12 @@ func _camera_settings_from_room(room: Node) -> Dictionary:
 		settings["follow_damping"] = room.get_follow_damping()
 	if room.has_method("get_border_damping"):
 		settings["border_damping"] = room.get_border_damping()
+	if room.has_method("get_large_room_composition_enabled"):
+		settings["large_room_composition"] = bool(room.get_large_room_composition_enabled())
+	if room.has_method("get_large_room_edge_offset"):
+		settings["large_room_edge_offset"] = float(room.get_large_room_edge_offset())
+	if room.has_method("get_large_room_edge_zone"):
+		settings["large_room_edge_zone"] = float(room.get_large_room_edge_zone())
 
 	return settings
 
@@ -763,6 +774,9 @@ func _apply_camera_settings(settings: Dictionary) -> void:
 	active_border_zone = settings["border_zone"]
 	active_follow_damping = settings["follow_damping"]
 	active_border_damping = settings["border_damping"]
+	active_large_room_composition = bool(settings.get("large_room_composition", false))
+	active_large_room_edge_offset = float(settings.get("large_room_edge_offset", 176.0))
+	active_large_room_edge_zone = float(settings.get("large_room_edge_zone", 420.0))
 
 func _visible_size_for_zoom(camera_zoom: Vector2) -> Vector2:
 	var viewport_size := get_viewport_rect().size
@@ -826,6 +840,48 @@ func _read_horizontal_intent() -> float:
 	if Input.is_action_pressed("ui_right") or Input.is_physical_key_pressed(KEY_D):
 		direction += 1.0
 	return clampf(direction, -1.0, 1.0)
+
+func _target_horizontal_tracking_offset() -> float:
+	var movement_direction := _target_movement_direction()
+	var movement_bias := movement_direction * active_lookahead_distance
+	var edge_bias := _large_room_edge_bias_x()
+	var camera_bias := movement_bias + edge_bias
+	var dead_zone_direction := signf(camera_bias)
+	if is_zero_approx(dead_zone_direction):
+		dead_zone_direction = movement_direction
+	if is_zero_approx(dead_zone_direction):
+		dead_zone_direction = _target_facing_direction()
+	return camera_bias + dead_zone_direction * active_dead_zone.x
+
+func _target_movement_direction() -> float:
+	if target == null:
+		return 1.0
+	var velocity_direction := signf(target.velocity.x)
+	if absf(target.velocity.x) > 8.0 and not is_zero_approx(velocity_direction):
+		return velocity_direction
+	var input_direction := _read_horizontal_intent()
+	if not is_zero_approx(input_direction):
+		return input_direction
+	return _target_facing_direction()
+
+func _large_room_edge_bias_x() -> float:
+	if not active_large_room_composition or target == null or active_no_follow:
+		return 0.0
+	var room_rect := _active_camera_limit_rect()
+	if room_rect.size.x <= 0.0:
+		return 0.0
+	var visible_width := _visible_size_for_zoom(zoom).x
+	if room_rect.size.x <= visible_width * 1.08:
+		return 0.0
+	var zone_width := minf(maxf(active_large_room_edge_zone, 1.0), room_rect.size.x * 0.5)
+	var left_distance := maxf(target.global_position.x - room_rect.position.x, 0.0)
+	var right_distance := maxf(room_rect.end.x - target.global_position.x, 0.0)
+	var left_weight := 1.0 - clampf(left_distance / zone_width, 0.0, 1.0)
+	var right_weight := 1.0 - clampf(right_distance / zone_width, 0.0, 1.0)
+	var edge_weight := left_weight - right_weight
+	if is_zero_approx(edge_weight):
+		return 0.0
+	return signf(edge_weight) * pow(absf(edge_weight), 1.25) * active_large_room_edge_offset
 
 func _target_facing_direction() -> float:
 	if target == null:

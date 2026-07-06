@@ -2,6 +2,8 @@ extends Control
 
 @export var player_path: NodePath
 @export var save_manager_path: NodePath
+@export var respawn_controller_path: NodePath
+@export var dialogue_box_path: NodePath
 @export var title_text := "EUDAIMONIA"
 @export var ui_font: Font
 @export var background_color := Color(0.015, 0.018, 0.022, 1.0)
@@ -10,10 +12,15 @@ extends Control
 @export var accent_color := Color(1.0, 0.86, 0.28, 1.0)
 @export var button_color := Color(0.08, 0.1, 0.13, 0.94)
 @export var button_hover_color := Color(0.16, 0.18, 0.22, 0.98)
+@export var button_disabled_color := Color(0.06, 0.065, 0.075, 0.68)
 @export var rollback_card_color := Color(0.045, 0.055, 0.07, 0.96)
+
+const NEW_GAME_INTRO_DIALOGUE: Array[String] = ["按x发射我吧"]
 
 var _player: Node
 var _save_manager: Node
+var _respawn_controller: Node
+var _dialogue_box: Node
 var _paused_by_gate := false
 var _started := false
 var _view_mode := "main"
@@ -21,6 +28,8 @@ var _main_selection := 0
 var _rollback_selection := 0
 var _confirm_selection := 1
 var _confirm_rollback_index := -1
+var _load_transition_active := false
+var _pending_rollback_index := -1
 var _buttons: Array[Dictionary] = []
 var _rollback_cards: Array[Dictionary] = []
 var _rollback_buttons: Array[Dictionary] = []
@@ -36,6 +45,9 @@ func _ready() -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if _started or not visible:
+		return
+	if _load_transition_active:
+		get_viewport().set_input_as_handled()
 		return
 	var key_event := event as InputEventKey
 	if key_event == null or not key_event.pressed or key_event.echo:
@@ -74,15 +86,21 @@ func show_main_menu() -> void:
 	_started = false
 	visible = true
 	_view_mode = "main"
-	_main_selection = 0
+	_main_selection = _first_enabled_main_selection()
 	_rollback_selection = 0
 	_confirm_selection = 1
 	_confirm_rollback_index = -1
+	_load_transition_active = false
+	_pending_rollback_index = -1
 	_resolve_player()
 	_resolve_save_manager()
+	_resolve_respawn_controller()
+	_resolve_dialogue_box()
 	if get_tree() != null:
 		get_tree().paused = true
 		_paused_by_gate = true
+	if not _can_continue_game():
+		_main_selection = 1
 	queue_redraw()
 
 func _handle_escape_key() -> void:
@@ -90,7 +108,7 @@ func _handle_escape_key() -> void:
 		_cancel_rollback_confirmation()
 	elif _view_mode == "rollback":
 		_view_mode = "main"
-		_main_selection = 0
+		_main_selection = _first_enabled_main_selection()
 		queue_redraw()
 
 func _handle_navigation_key(key_event: InputEventKey) -> bool:
@@ -121,7 +139,8 @@ func _handle_main_click(point: Vector2) -> void:
 			continue
 		match str(button.get("action", "")):
 			"continue":
-				_open_load_view()
+				if bool(button.get("enabled", true)):
+					_open_load_view()
 			"new_start":
 				_start_new_game()
 			"exit":
@@ -133,7 +152,7 @@ func _handle_rollback_click(point: Vector2) -> void:
 		var rect := button.get("rect") as Rect2
 		if rect.has_point(point) and str(button.get("action", "")) == "back":
 			_view_mode = "main"
-			_main_selection = 0
+			_main_selection = _first_enabled_main_selection()
 			_rollback_selection = 0
 			queue_redraw()
 			return
@@ -171,7 +190,12 @@ func _move_main_selection(direction: Vector2i) -> void:
 	elif direction.y > 0 or direction.x > 0:
 		delta = 1
 	if delta != 0:
-		_main_selection = _wrapped_index(_main_selection + delta, 3)
+		var next_selection := _main_selection
+		for _step in 3:
+			next_selection = _wrapped_index(next_selection + delta, 3)
+			if _main_item_enabled(next_selection):
+				_main_selection = next_selection
+				return
 
 func _move_rollback_selection(direction: Vector2i) -> void:
 	var entry_count := _visible_rollback_entry_count()
@@ -207,14 +231,15 @@ func _activate_selected_item() -> void:
 	if _view_mode == "rollback":
 		if _rollback_selection == 0:
 			_view_mode = "main"
-			_main_selection = 0
+			_main_selection = _first_enabled_main_selection()
 			queue_redraw()
 		else:
 			_request_rollback_confirmation(_rollback_selection - 1)
 		return
 	match _main_selection:
 		0:
-			_open_load_view()
+			if _can_continue_game():
+				_open_load_view()
 		1:
 			_start_new_game()
 		2:
@@ -242,7 +267,7 @@ func _sync_selection_to_point(point: Vector2) -> void:
 		return
 	for button in _buttons:
 		var rect := button.get("rect") as Rect2
-		if rect.has_point(point):
+		if rect.has_point(point) and bool(button.get("enabled", true)):
 			match str(button.get("action", "")):
 				"continue":
 					_main_selection = 0
@@ -253,6 +278,10 @@ func _sync_selection_to_point(point: Vector2) -> void:
 			return
 
 func _open_load_view() -> void:
+	if not _can_continue_game():
+		_main_selection = _first_enabled_main_selection()
+		queue_redraw()
+		return
 	_select_first_rollback_item()
 	_view_mode = "rollback"
 	queue_redraw()
@@ -262,7 +291,7 @@ func _start_new_game() -> void:
 	if _save_manager != null and _save_manager.has_method("reset_to_initial_state"):
 		_save_manager.call("reset_to_initial_state")
 	_snap_cameras_to_loaded_room()
-	_start_game(true)
+	_show_new_game_intro_dialogue()
 
 func _start_game(play_intro_shot: bool) -> void:
 	_started = true
@@ -274,6 +303,32 @@ func _start_game(play_intro_shot: bool) -> void:
 	if play_intro_shot and _player != null and _player.has_method("start_with_right_shot"):
 		_player.call("start_with_right_shot")
 	queue_redraw()
+
+func _show_new_game_intro_dialogue() -> void:
+	_resolve_dialogue_box()
+	visible = false
+	if get_tree() != null:
+		get_tree().paused = true
+		_paused_by_gate = true
+	if _dialogue_box == null or not _dialogue_box.has_method("show_key_dialogue"):
+		_start_game(true)
+		return
+	if _dialogue_box.has_signal("dialogue_finished"):
+		_dialogue_box.dialogue_finished.connect(func() -> void:
+			_start_game(true)
+		, CONNECT_ONE_SHOT)
+	_dialogue_box.call("show_key_dialogue", "面具", NEW_GAME_INTRO_DIALOGUE, "X", KEY_X)
+
+func _can_continue_game() -> bool:
+	return _visible_rollback_entry_count() > 0
+
+func _main_item_enabled(index: int) -> bool:
+	if index == 0:
+		return _can_continue_game()
+	return index >= 0 and index <= 2
+
+func _first_enabled_main_selection() -> int:
+	return 0 if _can_continue_game() else 1
 
 func _select_first_rollback_item() -> void:
 	_rollback_selection = 1 if _visible_rollback_entry_count() > 0 else 0
@@ -316,12 +371,42 @@ func _activate_confirm_selection() -> void:
 	if _confirm_selection == 0 and _confirm_rollback_index >= 0:
 		var index := _confirm_rollback_index
 		_confirm_rollback_index = -1
-		if _load_rollback_immediately(index):
-			_start_game(false)
-		else:
-			_cancel_rollback_confirmation()
+		_start_rollback_load(index)
 	else:
 		_cancel_rollback_confirmation()
+
+func _start_rollback_load(index: int) -> void:
+	if _load_transition_active:
+		return
+	_resolve_respawn_controller()
+	if _respawn_controller != null and _respawn_controller.has_method("request_black_transition"):
+		_pending_rollback_index = index
+		_load_transition_active = true
+		visible = false
+		var did_start := bool(_respawn_controller.call(
+			"request_black_transition",
+			_current_player(),
+			Callable(self, "_perform_pending_rollback_load"),
+			Callable(self, "_finish_rollback_load_transition")
+		))
+		if did_start:
+			return
+		_load_transition_active = false
+		_pending_rollback_index = -1
+		visible = true
+	if _load_rollback_immediately(index):
+		_finish_rollback_load_transition()
+	else:
+		_cancel_rollback_confirmation()
+
+func _perform_pending_rollback_load() -> void:
+	if _pending_rollback_index >= 0:
+		_load_rollback_immediately(_pending_rollback_index)
+
+func _finish_rollback_load_transition() -> void:
+	_load_transition_active = false
+	_pending_rollback_index = -1
+	_start_game(false)
 
 func _load_rollback_immediately(index: int) -> bool:
 	_resolve_save_manager()
@@ -332,6 +417,10 @@ func _load_rollback_immediately(index: int) -> bool:
 		return false
 	_snap_cameras_to_loaded_room()
 	return true
+
+func _current_player() -> Node:
+	_resolve_player()
+	return _player
 
 func _snap_cameras_to_loaded_room() -> void:
 	if get_tree() == null:
@@ -355,6 +444,20 @@ func _resolve_save_manager() -> void:
 		_save_manager = get_node_or_null(save_manager_path)
 	if _save_manager == null and get_tree() != null:
 		_save_manager = get_tree().get_first_node_in_group("save_managers")
+
+func _resolve_respawn_controller() -> void:
+	if _respawn_controller != null and is_instance_valid(_respawn_controller):
+		return
+	if not respawn_controller_path.is_empty():
+		_respawn_controller = get_node_or_null(respawn_controller_path)
+	if _respawn_controller == null and get_tree() != null:
+		_respawn_controller = get_tree().get_first_node_in_group("death_respawn_controllers")
+
+func _resolve_dialogue_box() -> void:
+	if _dialogue_box != null and is_instance_valid(_dialogue_box):
+		return
+	if not dialogue_box_path.is_empty():
+		_dialogue_box = get_node_or_null(dialogue_box_path)
 
 func _draw() -> void:
 	if not visible or size.x <= 1.0 or size.y <= 1.0:
@@ -393,7 +496,8 @@ func _draw_main_view() -> void:
 	var button_width := minf(content_width, 420.0)
 	var button_x := (size.x - button_width) * 0.5
 	var button_y := maxf(size.y * 0.45, title_y + 108.0)
-	_draw_button(Rect2(Vector2(button_x, button_y), Vector2(button_width, 52.0)), "继续", "continue", font, 22, _main_selection == 0)
+	var can_continue := _can_continue_game()
+	_draw_button(Rect2(Vector2(button_x, button_y), Vector2(button_width, 52.0)), "继续", "continue", font, 22, _main_selection == 0 and can_continue, can_continue)
 	_draw_button(Rect2(Vector2(button_x, button_y + 72.0), Vector2(button_width, 52.0)), "重新开始", "new_start", font, 22, _main_selection == 1)
 	_draw_button(Rect2(Vector2(button_x, button_y + 144.0), Vector2(button_width, 52.0)), "退出", "exit", font, 22, _main_selection == 2)
 
@@ -447,14 +551,15 @@ func _draw_panel(panel_rect: Rect2) -> void:
 	draw_rect(panel_rect, panel_color)
 	draw_rect(panel_rect, Color(accent_color.r, accent_color.g, accent_color.b, 0.82), false, 3.0)
 
-func _draw_button(rect: Rect2, text: String, action: String, font: Font, font_size: int = 20, selected: bool = false) -> void:
+func _draw_button(rect: Rect2, text: String, action: String, font: Font, font_size: int = 20, selected: bool = false, enabled: bool = true) -> void:
 	var hovered := rect.has_point(get_local_mouse_position())
-	draw_rect(rect, button_hover_color if hovered or selected else button_color)
-	draw_rect(rect, Color(accent_color.r, accent_color.g, accent_color.b, 0.82 if selected else 0.62 if hovered else 0.36), false, 2.0 if not selected else 3.0)
+	var active_hover := enabled and hovered
+	draw_rect(rect, button_hover_color if active_hover or selected else button_color if enabled else button_disabled_color)
+	draw_rect(rect, Color(accent_color.r, accent_color.g, accent_color.b, 0.82 if selected else 0.62 if active_hover else 0.36 if enabled else 0.16), false, 2.0 if not selected else 3.0)
 	if selected:
 		_draw_cursor_marker(rect)
-	draw_string(font, Vector2(rect.position.x, rect.position.y + rect.size.y * 0.64), text, HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, font_size, Color(0.94, 0.96, 1.0, 1.0))
-	_buttons.append({"rect": rect, "action": action})
+	draw_string(font, Vector2(rect.position.x, rect.position.y + rect.size.y * 0.64), text, HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, font_size, Color(0.94, 0.96, 1.0, 1.0) if enabled else Color(0.42, 0.45, 0.5, 1.0))
+	_buttons.append({"rect": rect, "action": action, "enabled": enabled})
 
 func _draw_rollback_card(rect: Rect2, entry: Dictionary, index: int, font: Font, selected: bool) -> void:
 	var hovered := rect.has_point(get_local_mouse_position())

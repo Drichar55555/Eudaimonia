@@ -11,6 +11,7 @@
 [ext_resource type="PackedScene" path="res://scenes/mask_boomerang.tscn" id="9_mask_boomerang"]
 [ext_resource type="Script" uid="uid://4kj43t0e0oxk" path="res://scripts/ghost_blocks_visual.gd" id="10_ghost_blocks_visual"]
 [ext_resource type="PackedScene" path="res://scenes/enemy.tscn" id="11_enemy"]
+[ext_resource type="PackedScene" path="res://scenes/invincible_ghost_enemy.tscn" id="11_invincible_ghost_enemy"]
 [ext_resource type="Script" uid="uid://b6vtri0rc2yys" path="res://scripts/save_manager.gd" id="12_save_manager"]
 [ext_resource type="Script" uid="uid://bov3jsymhkf5b" path="res://scripts/save_point.gd" id="13_save_point"]
 [ext_resource type="Texture2D" uid="uid://bdttg4nckm867" path="res://ArtWorks/20260606-120810.png" id="14_2f3dj"]
@@ -61,7 +62,7 @@
 [ext_resource type="Script" uid="uid://2fud6qxsb0hp" path="res://scripts/key_chest_prompt_ui.gd" id="49_key_chest_prompt_ui"]
 [ext_resource type="Script" uid="uid://mlkoc2q0yqh6" path="res://scripts/no_light_mode.gd" id="50_no_light_mode"]
 
-[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_kf5aa"]
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_t5ykj"]
 blend_mode = 1
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_room_start"]
@@ -86,7 +87,7 @@ size = Vector2(960, 540)
 size = Vector2(1521.625, 1021)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_vxglm"]
-size = Vector2(913, 1548.3125)
+size = Vector2(913, 1601.3125)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_2f3dj"]
 size = Vector2(1983.5, 1213.1563)
@@ -96,9 +97,6 @@ size = Vector2(90, 150)
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_save_point"]
 radius = 96.0
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_t5ykj"]
-size = Vector2(78, 28)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_e755i"]
 size = Vector2(78, 28)
@@ -112,25 +110,28 @@ size = Vector2(78, 28)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_xhfw6"]
 size = Vector2(78, 28)
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_1epgm"]
+size = Vector2(78, 28)
+
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_fv21b"]
 size = Vector2(225, 88.00006)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_1epgm"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_152kg"]
 size = Vector2(78, 28)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_tel4y"]
 size = Vector2(22.00003, 341)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_152kg"]
-size = Vector2(42.00003, 361)
-
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_r4e17"]
-size = Vector2(78, 28)
+size = Vector2(42.00003, 361)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_y57op"]
 size = Vector2(78, 28)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_mlv25"]
+size = Vector2(78, 28)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_a82wo"]
 size = Vector2(78, 28)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
@@ -317,7 +318,7 @@ fog_color = Color(0.82, 0.86, 0.8, 0.11)
 process_mode = 3
 z_index = 1024
 z_as_relative = false
-material = SubResource("CanvasItemMaterial_kf5aa")
+material = SubResource("CanvasItemMaterial_t5ykj")
 script = ExtResource("39_background_light_rays")
 light_direction = Vector2(-0.64561, 0.7636673)
 source_handle_path = NodePath("../SunLightEditorHandles/SourceHandle")
@@ -465,7 +466,7 @@ camera_view_width = 1312.0
 debug_color = Color(0.36, 0.76, 0.92, 0.5)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-6" unique_id=19884755]
-position = Vector2(1509.5, -503.15625)
+position = Vector2(1509.5, -476.65625)
 shape = SubResource("RectangleShape2D_vxglm")
 
 [node name="1-7" type="Area2D" parent="Rooms" unique_id=441668884]
@@ -476,6 +477,7 @@ camera_view_mode = "free_size"
 camera_rect = Rect2(1420, -40, 1500, 760)
 camera_view_width = 1728.0
 connected_room = true
+large_room_composition = true
 debug_color = Color(0.36, 0.76, 0.92, 0.5)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-7" unique_id=684373168]
@@ -705,7 +707,7 @@ polygon = PackedVector2Array(3002, 667, 3002, 714, 3301, 713, 3299, 667)
 [node name="GroundCollision22" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=539725764]
 position = Vector2(427, -994)
 build_mode = 1
-polygon = PackedVector2Array(2826, 670, 2828, 746, 3655, 744, 3653, 672)
+polygon = PackedVector2Array(2688, 671, 2687, 744, 3655, 744, 3653, 672)
 
 [node name="Mechanisms" type="Node2D" parent="Level" unique_id=1547100000]
 
@@ -735,7 +737,7 @@ position = Vector2(-0.765625, -5.3125)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton/PressSensor" index="0"]
 position = Vector2(-0.765625, -5.3125)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_t5ykj")
+shape = SubResource("RectangleShape2D_e755i")
 
 [node name="DemoMovingWall2" parent="Level/Mechanisms" unique_id=229016664 instance=ExtResource("15_mechanism_wall")]
 position = Vector2(1358, 598)
@@ -758,7 +760,7 @@ position = Vector2(0, -7)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton2/PressSensor" index="0"]
 position = Vector2(0, -7)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_e755i")
+shape = SubResource("RectangleShape2D_ro3en")
 
 [node name="MechanismWire2" parent="Level/Mechanisms" unique_id=374300171 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(1172, 707, 1172, 729.08105, 1361, 729.08105, 1361, 687.8412)
@@ -797,10 +799,10 @@ position = Vector2(2, -12.5)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton3/PressSensor" index="0"]
 position = Vector2(2, -12.5)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_ro3en")
+shape = SubResource("RectangleShape2D_od4ux")
 
 [node name="MechanismWire3" parent="Level/Mechanisms" unique_id=1473114172 instance=ExtResource("15_tm6hj")]
-points = PackedVector2Array(1877, 174, 1906.0172, 174, 1906.0172, 290, 1069.9309, 290, 1069.9309, 259.9999)
+points = PackedVector2Array(1877, 174, 1906.0172, 174, 1906.0172, 267.04892, 1069.8918, 267.04892, 1069.8918, 250.99963)
 default_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
 joint_mode = 2
 begin_cap_mode = 2
@@ -832,7 +834,7 @@ detect_player_weapons = false
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton4/PressSensor" index="0"]
 position = Vector2(0, -14)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_od4ux")
+shape = SubResource("RectangleShape2D_xhfw6")
 
 [node name="MechanismWire4" parent="Level/Mechanisms" unique_id=1442750400 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(4437, -296, 4437, -269.7004, 3440.9995, -269.7004, 3440.9995, -303.0151)
@@ -869,7 +871,7 @@ position = Vector2(0, -6)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton5/PressSensor" index="0"]
 position = Vector2(0, -6)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_xhfw6")
+shape = SubResource("RectangleShape2D_1epgm")
 
 [node name="MechanismWire5" parent="Level/Mechanisms" unique_id=544980897 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(3128, -885, 3128, -729.99677, 2803.4827, -405.47946, 2498.9995, -405.47946)
@@ -912,7 +914,7 @@ position = Vector2(0, -6)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton6/PressSensor" index="0"]
 position = Vector2(0, -6)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_1epgm")
+shape = SubResource("RectangleShape2D_152kg")
 
 [node name="MechanismWire6" parent="Level/Mechanisms" unique_id=1966892610 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(1461, -292, 1461, -191.995, 1337.9958, -191.995, 1337.9958, -113.993645)
@@ -960,7 +962,7 @@ rotation = 1.5707964
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton7/PressSensor" index="0"]
 position = Vector2(9, 40.99997)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_152kg")
+shape = SubResource("RectangleShape2D_r4e17")
 
 [node name="MechanismWire7" parent="Level/Mechanisms" unique_id=369191169 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(-532, -414, -188.99841, -414, -97.21152, -322.2131, -97.21152, -263.97253)
@@ -998,7 +1000,7 @@ position = Vector2(-26, -10.5)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton8/PressSensor" index="0"]
 position = Vector2(-26, -10.5)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_r4e17")
+shape = SubResource("RectangleShape2D_y57op")
 
 [node name="MechanismWire8" parent="Level/Mechanisms" unique_id=1793507952 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(-227, -644, -227, -746.07837, -290.50848, -809.58685, -290.50848, -1020.0006)
@@ -1046,7 +1048,7 @@ rotation = 1.5707964
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton9/PressSensor" index="0"]
 position = Vector2(116, -29)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_y57op")
+shape = SubResource("RectangleShape2D_mlv25")
 
 [node name="MechanismWire9" parent="Level/Mechanisms" unique_id=671822958 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(-139, -1003, -139, -1198.041, 52.066513, -1198.041)
@@ -1090,7 +1092,7 @@ position = Vector2(-0.765625, -5.3125)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton10/PressSensor" index="0"]
 position = Vector2(-0.765625, -5.3125)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_mlv25")
+shape = SubResource("RectangleShape2D_a82wo")
 
 [node name="GhostBlocks" type="StaticBody2D" parent="Level" unique_id=1943537721]
 collision_layer = 8
@@ -1144,7 +1146,7 @@ polygon = PackedVector2Array(1949, 336, 2152, 338, 2153, 375, 1952, 376)
 [node name="GhostBlockCollision12" type="CollisionPolygon2D" parent="Level/GhostBlocks" unique_id=447844607]
 position = Vector2(-1349.0001, -649.00006)
 scale = Vector2(1.89523, 1.0000002)
-polygon = PackedVector2Array(2266.2156, 326.99997, 2428.7288, 324.99997, 2429.2566, 400.99997, 2267.2708, 398.99994)
+polygon = PackedVector2Array(2266.2156, 326.99997, 2354.8594, 325.99997, 2354.8594, 398.99994, 2267.2708, 398.99994)
 
 [node name="Enemies" type="Node2D" parent="Level" unique_id=1351491580]
 z_index = 80
@@ -1172,12 +1174,8 @@ position = Vector2(290, 428)
 [node name="EnemyNormal6" parent="Level/Enemies" unique_id=166228177 instance=ExtResource("11_enemy")]
 position = Vector2(252, 416)
 
-[node name="EnemyGhost2" parent="Level/Enemies" unique_id=1862329778 instance=ExtResource("11_enemy")]
+[node name="InvincibleGhost" parent="Level/Enemies" unique_id=1862329778 instance=ExtResource("11_invincible_ghost_enemy")]
 position = Vector2(3887, -372)
-collision_mask = 9
-can_touch_ghost_blocks = true
-body_color = Color(0.42, 0.58, 1, 1)
-edge_color = Color(0.04, 0.08, 0.18, 1)
 
 [node name="EnemyNormal7" parent="Level/Enemies" unique_id=1573298062 instance=ExtResource("11_enemy")]
 position = Vector2(3686, 108)
@@ -1210,13 +1208,6 @@ can_touch_ghost_blocks = true
 body_color = Color(0.42, 0.58, 1, 1)
 edge_color = Color(0.04, 0.08, 0.18, 1)
 
-[node name="EnemyGhost7" parent="Level/Enemies" unique_id=195175961 instance=ExtResource("11_enemy")]
-position = Vector2(1534, -348)
-collision_mask = 9
-can_touch_ghost_blocks = true
-body_color = Color(0.42, 0.58, 1, 1)
-edge_color = Color(0.04, 0.08, 0.18, 1)
-
 [node name="EnemyGhost8" parent="Level/Enemies" unique_id=268624185 instance=ExtResource("11_enemy")]
 position = Vector2(-530, -1025)
 collision_mask = 9
@@ -1224,12 +1215,16 @@ can_touch_ghost_blocks = true
 body_color = Color(0.42, 0.58, 1, 1)
 edge_color = Color(0.04, 0.08, 0.18, 1)
 
+[node name="InvincibleGhost2" parent="Level/Enemies" unique_id=331752238 instance=ExtResource("11_invincible_ghost_enemy")]
+position = Vector2(1631, -346)
+
 [node name="Player" type="CharacterBody2D" parent="." unique_id=1842820891]
 z_index = 1
 z_as_relative = false
 position = Vector2(80, 420)
 script = ExtResource("1_player")
 boomerang_scene = ExtResource("9_mask_boomerang")
+dialogue_box_path = NodePath("../CanvasLayer/DialogueBox")
 
 [node name="ThrowPoint" type="Marker2D" parent="Player" unique_id=1129811178]
 position = Vector2(34, -20)
@@ -1379,6 +1374,8 @@ mouse_filter = 2
 script = ExtResource("44_game_start_gate")
 player_path = NodePath("../../Player")
 save_manager_path = NodePath("../../SaveManager")
+respawn_controller_path = NodePath("../DeathRespawnMask")
+dialogue_box_path = NodePath("../DialogueBox")
 ui_font = SubResource("SystemFont_dialogue")
 metadata/_edit_lock_ = true
 

@@ -67,6 +67,19 @@ extends Area2D
 	set(value):
 		border_damping = value
 		queue_redraw()
+@export_group("Large Room Composition")
+@export var large_room_composition := false:
+	set(value):
+		large_room_composition = value
+		queue_redraw()
+@export_range(0.0, 480.0, 8.0) var large_room_edge_offset := 176.0:
+	set(value):
+		large_room_edge_offset = maxf(value, 0.0)
+		queue_redraw()
+@export_range(64.0, 1200.0, 8.0) var large_room_edge_zone := 420.0:
+	set(value):
+		large_room_edge_zone = maxf(value, 1.0)
+		queue_redraw()
 @export var debug_color := Color(0.95, 0.78, 0.25, 0.5):
 	set(value):
 		debug_color = value
@@ -184,6 +197,15 @@ func get_border_damping() -> Vector2:
 	if camera_profile != "custom":
 		return _profile_border_damping()
 	return border_damping
+
+func get_large_room_composition_enabled() -> bool:
+	return large_room_composition
+
+func get_large_room_edge_offset() -> float:
+	return large_room_edge_offset
+
+func get_large_room_edge_zone() -> float:
+	return large_room_edge_zone
 
 func _profile_lookahead_distance() -> float:
 	match camera_profile:

@@ -2,7 +2,6 @@ extends Control
 
 @export var prompt_icon_texture: Texture2D
 @export var ui_font: Font
-@export_range(0.4, 8.0, 0.1) var display_duration := 2.8
 @export var overlay_color := Color(0.0, 0.0, 0.0, 0.18)
 @export var panel_color := Color(0.02, 0.025, 0.035, 0.9)
 @export var accent_color := Color(1.0, 0.86, 0.28, 1.0)
@@ -12,7 +11,8 @@ extends Control
 var _item_title := ""
 var _item_description := ""
 var _item_icon: Texture2D
-var _display_timer := 0.0
+var _dismiss_was_down := false
+var _paused_by_prompt := false
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -22,13 +22,14 @@ func _ready() -> void:
 	visible = false
 	set_process(true)
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	if not visible:
 		return
-	_display_timer = maxf(_display_timer - delta, 0.0)
-	if _display_timer <= 0.0:
+	var dismiss_down := _dismiss_is_down()
+	if dismiss_down and not _dismiss_was_down:
 		_hide()
 		return
+	_dismiss_was_down = dismiss_down
 	queue_redraw()
 
 func show_item_obtained(item_info: Dictionary) -> void:
@@ -37,13 +38,15 @@ func show_item_obtained(item_info: Dictionary) -> void:
 	_item_icon = item_info.get("icon", prompt_icon_texture) as Texture2D
 	if _item_icon == null:
 		_item_icon = prompt_icon_texture
-	_display_timer = display_duration
+	_pause_game()
+	_dismiss_was_down = true
 	visible = true
 	queue_redraw()
 
 func _hide() -> void:
 	visible = false
-	_display_timer = 0.0
+	_dismiss_was_down = false
+	_resume_game()
 	queue_redraw()
 
 func _draw() -> void:
@@ -64,6 +67,22 @@ func _draw() -> void:
 	var text_width := panel_size.x - 198.0
 	draw_string(font, Vector2(text_x, panel_position.y + 92.0), _item_title, HORIZONTAL_ALIGNMENT_LEFT, text_width, 26, title_color)
 	draw_string(font, Vector2(text_x, panel_position.y + 124.0), _item_description, HORIZONTAL_ALIGNMENT_LEFT, text_width, 16, description_color)
+	draw_string(font, Vector2(panel_position.x + 30.0, panel_position.y + panel_size.y - 26.0), "按E键关闭", HORIZONTAL_ALIGNMENT_CENTER, panel_size.x - 60.0, 15, description_color)
+
+func _dismiss_is_down() -> bool:
+	return Input.is_physical_key_pressed(KEY_E) or Input.is_physical_key_pressed(KEY_SPACE)
+
+func _pause_game() -> void:
+	if get_tree() == null or get_tree().paused:
+		return
+	get_tree().paused = true
+	_paused_by_prompt = true
+
+func _resume_game() -> void:
+	if get_tree() == null or not _paused_by_prompt:
+		return
+	get_tree().paused = false
+	_paused_by_prompt = false
 
 func _draw_icon(rect: Rect2) -> void:
 	if _item_icon == null:

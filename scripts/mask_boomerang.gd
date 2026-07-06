@@ -56,6 +56,18 @@ func _physics_process(delta: float) -> void:
 func start_return() -> void:
 	returning = true
 
+func deflect_from(deflector_position: Vector2, impulse_distance: float = 18.0) -> void:
+	var away := global_position - deflector_position
+	if away.length_squared() > 0.001:
+		direction = away.normalized()
+	else:
+		direction = -direction
+	global_position += direction * maxf(impulse_distance, 0.0)
+	returning = true
+	_hit_pause_frames_left = maxi(_hit_pause_frames_left, hit_pause_frames + 4)
+	rotation += PI * 0.35
+	queue_redraw()
+
 func _move_outbound(delta: float) -> void:
 	global_position += direction * outbound_speed * delta
 	if global_position.distance_to(start_position) >= max_distance:
