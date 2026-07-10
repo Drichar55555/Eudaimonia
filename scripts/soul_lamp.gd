@@ -161,8 +161,15 @@ func _refresh_inside_player() -> Node2D:
 func _request_save() -> void:
 	if _save_manager == null:
 		_save_manager = get_node_or_null(save_manager_path)
-	if _save_manager != null and _save_manager.has_method("request_save"):
+	if _save_manager == null:
+		return
+	if _save_manager.has_method("request_soul_lamp_save"):
+		_save_manager.call("request_soul_lamp_save", global_position, name, _soul_lamp_save_key())
+	elif _save_manager.has_method("request_save"):
 		_save_manager.request_save(global_position, name)
+
+func _soul_lamp_save_key() -> String:
+	return str(get_path()) if is_inside_tree() else "%s@%s" % [name, global_position]
 
 func _mask_state_value() -> int:
 	return SoulMask.GHOST_MASK if soul_mask_state == 1 else SoulMask.EUDA_MASK

@@ -85,6 +85,7 @@ func _exit_tree() -> void:
 func show_main_menu() -> void:
 	_started = false
 	visible = true
+	_reset_death_space_state()
 	_view_mode = "main"
 	_main_selection = _first_enabled_main_selection()
 	_rollback_selection = 0
@@ -415,8 +416,15 @@ func _load_rollback_immediately(index: int) -> bool:
 	var did_load := bool(_save_manager.call("load_rollback_entry", index))
 	if not did_load:
 		return false
+	_reset_death_space_state()
 	_snap_cameras_to_loaded_room()
 	return true
+
+func _reset_death_space_state() -> void:
+	if get_tree() == null:
+		return
+	get_tree().call_group("story_controllers", "reset_death_space_state")
+	get_tree().call_group("death_space_filters", "set_filter_visible", false)
 
 func _current_player() -> Node:
 	_resolve_player()

@@ -1171,15 +1171,22 @@ func _handle_mechanism_wall_collisions() -> void:
 			continue
 		if collider.has_method("is_moving") and not bool(collider.call("is_moving")):
 			continue
-		if collider.has_method("is_body_touching_impact_surface") and not bool(collider.call("is_body_touching_impact_surface", self)):
-			continue
-		if not collider.has_method("is_body_touching_impact_surface") and collider.has_method("is_body_touching_impact_bottom") and not bool(collider.call("is_body_touching_impact_bottom", self)):
+		if not _is_touching_mechanism_crush_area(collider):
 			continue
 		var damage := int(collider.call("get_mechanism_impact_damage")) if collider.has_method("get_mechanism_impact_damage") else 1
 		var direction: Vector2 = collider.call("get_mechanism_impact_direction") if collider.has_method("get_mechanism_impact_direction") else collision.get_normal() * -1.0
 		var knockback: Vector2 = collider.call("get_mechanism_impact_knockback") if collider.has_method("get_mechanism_impact_knockback") else hit_knockback
 		take_mechanism_crush(damage, collider, direction, knockback)
 		return
+
+func _is_touching_mechanism_crush_area(collider: Node) -> bool:
+	if collider.has_method("is_body_in_mechanism_crush_area") and bool(collider.call("is_body_in_mechanism_crush_area", self)):
+		return true
+	if collider.has_method("is_body_touching_impact_surface"):
+		return bool(collider.call("is_body_touching_impact_surface", self))
+	if collider.has_method("is_body_touching_impact_bottom"):
+		return bool(collider.call("is_body_touching_impact_bottom", self))
+	return true
 
 func _handle_pushable_collisions(delta: float, horizontal_input: float) -> void:
 	if absf(horizontal_input) < 0.1:

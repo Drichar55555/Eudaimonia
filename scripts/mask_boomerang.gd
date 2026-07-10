@@ -104,7 +104,14 @@ func _on_area_entered(area: Area2D) -> void:
 	_hit_target_phases[hit_key] = true
 	if hit_pause_frames > _hit_pause_frames_left:
 		_hit_pause_frames_left = hit_pause_frames
-	target.take_boomerang_hit(self)
+	call_deferred("_dispatch_deferred_target_hit", target)
+
+func _dispatch_deferred_target_hit(target: Node) -> void:
+	if target == null or not is_instance_valid(target):
+		return
+	if not target.has_method("take_boomerang_hit"):
+		return
+	target.call("take_boomerang_hit", self)
 
 func _hit_phase_name() -> String:
 	return "returning" if returning else "outbound"

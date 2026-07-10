@@ -23,7 +23,7 @@ window/stretch/aspect="expand"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/mechanism_wire_editor/plugin.cfg")
+enabled=PackedStringArray("res://addons/mechanism_wire_editor/plugin.cfg", "res://addons/stair_editor/plugin.cfg")
 
 [physics]
 

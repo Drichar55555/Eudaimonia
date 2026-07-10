@@ -257,9 +257,23 @@ func is_body_touching_impact_bottom(body_2d: Node2D) -> bool:
 func is_body_touching_impact_surface(body_2d: Node2D) -> bool:
 	return _is_body_touching_impact_surface(body_2d, get_mechanism_impact_direction())
 
+func is_body_in_mechanism_crush_area(body_2d: Node2D) -> bool:
+	if body_2d == null or not can_apply_mechanism_crush():
+		return false
+	var direction := get_mechanism_impact_direction()
+	if direction.length_squared() <= 0.01:
+		return false
+	if _is_body_touching_impact_surface(body_2d, direction):
+		return true
+	var wall_bounds := _current_collision_bounds().grow(CRUSH_ESCAPE_MARGIN)
+	var body_bounds := _body_bounds(body_2d)
+	return wall_bounds.intersects(body_bounds, true) or _is_body_near_impact_sweep(body_2d, direction, 32.0)
+
 func get_mechanism_escape_position(body_2d: Node2D) -> Vector2:
 	var direction := get_mechanism_impact_direction()
-	if not _is_body_touching_impact_surface(body_2d, direction):
+	if body_2d == null:
+		return Vector2.ZERO
+	if not is_body_in_mechanism_crush_area(body_2d):
 		return body_2d.global_position
 	var wall_bounds := _current_collision_bounds()
 	var body_bounds := _body_bounds(body_2d)
@@ -408,7 +422,7 @@ func _apply_impact_damage(move_delta: Vector2) -> void:
 	if _impact_sensor != null:
 		for body in _impact_sensor.get_overlapping_bodies():
 			var sensor_body := body as Node2D
-			if sensor_body != null and sensor_body != self and is_instance_valid(sensor_body) and _is_body_touching_impact_surface(sensor_body, impact_direction):
+			if sensor_body != null and sensor_body != self and is_instance_valid(sensor_body) and is_body_in_mechanism_crush_area(sensor_body):
 				_apply_impact_to_body(sensor_body, impact_direction)
 	var impact_radius := 140.0
 	for group_name in ["players", "enemies"]:
@@ -418,7 +432,7 @@ func _apply_impact_damage(move_delta: Vector2) -> void:
 				continue
 			if not _is_body_near_impact_sweep(body_2d, impact_direction, impact_radius):
 				continue
-			if not _is_body_touching_impact_surface(body_2d, impact_direction):
+			if not is_body_in_mechanism_crush_area(body_2d):
 				continue
 			_apply_impact_to_body(body_2d, impact_direction)
 
@@ -429,7 +443,7 @@ func _on_impact_body_entered(body: Node) -> void:
 	if body_2d == null or body_2d == self:
 		return
 	var impact_direction := (global_position - _last_position).normalized()
-	if not _is_body_touching_impact_surface(body_2d, impact_direction):
+	if not is_body_in_mechanism_crush_area(body_2d):
 		return
 	_apply_impact_to_body(body_2d, impact_direction)
 

@@ -68,6 +68,10 @@ var _room_has_been_entered := false
 var _room_detection_complete := false
 var _spawn_sequence := 0
 var _spawned_enemy_paths: Array[NodePath] = []
+var _pending_boomerang_hits := 0
+var _boomerang_hit_deferred_queued := false
+var _pending_spawn_count := 0
+var _spawn_deferred_queued := false
 var _rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
@@ -94,12 +98,35 @@ func _process(delta: float) -> void:
 func take_boomerang_hit(_boomerang: Node) -> void:
 	if broken or not _is_gameplay_active():
 		return
+	_pending_boomerang_hits += 1
+	if _boomerang_hit_deferred_queued:
+		return
+	_boomerang_hit_deferred_queued = true
+	_flush_pending_boomerang_hits_after_frame()
+
+func _flush_pending_boomerang_hits_after_frame() -> void:
+	var tree := get_tree()
+	if tree == null:
+		call_deferred("_flush_pending_boomerang_hits_after_frame")
+		return
+	await tree.process_frame
+	if not is_inside_tree():
+		return
+	_boomerang_hit_deferred_queued = false
+	var hit_count := _pending_boomerang_hits
+	_pending_boomerang_hits = 0
+	for _index in hit_count:
+		if broken or not _is_gameplay_active():
+			return
+		_apply_boomerang_hit()
+
+func _apply_boomerang_hit() -> void:
 	health = maxi(health - 1, 0)
 	_flash_timer = 0.12
 	if health <= 0:
 		break_tombstone()
 	elif spawn_on_hit_before_break:
-		_spawn_monsters_if_needed(spawn_count_per_hit)
+		_request_monster_spawn(spawn_count_per_hit)
 	queue_redraw()
 
 func break_tombstone() -> void:
@@ -192,11 +219,35 @@ func _update_auto_spawn(delta: float) -> void:
 		_auto_spawn_timer = interval
 	_auto_spawn_timer -= delta
 	if _auto_spawn_timer <= 0.0:
-		_spawn_monsters_if_needed(auto_spawn_count)
+		_request_monster_spawn(auto_spawn_count)
 		_auto_spawn_timer = interval
 
+func _request_monster_spawn(spawn_count: int) -> void:
+	if broken or not spawn_monsters_before_break or enemy_scene == null or spawn_count <= 0:
+		return
+	_pending_spawn_count += spawn_count
+	if _spawn_deferred_queued:
+		return
+	_spawn_deferred_queued = true
+	_flush_pending_monster_spawns_after_frame()
+
+func _flush_pending_monster_spawns_after_frame() -> void:
+	var tree := get_tree()
+	if tree == null:
+		call_deferred("_flush_pending_monster_spawns_after_frame")
+		return
+	await tree.process_frame
+	if not is_inside_tree():
+		return
+	_spawn_deferred_queued = false
+	var spawn_count := _pending_spawn_count
+	_pending_spawn_count = 0
+	if broken or spawn_count <= 0:
+		return
+	_spawn_monsters_if_needed(spawn_count)
+
 func _spawn_monsters_if_needed(spawn_count: int) -> void:
-	if not spawn_monsters_before_break or enemy_scene == null or spawn_count <= 0:
+	if broken or not spawn_monsters_before_break or enemy_scene == null or spawn_count <= 0:
 		return
 
 	_prune_spawned_enemies()
@@ -220,10 +271,22 @@ func _spawn_monsters_if_needed(spawn_count: int) -> void:
 			continue
 		_spawn_sequence += 1
 		enemy.name = "%sSpawnedEnemy%d" % [name, _spawn_sequence]
-		spawn_parent.add_child(enemy)
-		enemy.global_position = global_position + _spawn_offset(index)
 		_configure_spawned_enemy(enemy)
-		_spawned_enemy_paths.append(enemy.get_path())
+		var spawn_position := global_position + _spawn_offset(index)
+		var spawn_parent_2d := spawn_parent as Node2D
+		if spawn_parent_2d != null:
+			enemy.position = spawn_parent_2d.to_local(spawn_position)
+		else:
+			enemy.global_position = spawn_position
+		call_deferred("_add_spawned_enemy_to_parent", spawn_parent, enemy)
+
+func _add_spawned_enemy_to_parent(spawn_parent: Node, enemy: Node2D) -> void:
+	if spawn_parent == null or enemy == null or not is_instance_valid(spawn_parent) or not is_instance_valid(enemy):
+		return
+	if enemy.get_parent() != null:
+		return
+	spawn_parent.add_child(enemy)
+	_spawned_enemy_paths.append(enemy.get_path())
 
 func _spawn_offset(index: int) -> Vector2:
 	var base_offset := Vector2(72.0, 0.0)
@@ -407,7 +470,7 @@ func _update_collision_enabled() -> void:
 	collision_mask = 0
 	var collision_shape := get_node_or_null("CollisionShape2D") as CollisionShape2D
 	if collision_shape != null:
-		collision_shape.disabled = true
+		collision_shape.set_deferred("disabled", true)
 
 func _unlock_mask_state_value() -> int:
 	return 1 if unlock_mask == 0 else 2

@@ -22,6 +22,7 @@ var rollback_entries: Array[Dictionary] = []
 var _save_timer := 0.0
 var _initial_snapshot := {}
 var _initial_checkpoint_position := Vector2.ZERO
+var _last_soul_lamp_save_key := ""
 
 func _ready() -> void:
 	add_to_group("save_managers")
@@ -49,6 +50,16 @@ func request_save(checkpoint_position: Vector2, checkpoint_name: String = "") ->
 	is_saving = true
 	_save_timer = save_duration
 	save_started.emit(checkpoint_position)
+
+func request_soul_lamp_save(checkpoint_position: Vector2, checkpoint_name: String, soul_lamp_key: String) -> bool:
+	var resolved_key := soul_lamp_key.strip_edges()
+	if resolved_key.is_empty():
+		resolved_key = "%s@%s" % [checkpoint_name, checkpoint_position]
+	if resolved_key == _last_soul_lamp_save_key:
+		return false
+	request_save(checkpoint_position, checkpoint_name)
+	_last_soul_lamp_save_key = resolved_key
+	return true
 
 func has_checkpoint() -> bool:
 	return not current_snapshot.is_empty()
@@ -87,6 +98,7 @@ func reset_to_initial_state() -> bool:
 		_capture_initial_snapshot()
 	if _initial_snapshot.is_empty():
 		return false
+	_last_soul_lamp_save_key = ""
 	current_snapshot = _initial_snapshot.duplicate(true)
 	current_checkpoint_position = _initial_checkpoint_position
 	var entry := _make_rollback_entry(current_snapshot, current_checkpoint_position, default_checkpoint_name)

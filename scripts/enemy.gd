@@ -242,6 +242,9 @@ func take_environment_hit(damage: int = 1, hit_source: Node = null, hit_directio
 	return true
 
 func take_mechanism_crush(damage: int = 1, hit_source: Node = null, hit_direction: Vector2 = Vector2.ZERO, knockback: Vector2 = Vector2(280.0, -160.0)) -> bool:
+	if hit_source != null and hit_source.has_method("get_mechanism_escape_position") and hit_direction.length_squared() > 0.01:
+		var escape_position: Vector2 = hit_source.call("get_mechanism_escape_position", self)
+		global_position = escape_position
 	return take_environment_hit(damage, hit_source, hit_direction, knockback)
 
 func set_spawn_facing_direction(direction: float) -> void:
@@ -952,8 +955,19 @@ func _handle_mechanism_wall_collisions() -> void:
 			continue
 		if collider.has_method("is_moving") and not bool(collider.call("is_moving")):
 			continue
+		if not _is_touching_mechanism_crush_area(collider):
+			continue
 		var damage := int(collider.call("get_mechanism_impact_damage")) if collider.has_method("get_mechanism_impact_damage") else 1
 		var direction: Vector2 = collider.call("get_mechanism_impact_direction") if collider.has_method("get_mechanism_impact_direction") else collision.get_normal() * -1.0
 		var knockback: Vector2 = collider.call("get_mechanism_impact_knockback") if collider.has_method("get_mechanism_impact_knockback") else Vector2(280.0, -160.0)
 		take_mechanism_crush(damage, collider, direction, knockback)
 		return
+
+func _is_touching_mechanism_crush_area(collider: Node) -> bool:
+	if collider.has_method("is_body_in_mechanism_crush_area") and bool(collider.call("is_body_in_mechanism_crush_area", self)):
+		return true
+	if collider.has_method("is_body_touching_impact_surface"):
+		return bool(collider.call("is_body_touching_impact_surface", self))
+	if collider.has_method("is_body_touching_impact_bottom"):
+		return bool(collider.call("is_body_touching_impact_bottom", self))
+	return true

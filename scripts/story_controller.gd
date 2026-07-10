@@ -28,6 +28,12 @@ func _initialize_story_links() -> void:
 	_resolve_nodes()
 	_connect_return_gate()
 	_connect_respawn_controller()
+	_connect_save_manager()
+	reset_death_space_state()
+
+func reset_death_space_state() -> void:
+	_in_death_space = false
+	_set_death_space_filter_visible(false)
 
 func handle_player_damaged(player: Node, _damage: int, _source: Node, _cause: String) -> void:
 	if first_damage_dialogue_seen:
@@ -90,8 +96,7 @@ func _on_death_return_gate_body_entered(body: Node) -> void:
 func return_from_death_space(player: Node) -> void:
 	if player == null or not player.is_in_group("players"):
 		return
-	_in_death_space = false
-	_set_death_space_filter_visible(false)
+	reset_death_space_state()
 	_player = player
 	_request_black_transition(player, Callable(self, "_return_to_checkpoint"), Callable(self, "_maybe_show_ghost_death_dialogue"))
 
@@ -205,6 +210,14 @@ func _connect_respawn_controller() -> void:
 	_resolve_respawn_controller()
 	if _respawn_controller != null and _respawn_controller.has_signal("respawn_finished"):
 		_respawn_controller.respawn_finished.connect(_on_respawn_finished)
+
+func _connect_save_manager() -> void:
+	_resolve_nodes()
+	if _save_manager != null and _save_manager.has_signal("checkpoint_loaded") and not _save_manager.checkpoint_loaded.is_connected(_on_checkpoint_loaded):
+		_save_manager.checkpoint_loaded.connect(_on_checkpoint_loaded)
+
+func _on_checkpoint_loaded(_checkpoint_position: Vector2) -> void:
+	reset_death_space_state()
 
 func _resolve_respawn_controller() -> void:
 	if _respawn_controller != null and is_instance_valid(_respawn_controller):
