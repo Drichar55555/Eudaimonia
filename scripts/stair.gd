@@ -56,6 +56,7 @@ func _ready() -> void:
 	add_to_group("editable_stairs")
 	color = Color(1.0, 1.0, 1.0, 0.0)
 	_apply_display_layer()
+	_update_collision_body_marker()
 	_sync_from_polygon(true)
 	set_process(Engine.is_editor_hint())
 	_rebuild_stairs()
@@ -197,6 +198,7 @@ func _write_triangle(points: PackedVector2Array) -> void:
 
 func _rebuild_stairs() -> void:
 	_apply_display_layer()
+	_update_collision_body_marker()
 	_rebuild_collision_shapes()
 	queue_redraw()
 
@@ -312,6 +314,13 @@ func _closed_polygon(points: PackedVector2Array) -> PackedVector2Array:
 
 func _collision_body() -> StaticBody2D:
 	return get_node_or_null(collision_body_path) as StaticBody2D
+
+func _update_collision_body_marker() -> void:
+	var collision_body := _collision_body()
+	if collision_body == null:
+		return
+	collision_body.add_to_group("stair_collision_bodies")
+	collision_body.set_meta("is_stair_collision", true)
 
 func _changed_triangle_point_index(raw_points: PackedVector2Array) -> int:
 	if raw_points.size() < 3 or _last_triangle.size() < 3:

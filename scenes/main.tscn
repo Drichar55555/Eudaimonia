@@ -533,7 +533,9 @@ debug_color = Color(1, 0.86, 0.28, 0.08)
 
 [node name="StarterStair" parent="Level/Stairs" unique_id=1311123737 instance=ExtResource("52_stair")]
 z_index = 1
-position = Vector2(191, -1557)
+position = Vector2(283, -266)
+polygon = PackedVector2Array(0, 0, -160, 0, -160, -80)
+triangle_size = Vector2(-160, -80)
 display_z_index = 1
 
 [node name="SoulLamps" type="Node2D" parent="Level" unique_id=1547600000]

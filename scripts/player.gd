@@ -93,6 +93,7 @@ enum MaskState { NO_MASK, EUDA_MASK, GHOST_MASK }
 @export var euda_mask_eye_color := Color(0.36, 1.0, 0.42, 1.0)
 @export var ghost_mask_eye_color := Color(0.3, 0.66, 1.0, 1.0)
 @export var run_animation_name: StringName = &"Euda-run"
+@export_range(0.02, 0.5, 0.01) var stair_contact_animation_grace_time := 0.18
 @export var idle_texture: Texture2D = preload("res://ArtWorks/Euda/Euda-2.png")
 @export var run_reference_texture: Texture2D = preload("res://ArtWorks/Euda/Euda-run/Euda-run-1.png")
 
@@ -139,6 +140,10 @@ var _idle_right_eye_position := Vector2.ZERO
 var _current_visual_movement_suffix := "idle"
 var _soul_heal_flash_timer := 0.0
 var _active_soul_heal_flash_color := Color(0.58, 0.86, 1.0, 1.0)
+var _is_on_stair := false
+var _stair_contact_animation_timer := 0.0
+var _horizontal_animation_input := 0.0
+var _run_visual_animation_should_play := true
 
 func _ready() -> void:
 	add_to_group("players")
@@ -183,6 +188,7 @@ func _physics_process(delta: float) -> void:
 		horizontal_input += 1.0
 
 	horizontal_input = clampf(horizontal_input, -1.0, 1.0)
+	_horizontal_animation_input = horizontal_input
 	var on_floor := is_on_floor()
 
 	if on_floor:
@@ -204,9 +210,10 @@ func _physics_process(delta: float) -> void:
 	_try_step_up(horizontal_input, on_floor)
 	_handle_boomerang_throw()
 	_update_throw_point()
-	_update_animation_name()
 
 	move_and_slide()
+	_update_stair_contact_state()
+	_update_animation_name()
 	_handle_pushable_collisions(delta, horizontal_input)
 	_handle_mechanism_wall_collisions()
 
@@ -219,6 +226,7 @@ func _update_timers(delta: float) -> void:
 	_ground_speed_multiplier_timer = maxf(_ground_speed_multiplier_timer - delta, 0.0)
 	_ghost_block_context_timer = maxf(_ghost_block_context_timer - delta, 0.0)
 	_soul_heal_flash_timer = maxf(_soul_heal_flash_timer - delta, 0.0)
+	_stair_contact_animation_timer = maxf(_stair_contact_animation_timer - delta, 0.0)
 	if _ground_speed_multiplier_timer <= 0.0:
 		_ground_speed_multiplier = 1.0
 
@@ -681,9 +689,14 @@ func _update_animation_name() -> void:
 
 	var state_prefix := get_mask_state_name()
 	var movement_suffix := "idle"
-	if not is_on_floor():
+	_run_visual_animation_should_play = true
+	var is_using_stair_pose := _is_on_stair or _stair_contact_animation_timer > 0.0
+	if is_using_stair_pose:
+		movement_suffix = "run"
+		_run_visual_animation_should_play = _has_horizontal_animation_input()
+	elif not is_on_floor():
 		movement_suffix = "jump" if velocity.y < 0.0 else "fall"
-	elif absf(velocity.x) > 12.0:
+	elif _has_horizontal_animation_motion():
 		movement_suffix = "run"
 	current_animation_name = "%s_%s" % [state_prefix, movement_suffix]
 	_update_visual_animation(movement_suffix)
@@ -714,12 +727,15 @@ func _update_visual_animation(movement_suffix: String) -> void:
 		_apply_visual_scale(_run_visual_scale_multiplier())
 		_apply_visual_position(run_visual_position_offset)
 		_apply_visual_facing()
+		_movement_animation_player.speed_scale = 1.0 if _run_visual_animation_should_play else 0.0
 		if _movement_animation_player.current_animation != run_animation_name or not _movement_animation_player.is_playing():
 			_movement_animation_player.play(run_animation_name)
 		return
 
-	if _movement_animation_player != null and _movement_animation_player.current_animation == run_animation_name:
-		_movement_animation_player.stop(true)
+	if _movement_animation_player != null:
+		_movement_animation_player.speed_scale = 1.0
+		if _movement_animation_player.current_animation == run_animation_name:
+			_movement_animation_player.stop(true)
 	_apply_visual_scale(1.0)
 	_apply_visual_position(idle_visual_position_offset)
 	_restore_idle_eye_positions()
@@ -729,6 +745,12 @@ func _update_visual_animation(movement_suffix: String) -> void:
 
 func _can_play_run_animation() -> bool:
 	return _movement_animation_player != null and _movement_animation_player.has_animation(run_animation_name)
+
+func _has_horizontal_animation_motion() -> bool:
+	return absf(_horizontal_animation_input) > 0.05 or absf(velocity.x) > 12.0
+
+func _has_horizontal_animation_input() -> bool:
+	return absf(_horizontal_animation_input) > 0.05
 
 func _run_visual_scale_multiplier() -> float:
 	if _idle_texture == null or run_reference_texture == null:
@@ -855,6 +877,84 @@ func _try_step_up(horizontal_input: float, on_floor: bool) -> bool:
 		step += maxf(step_scan_increment, 1.0)
 	return false
 
+func _update_stair_contact_state() -> void:
+	_is_on_stair = false
+	if not is_on_floor():
+		return
+	for index in range(get_slide_collision_count()):
+		var collision := get_slide_collision(index)
+		if collision == null:
+			continue
+		if collision.get_normal().dot(Vector2.UP) < 0.65:
+			continue
+		if _is_stair_collider(collision.get_collider()):
+			_is_on_stair = true
+			_stair_contact_animation_timer = maxf(_stair_contact_animation_timer, stair_contact_animation_grace_time)
+			return
+	_is_on_stair = _has_stair_floor_below() or _has_stair_geometry_under_feet()
+	if _is_on_stair:
+		_stair_contact_animation_timer = maxf(_stair_contact_animation_timer, stair_contact_animation_grace_time)
+
+func _has_stair_floor_below() -> bool:
+	var body_size := _player_body_size()
+	var space_state := get_world_2d().direct_space_state
+	var foot_y := body_size.y * 0.5
+	var probe_offsets := [
+		0.0,
+		-body_size.x * 0.32,
+		body_size.x * 0.32,
+	]
+	for offset_x in probe_offsets:
+		var cast_start := global_position + Vector2(float(offset_x), foot_y - 4.0)
+		var cast_end := cast_start + Vector2(0.0, 16.0)
+		var query := PhysicsRayQueryParameters2D.create(cast_start, cast_end, _navigation_block_mask())
+		query.exclude = [get_rid()]
+		query.collide_with_areas = false
+		var hit := space_state.intersect_ray(query)
+		if not hit.is_empty() and _is_stair_collider(hit.get("collider")):
+			return true
+	return false
+
+func _has_stair_geometry_under_feet() -> bool:
+	var stair_nodes := get_tree().get_nodes_in_group("editable_stairs")
+	if stair_nodes.is_empty():
+		return false
+	var body_size := _player_body_size()
+	var foot_center := _player_foot_global_position(body_size)
+	var sample_offsets := [
+		Vector2(0.0, 4.0),
+		Vector2(-body_size.x * 0.34, 4.0),
+		Vector2(body_size.x * 0.34, 4.0),
+		Vector2(0.0, 14.0),
+	]
+	for stair_node in stair_nodes:
+		var stair := stair_node as Node2D
+		if stair == null or not stair.is_inside_tree():
+			continue
+		for offset in sample_offsets:
+			var local_point := stair.to_local(foot_center + offset)
+			if _is_point_on_stair_geometry(stair, local_point):
+				return true
+	return false
+
+func _is_point_on_stair_geometry(stair: Node2D, local_point: Vector2) -> bool:
+	if stair.has_method("is_point_near_stair") and bool(stair.call("is_point_near_stair", local_point, 18.0)):
+		return true
+	if stair.has_method("get_stair_polygon"):
+		var stair_polygon: PackedVector2Array = stair.call("get_stair_polygon")
+		return stair_polygon.size() >= 3 and Geometry2D.is_point_in_polygon(local_point, stair_polygon)
+	return false
+
+func _is_stair_collider(collider: Object) -> bool:
+	var node := collider as Node
+	while node != null:
+		if node.is_in_group("stair_collision_bodies"):
+			return true
+		if bool(node.get_meta("is_stair_collision", false)):
+			return true
+		node = node.get_parent()
+	return false
+
 func _has_floor_from_position(position: Vector2, body_size: Vector2) -> bool:
 	var cast_start := position + Vector2(0.0, -2.0)
 	var cast_end := cast_start + Vector2(0.0, body_size.y * 0.5 + floor_probe_depth)
@@ -883,6 +983,12 @@ func _player_body_size() -> Vector2:
 		var radius := (shape as CircleShape2D).radius
 		return Vector2(radius * 2.0, radius * 2.0) * scale
 	return Vector2(36.0, 36.0) * scale
+
+func _player_foot_global_position(body_size: Vector2) -> Vector2:
+	var collision_shape := get_node_or_null("CollisionShape2D") as CollisionShape2D
+	if collision_shape == null:
+		return global_position + Vector2(0.0, body_size.y * 0.5)
+	return collision_shape.global_position + Vector2(0.0, body_size.y * 0.5)
 
 func _handle_boomerang_throw() -> void:
 	var throw_down := _throw_is_down()
