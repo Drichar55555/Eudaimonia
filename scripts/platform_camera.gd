@@ -1,6 +1,7 @@
 extends Camera2D
 
 const CONNECTED_ROOM_ADJACENCY_TOLERANCE := 8.0
+const CONNECTED_VERTICAL_PREPARE_GAP := 64.0
 const UPPER_ROOM_JUMP_APEX_MARGIN := 4.0
 const DEFAULT_ZOOM_SMOOTHING_SPEED := 5.0
 
@@ -671,6 +672,7 @@ func _activate_room_immediately(room: Node, room_rect: Rect2, room_name: String,
 	_apply_native_camera_limits(active_room_rect)
 	global_position = _clamp_to_room(room_position)
 	desired_position = global_position
+	_prepare_vertical_connected_room_limits()
 
 func _activate_connected_room(room: Node, room_rect: Rect2, room_name: String, room_zoom: Vector2, room_settings: Dictionary) -> void:
 	var previous_room_rect := active_room_rect
@@ -742,6 +744,44 @@ func _clear_continuous_room_limits() -> void:
 	_continuous_zoom_limit_rect = Rect2()
 	_wide_room_entry_horizontal_active = false
 	_wide_room_entry_target_center_x = 0.0
+
+func _prepare_vertical_connected_room_limits() -> void:
+	if active_room == null or not active_large_room_composition or not _room_is_connected(active_room):
+		return
+	var active_rect := active_room_rect
+	var nearest_room: Node
+	var nearest_rect := Rect2()
+	var nearest_gap := INF
+	for room in get_tree().get_nodes_in_group("camera_rooms"):
+		if room == active_room or not _rooms_are_continuously_connected(active_room, room):
+			continue
+		var room_rect := _room_trigger_rect(room)
+		var center_delta := room_rect.get_center() - active_rect.get_center()
+		if absf(center_delta.y) <= absf(center_delta.x):
+			continue
+		var horizontal_overlap := active_rect.position.x <= room_rect.end.x and room_rect.position.x <= active_rect.end.x
+		if not horizontal_overlap:
+			continue
+		var boundary_gap := absf(active_rect.position.y - room_rect.end.y) if center_delta.y < 0.0 else absf(room_rect.position.y - active_rect.end.y)
+		if boundary_gap > CONNECTED_VERTICAL_PREPARE_GAP or boundary_gap >= nearest_gap:
+			continue
+		nearest_room = room
+		nearest_rect = room_rect
+		nearest_gap = boundary_gap
+	if nearest_room == null:
+		return
+
+	var vertical_top := minf(active_rect.position.y, nearest_rect.position.y)
+	var vertical_bottom := maxf(active_rect.end.y, nearest_rect.end.y)
+	var vertical_limit_rect := Rect2(
+		Vector2(active_rect.position.x, vertical_top),
+		Vector2(active_rect.size.x, vertical_bottom - vertical_top)
+	)
+	_continuous_room_limit_rect = vertical_limit_rect
+	_continuous_room_limit_target_rect = vertical_limit_rect
+	_continuous_zoom_limit_rect = vertical_limit_rect
+	_continuous_room_limits_active = true
+	_apply_native_camera_limits(vertical_limit_rect)
 
 func _prewarm_connected_room_rendering() -> void:
 	await get_tree().process_frame
