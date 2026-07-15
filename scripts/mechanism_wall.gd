@@ -2,8 +2,11 @@
 extends AnimatableBody2D
 
 const TERRAIN_LAYER := 1 << 0
+const GHOST_BLOCK_LAYER := 1 << 3
 const CRUSH_ESCAPE_MARGIN := 4.0
 const CRUSH_ESCAPE_MAX_ADJUSTMENTS := 8
+const CRUSH_PIN_PROBE_DEPTH := 8.0
+const CRUSH_PIN_PROBE_INSET := 4.0
 
 enum WallMode { MOVING, BREAKABLE }
 enum MovementMode { PHYSICAL, CONSTANT_SPEED }
@@ -263,11 +266,7 @@ func is_body_in_mechanism_crush_area(body_2d: Node2D) -> bool:
 	var direction := get_mechanism_impact_direction()
 	if direction.length_squared() <= 0.01:
 		return false
-	if _is_body_touching_impact_surface(body_2d, direction):
-		return true
-	var wall_bounds := _current_collision_bounds().grow(CRUSH_ESCAPE_MARGIN)
-	var body_bounds := _body_bounds(body_2d)
-	return wall_bounds.intersects(body_bounds, true) or _is_body_near_impact_sweep(body_2d, direction, 32.0)
+	return _is_body_touching_impact_surface(body_2d, direction) and _is_body_pinned_in_impact_direction(body_2d, direction)
 
 func get_mechanism_escape_position(body_2d: Node2D) -> Vector2:
 	var direction := get_mechanism_impact_direction()
@@ -463,8 +462,46 @@ func _is_body_touching_impact_surface(body_2d: Node2D, direction: Vector2) -> bo
 	if absf(direction.y) >= absf(direction.x):
 		if direction.y > 0.0:
 			return _is_body_touching_bottom(body_2d)
-		return false
+		return _is_body_touching_top(body_2d)
 	return _is_body_touching_side(body_2d, signf(direction.x))
+
+func _is_body_pinned_in_impact_direction(body_2d: Node2D, direction: Vector2) -> bool:
+	var body_bounds := _body_bounds(body_2d)
+	if body_bounds.size == Vector2.ZERO:
+		return false
+	var probe_bounds := _crush_pin_probe_bounds(body_bounds, direction)
+	if probe_bounds.size.x <= 0.0 or probe_bounds.size.y <= 0.0:
+		return false
+	var rectangle := RectangleShape2D.new()
+	rectangle.size = probe_bounds.size
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = rectangle
+	query.transform = Transform2D(0.0, probe_bounds.get_center())
+	query.collision_mask = TERRAIN_LAYER | GHOST_BLOCK_LAYER
+	query.collide_with_bodies = true
+	query.collide_with_areas = false
+	query.exclude = _crush_pin_probe_exclusions(body_2d)
+	return not get_world_2d().direct_space_state.intersect_shape(query, 1).is_empty()
+
+func _crush_pin_probe_bounds(body_bounds: Rect2, direction: Vector2) -> Rect2:
+	var inset := minf(CRUSH_PIN_PROBE_INSET, minf(body_bounds.size.x, body_bounds.size.y) * 0.25)
+	if absf(direction.x) > absf(direction.y):
+		var probe_height := maxf(body_bounds.size.y - inset * 2.0, 2.0)
+		if direction.x > 0.0:
+			return Rect2(Vector2(body_bounds.end.x, body_bounds.position.y + inset), Vector2(CRUSH_PIN_PROBE_DEPTH, probe_height))
+		return Rect2(Vector2(body_bounds.position.x - CRUSH_PIN_PROBE_DEPTH, body_bounds.position.y + inset), Vector2(CRUSH_PIN_PROBE_DEPTH, probe_height))
+	var probe_width := maxf(body_bounds.size.x - inset * 2.0, 2.0)
+	if direction.y > 0.0:
+		return Rect2(Vector2(body_bounds.position.x + inset, body_bounds.end.y), Vector2(probe_width, CRUSH_PIN_PROBE_DEPTH))
+	return Rect2(Vector2(body_bounds.position.x + inset, body_bounds.position.y - CRUSH_PIN_PROBE_DEPTH), Vector2(probe_width, CRUSH_PIN_PROBE_DEPTH))
+
+func _crush_pin_probe_exclusions(body_2d: Node2D) -> Array[RID]:
+	var exclusions: Array[RID] = []
+	exclusions.append(get_rid())
+	var body_collision_object := body_2d as CollisionObject2D
+	if body_collision_object != null:
+		exclusions.append(body_collision_object.get_rid())
+	return exclusions
 
 func _is_body_near_impact_sweep(body_2d: Node2D, direction: Vector2, padding: float) -> bool:
 	var body_bounds := _body_bounds(body_2d)

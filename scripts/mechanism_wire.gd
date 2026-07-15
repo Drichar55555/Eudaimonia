@@ -1,6 +1,8 @@
 @tool
 extends Line2D
 
+const MIN_DISPLAY_Z_INDEX := 2
+
 @export_group("Connection")
 @export var start_button_path: NodePath:
 	set(value):
@@ -35,7 +37,7 @@ extends Line2D
 	set(value):
 		active_color = value
 		_update_visual_color()
-@export_range(-4096, 4096, 1) var display_z_index := 0:
+@export_range(-4096, 4096, 1) var display_z_index := MIN_DISPLAY_Z_INDEX:
 	set(value):
 		display_z_index = int(value)
 		_apply_display_layer()
@@ -167,7 +169,7 @@ func _update_visual_color() -> void:
 
 func _apply_display_layer() -> void:
 	z_as_relative = false
-	z_index = display_z_index
+	z_index = maxi(display_z_index, MIN_DISPLAY_Z_INDEX)
 
 func _progress_points(progress: float) -> PackedVector2Array:
 	var total_length := _wire_length()

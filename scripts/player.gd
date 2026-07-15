@@ -10,6 +10,7 @@ signal player_damaged(damage: int, cause: String)
 const TERRAIN_LAYER := 1 << 0
 const GHOST_BLOCK_LAYER := 1 << 3
 const MASK_STATE_COUNT := 3
+const PLAYER_DISPLAY_Z_INDEX := 3
 const MASK_THROW_BLOCKED_DIALOGUE: Array[String] = [
 	"想要在戴上我的同时发射我？这当然是做不到的",
 	"要发射面具的时候，按1键摘下面具吧",
@@ -148,6 +149,7 @@ var _run_visual_animation_should_play := true
 func _ready() -> void:
 	add_to_group("players")
 	add_to_group("saveable")
+	_apply_display_layer()
 	_ensure_player_light()
 	_setup_visual_animation()
 	_reset_mask_health()
@@ -618,6 +620,10 @@ func _apply_mask_state_effects() -> void:
 	_update_ghost_block_visibility()
 	_update_player_light()
 	_update_eye_glow_state()
+
+func _apply_display_layer() -> void:
+	z_as_relative = false
+	z_index = PLAYER_DISPLAY_Z_INDEX
 
 func _ensure_player_light() -> void:
 	_player_light = get_node_or_null("PlayerLight") as PointLight2D

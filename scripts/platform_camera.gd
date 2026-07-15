@@ -15,6 +15,17 @@ const DEFAULT_ZOOM_SMOOTHING_SPEED := 5.0
 @export var default_zoom := Vector2.ONE
 @export var room_transition_duration: float = 0.58
 @export_range(0.2, 10.0, 0.1) var connected_room_zoom_speed := 2.0
+@export_group("Connected Wide Room Entry")
+@export_range(1.05, 4.0, 0.05) var connected_wide_room_ratio := 1.35
+@export_range(32.0, 360.0, 8.0) var connected_entry_center_zone := 120.0
+@export_range(0.1, 4.0, 0.1) var connected_entry_center_follow_speed := 0.8
+@export_range(0.05, 1.0, 0.05) var connected_entry_center_speed_ratio := 0.3
+@export_range(0.0, 80.0, 1.0) var connected_entry_motion_threshold := 8.0
+@export_group("")
+@export_group("Room Rendering Prewarm")
+@export var prewarm_connected_rooms := true
+@export var prewarm_viewport_size := Vector2i(640, 360)
+@export_group("")
 @export var room_switch_pause_duration: float = 0.3
 @export var fade_out_duration: float = 0.16
 @export var fade_hold_duration: float = 0.08
@@ -77,6 +88,8 @@ var _continuous_room_limits_active := false
 var _continuous_room_limit_rect := Rect2()
 var _continuous_room_limit_target_rect := Rect2()
 var _continuous_zoom_limit_rect := Rect2()
+var _wide_room_entry_horizontal_active := false
+var _wide_room_entry_target_center_x := 0.0
 var _test_mode_free_camera := false
 
 func _ready() -> void:
@@ -100,6 +113,8 @@ func _ready() -> void:
 		global_position = target.global_position
 		desired_position = global_position
 		call_deferred("_find_starting_room")
+	if prewarm_connected_rooms and not Engine.is_editor_hint() and DisplayServer.get_name() != "headless":
+		call_deferred("_prewarm_connected_room_rendering")
 
 func _process(delta: float) -> void:
 	_update_hit_shake(delta)
@@ -222,7 +237,8 @@ func _physics_process(delta: float) -> void:
 		next_position.x = fixed_axis_position.x
 		follow_damping.x = active_border_damping.x
 
-	desired_position.x = lerpf(desired_position.x, next_position.x, 1.0 - exp(-follow_damping.x * delta))
+	if not _update_wide_room_entry_horizontal(delta, next_position.x):
+		desired_position.x = lerpf(desired_position.x, next_position.x, 1.0 - exp(-follow_damping.x * delta))
 	desired_position.y = lerpf(desired_position.y, next_position.y, 1.0 - exp(-follow_damping.y * delta))
 
 	var unclamped_position := desired_position
@@ -432,10 +448,19 @@ func _rooms_are_continuously_connected(from_room: Node, to_room: Node) -> bool:
 		return false
 	if not _room_is_connected(from_room) or not _room_is_connected(to_room):
 		return false
+	var from_group := _room_connection_group(from_room)
+	var to_group := _room_connection_group(to_room)
+	if not from_group.is_empty() or not to_group.is_empty():
+		return not from_group.is_empty() and from_group == to_group
 	return _rooms_are_adjacent(from_room, to_room)
 
 func _room_is_connected(room: Node) -> bool:
 	return room != null and room.has_method("is_connected_room") and bool(room.call("is_connected_room"))
+
+func _room_connection_group(room: Node) -> String:
+	if room != null and room.has_method("get_connection_group"):
+		return str(room.call("get_connection_group"))
+	return ""
 
 func _rooms_are_adjacent(from_room: Node, to_room: Node) -> bool:
 	var from_rect := _room_trigger_rect(from_room)
@@ -649,6 +674,7 @@ func _activate_room_immediately(room: Node, room_rect: Rect2, room_name: String,
 
 func _activate_connected_room(room: Node, room_rect: Rect2, room_name: String, room_zoom: Vector2, room_settings: Dictionary) -> void:
 	var previous_room_rect := active_room_rect
+	var preserve_horizontal_entry := _should_preserve_wide_room_entry(previous_room_rect, room_rect, bool(room_settings.get("no_follow", false)))
 	_is_room_transitioning = false
 	_is_fade_transitioning = false
 	is_room_transitioning = false
@@ -665,6 +691,9 @@ func _activate_connected_room(room: Node, room_rect: Rect2, room_name: String, r
 	if not _continuous_room_limits_active or _continuous_room_limit_rect.size.x <= 0.0 or _continuous_room_limit_rect.size.y <= 0.0:
 		_continuous_room_limit_rect = _continuous_zoom_limit_rect
 	_continuous_room_limits_active = true
+	_wide_room_entry_horizontal_active = preserve_horizontal_entry
+	_wide_room_entry_target_center_x = room_rect.get_center().x
+	desired_position = global_position
 	_apply_native_camera_limits(_active_camera_limit_rect())
 	desired_position = _clamp_position_to_rect(desired_position, _active_camera_limit_rect(), zoom)
 	global_position = _clamp_position_to_rect(global_position, _active_camera_limit_rect(), zoom)
@@ -711,6 +740,69 @@ func _clear_continuous_room_limits() -> void:
 	_continuous_room_limit_rect = Rect2()
 	_continuous_room_limit_target_rect = Rect2()
 	_continuous_zoom_limit_rect = Rect2()
+	_wide_room_entry_horizontal_active = false
+	_wide_room_entry_target_center_x = 0.0
+
+func _prewarm_connected_room_rendering() -> void:
+	await get_tree().process_frame
+	var warmup_viewport := SubViewport.new()
+	warmup_viewport.name = "ConnectedRoomRenderPrewarm"
+	warmup_viewport.size = Vector2i(maxi(prewarm_viewport_size.x, 64), maxi(prewarm_viewport_size.y, 64))
+	warmup_viewport.disable_3d = true
+	warmup_viewport.transparent_bg = true
+	warmup_viewport.world_2d = get_viewport().world_2d
+	warmup_viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	add_child(warmup_viewport)
+
+	var warmup_camera := Camera2D.new()
+	warmup_camera.name = "ConnectedRoomPrewarmCamera"
+	warmup_viewport.add_child(warmup_camera)
+	warmup_camera.make_current()
+
+	for room in get_tree().get_nodes_in_group("camera_rooms"):
+		if not _room_is_connected(room):
+			continue
+		var room_rect := _room_trigger_rect(room)
+		if room_rect.size.x <= 0.0 or room_rect.size.y <= 0.0:
+			continue
+		warmup_camera.global_position = room_rect.get_center()
+		var fit_zoom := minf(
+			float(warmup_viewport.size.x) / room_rect.size.x,
+			float(warmup_viewport.size.y) / room_rect.size.y
+		)
+		warmup_camera.zoom = Vector2.ONE * maxf(fit_zoom, 0.01)
+		warmup_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
+		await get_tree().process_frame
+
+	warmup_viewport.queue_free()
+
+func _should_preserve_wide_room_entry(from_rect: Rect2, to_rect: Rect2, destination_no_follow: bool = false) -> bool:
+	if target == null or destination_no_follow:
+		return false
+	if from_rect.size.x <= 0.0 or to_rect.size.x <= 0.0:
+		return false
+	return to_rect.size.x >= from_rect.size.x * connected_wide_room_ratio
+
+func _update_wide_room_entry_horizontal(delta: float, normal_next_x: float) -> bool:
+	if not _wide_room_entry_horizontal_active or target == null:
+		return false
+	var player_from_camera := target.global_position.x - desired_position.x
+	if absf(target.global_position.x - _wide_room_entry_target_center_x) <= connected_entry_center_zone:
+		_wide_room_entry_horizontal_active = false
+		return false
+	var horizontal_speed := target.velocity.x
+	if absf(horizontal_speed) <= connected_entry_motion_threshold:
+		return true
+	var player_side := signf(player_from_camera)
+	var movement_side := signf(horizontal_speed)
+	if movement_side == player_side:
+		desired_position.x += horizontal_speed * delta
+		return true
+	var smoothing := 1.0 - exp(-connected_entry_center_follow_speed * delta)
+	var smoothed_target := lerpf(desired_position.x, normal_next_x, smoothing)
+	var max_center_step := absf(horizontal_speed) * connected_entry_center_speed_ratio * delta
+	desired_position.x = move_toward(desired_position.x, smoothed_target, max_center_step)
+	return true
 
 func _default_camera_settings() -> Dictionary:
 	return {

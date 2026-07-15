@@ -63,8 +63,9 @@
 [ext_resource type="Script" uid="uid://mlkoc2q0yqh6" path="res://scripts/no_light_mode.gd" id="50_no_light_mode"]
 [ext_resource type="PackedScene" path="res://scenes/dialogue_npc.tscn" id="51_dialogue_npc"]
 [ext_resource type="PackedScene" path="res://scenes/stair.tscn" id="52_stair"]
+[ext_resource type="PackedScene" path="res://scenes/rising_platform.tscn" id="53_rising_platform"]
 
-[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_ro3en"]
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_od4ux"]
 blend_mode = 1
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_room_start"]
@@ -80,7 +81,7 @@ size = Vector2(957, 399)
 size = Vector2(1414.25, 1018.5)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_choun"]
-size = Vector2(1390.125, 1201.25)
+size = Vector2(1634, 1053.625)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_death_room"]
 size = Vector2(960, 540)
@@ -94,14 +95,14 @@ size = Vector2(913, 1601.3125)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_2f3dj"]
 size = Vector2(1983.5, 1213.1563)
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_od4ux"]
+size = Vector2(4652, 2580.5781)
+
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_death_return_gate"]
 size = Vector2(90, 150)
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_save_point"]
 radius = 96.0
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_od4ux"]
-size = Vector2(78, 28)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_xhfw6"]
 size = Vector2(78, 28)
@@ -115,25 +116,28 @@ size = Vector2(78, 28)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_r4e17"]
 size = Vector2(78, 28)
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_y57op"]
+size = Vector2(78, 28)
+
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_fv21b"]
 size = Vector2(225, 88.00006)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_y57op"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_mlv25"]
 size = Vector2(78, 28)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_tel4y"]
 size = Vector2(22.00003, 341)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_mlv25"]
-size = Vector2(42.00003, 361)
-
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_a82wo"]
-size = Vector2(78, 28)
+size = Vector2(42.00003, 361)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_gdvew"]
 size = Vector2(78, 28)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_kjtvk"]
+size = Vector2(78, 28)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_xrs0c"]
 size = Vector2(78, 28)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
@@ -320,7 +324,7 @@ fog_color = Color(0.82, 0.86, 0.8, 0.11)
 process_mode = 3
 z_index = 1024
 z_as_relative = false
-material = SubResource("CanvasItemMaterial_ro3en")
+material = SubResource("CanvasItemMaterial_od4ux")
 script = ExtResource("39_background_light_rays")
 light_direction = Vector2(-0.64561, 0.7636673)
 source_handle_path = NodePath("../SunLightEditorHandles/SourceHandle")
@@ -394,6 +398,7 @@ camera_profile = "platforming"
 camera_rect = Rect2(1420, -40, 1500, 760)
 camera_view_width = 664.0
 connected_room = true
+connection_group = "cliff_connected_path"
 debug_color = Color(0.36, 0.76, 0.92, 0.5)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-1" unique_id=808420010]
@@ -433,7 +438,7 @@ camera_view_width = 1312.0
 debug_color = Color(0.36, 0.76, 0.92, 0.5)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-4" unique_id=456369310]
-position = Vector2(4058.9375, -257)
+position = Vector2(4099, -330.8125)
 shape = SubResource("RectangleShape2D_choun")
 
 [node name="DeathSpaceRoom" type="Area2D" parent="Rooms" unique_id=1547800001]
@@ -479,12 +484,29 @@ camera_view_mode = "free_size"
 camera_rect = Rect2(1420, -40, 1500, 760)
 camera_view_width = 1728.0
 connected_room = true
+connection_group = "cliff_connected_path"
 large_room_composition = true
 debug_color = Color(0.36, 0.76, 0.92, 0.5)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/1-7" unique_id=684373168]
 position = Vector2(51, -824)
 shape = SubResource("RectangleShape2D_2f3dj")
+
+[node name="2-1" type="Area2D" parent="Rooms" unique_id=1580301265]
+script = ExtResource("5_room")
+room_id = "Cliff Room"
+camera_profile = "platforming"
+camera_view_mode = "free_size"
+camera_rect = Rect2(1420, -40, 1500, 760)
+camera_view_width = 1728.0
+connected_room = true
+connection_group = "cliff_connected_path"
+large_room_composition = true
+debug_color = Color(0.36, 0.76, 0.92, 0.5)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Rooms/2-1" unique_id=808642642]
+position = Vector2(681, -2710.711)
+shape = SubResource("RectangleShape2D_od4ux")
 
 [node name="Level" type="Node2D" parent="." unique_id=1034204445]
 
@@ -529,15 +551,6 @@ save_manager_path = NodePath("../../SaveManager")
 shape = SubResource("CircleShape2D_save_point")
 debug_color = Color(1, 0.86, 0.28, 0.08)
 
-[node name="Stairs" type="Node2D" parent="Level" unique_id=646068547]
-
-[node name="StarterStair" parent="Level/Stairs" unique_id=1311123737 instance=ExtResource("52_stair")]
-z_index = 1
-position = Vector2(283, -266)
-polygon = PackedVector2Array(0, 0, -160, 0, -160, -80)
-triangle_size = Vector2(-160, -80)
-display_z_index = 1
-
 [node name="SoulLamps" type="Node2D" parent="Level" unique_id=1547600000]
 
 [node name="DemoSoulLamp" parent="Level/SoulLamps" unique_id=1547600001 instance=ExtResource("23_soul_lamp")]
@@ -554,25 +567,6 @@ save_manager_path = NodePath("../../../SaveManager")
 position = Vector2(2015, -320)
 flame_color = Color(0.64, 0.9, 1, 0.95)
 save_manager_path = NodePath("../../../SaveManager")
-
-[node name="NPCs" type="Node2D" parent="Level" unique_id=1548200000]
-
-[node name="DungeonResident" parent="Level/NPCs" unique_id=1548200001 instance=ExtResource("51_dialogue_npc")]
-z_index = 1
-z_as_relative = false
-position = Vector2(2648, 121)
-player_path = NodePath("../../../Player")
-dialogue_box_path = NodePath("../../../CanvasLayer/DialogueBox")
-
-[node name="SurfaceWorldElder" parent="Level/NPCs" unique_id=1548200002 instance=ExtResource("51_dialogue_npc")]
-z_index = 1
-z_as_relative = false
-position = Vector2(3040, 118)
-npc_kind = 1
-player_path = NodePath("../../../Player")
-dialogue_box_path = NodePath("../../../CanvasLayer/DialogueBox")
-body_color = Color(0.42, 0.38, 0.5, 1)
-robe_color = Color(0.36, 0.3, 0.44, 1)
 
 [node name="Tombstones" type="Node2D" parent="Level" unique_id=1547200000]
 
@@ -613,7 +607,10 @@ position = Vector2(2209, -940)
 position = Vector2(793, -1175)
 
 [node name="DemoKeyChest2" parent="Level/Locks" unique_id=1935812497 instance=ExtResource("22_key_chest")]
-position = Vector2(3261, 492)
+position = Vector2(3264, 490)
+
+[node name="DemoKeyDoor2" parent="Level/Locks" unique_id=1682817543 instance=ExtResource("21_key_door")]
+position = Vector2(3315, 65)
 
 [node name="Terrain" type="StaticBody2D" parent="Level" unique_id=144938748]
 script = ExtResource("8_terrain_visual")
@@ -636,12 +633,12 @@ polygon = PackedVector2Array(534, 496, 551, 485, 833, 485, 841, 496, 839, 505, 8
 [node name="GroundCollision2" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1933789124]
 position = Vector2(-3, 0)
 build_mode = 1
-polygon = PackedVector2Array(2826, 670, 2824, 771, 3492, 777, 3496, 224, 3717, 215, 3716, 135, 2918, 139, 2919, 192, 3355.3755, 209.12094, 3357, 522, 3177, 518)
+polygon = PackedVector2Array(2826, 670, 2824, 771, 3492, 777, 3496, 224, 3968, 225, 3969, 143, 2918, 139, 2919, 192, 3355.3755, 209.12094, 3357, 516, 3177, 515)
 
 [node name="GroundCollision3" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1804658867]
 position = Vector2(1043, -539)
 build_mode = 1
-polygon = PackedVector2Array(2847, 673, 2847, 773, 3749, 773, 3754, 388, 3276, 386)
+polygon = PackedVector2Array(2923, 685, 2922, 775, 3850, 780, 3845, 386, 3276, 386)
 
 [node name="GroundCollision4" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1987168435]
 position = Vector2(81, -281)
@@ -707,7 +704,7 @@ polygon = PackedVector2Array(2838, 671, 2839, 712, 2988, 709, 3014, 670)
 [node name="GroundCollision10" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=893808560]
 position = Vector2(1136, -1022)
 build_mode = 1
-polygon = PackedVector2Array(3251, 697, 3251, 773, 3575, 773, 3575, 871, 3661, 871, 3663, 696)
+polygon = PackedVector2Array(3251, 697, 3251, 773, 3829, 772, 3828, 695)
 
 [node name="GroundCollision17" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=972244748]
 position = Vector2(-1463, -985)
@@ -717,7 +714,7 @@ polygon = PackedVector2Array(2824, 673, 2824, 733, 3009, 733, 3009, 670, 2887, 6
 [node name="GroundCollision18" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=2099908854]
 position = Vector2(554, -1640)
 build_mode = 1
-polygon = PackedVector2Array(683, 62, 675, 530, 2801, 532, 2804.9282, 729.1131, 2491, 728, 2494, 816, 2807, 820, 2812, 1084, 2941, 1082, 2937, 541, 4170.7324, 548.4545, 4165, 1314, 4245, 1314, 4245, 101)
+polygon = PackedVector2Array(683, 62, 675, 530, 2801, 532, 2804.9282, 729.1131, 2491, 728, 2494, 816, 2807, 820, 2812, 1084, 2941, 1082, 2937, 541, 4317, 537, 4324, 1884, 4411, 1883, 4399, 75)
 
 [node name="GroundCollision19" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=948191119]
 position = Vector2(-609, -1585)
@@ -737,7 +734,31 @@ polygon = PackedVector2Array(3002, 667, 3002, 714, 3301, 713, 3299, 667)
 [node name="GroundCollision22" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=539725764]
 position = Vector2(427, -994)
 build_mode = 1
-polygon = PackedVector2Array(2688, 671, 2687, 744, 3655, 744, 3653, 672)
+polygon = PackedVector2Array(2688, 671, 2687, 744, 2857, 744, 2857, 986, 2919, 987, 2921, 745, 3655, 744, 3653, 672)
+
+[node name="Stairs" type="Node2D" parent="Level" unique_id=646068547]
+
+[node name="Stair1" parent="Level/Stairs" unique_id=1311123737 instance=ExtResource("52_stair")]
+z_index = 1
+position = Vector2(2822, 671)
+scale = Vector2(1, 0.65625)
+polygon = PackedVector2Array(0, 0, 352, 0, 352, -240)
+triangle_size = Vector2(352, -240)
+display_z_index = 1
+
+[node name="Stair2" parent="Level/Stairs" unique_id=1088867410 instance=ExtResource("52_stair")]
+z_index = 1
+position = Vector2(3967, 143)
+scale = Vector2(1, 0.65625)
+polygon = PackedVector2Array(0, 0, 352, 0, 352, -448)
+triangle_size = Vector2(352, -448)
+display_z_index = 1
+
+[node name="RisingPlatforms" type="Node2D" parent="Level" unique_id=1276722021]
+
+[node name="RisingPlatform1" parent="Level/RisingPlatforms" unique_id=1508847349 instance=ExtResource("53_rising_platform")]
+position = Vector2(959, -1117)
+rise_height = 432.0
 
 [node name="Mechanisms" type="Node2D" parent="Level" unique_id=1547100000]
 
@@ -756,6 +777,7 @@ end_cap_mode = 2
 start_button_path = NodePath("../DemoButton")
 activation_time = 0.4
 inactive_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+display_z_index = 0
 
 [node name="DemoButton" parent="Level/Mechanisms" unique_id=1547100002 instance=ExtResource("16_mechanism_button")]
 position = Vector2(1829, 671)
@@ -767,7 +789,7 @@ position = Vector2(-0.765625, -5.3125)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton/PressSensor" index="0"]
 position = Vector2(-0.765625, -5.3125)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_od4ux")
+shape = SubResource("RectangleShape2D_xhfw6")
 
 [node name="DemoMovingWall2" parent="Level/Mechanisms" unique_id=229016664 instance=ExtResource("15_mechanism_wall")]
 position = Vector2(1358, 598)
@@ -790,7 +812,7 @@ position = Vector2(0, -7)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton2/PressSensor" index="0"]
 position = Vector2(0, -7)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_xhfw6")
+shape = SubResource("RectangleShape2D_1epgm")
 
 [node name="MechanismWire2" parent="Level/Mechanisms" unique_id=374300171 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(1172, 707, 1172, 729.08105, 1361, 729.08105, 1361, 687.8412)
@@ -801,6 +823,7 @@ end_cap_mode = 2
 start_button_path = NodePath("../DemoButton2")
 activation_time = 0.4
 inactive_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+display_z_index = 0
 
 [node name="DemoMovingWall3" parent="Level/Mechanisms" unique_id=1783879147 instance=ExtResource("15_mechanism_wall")]
 position = Vector2(1064, 147)
@@ -829,7 +852,7 @@ position = Vector2(2, -12.5)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton3/PressSensor" index="0"]
 position = Vector2(2, -12.5)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_1epgm")
+shape = SubResource("RectangleShape2D_152kg")
 
 [node name="MechanismWire3" parent="Level/Mechanisms" unique_id=1473114172 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(1877, 174, 1906.0172, 174, 1906.0172, 267.04892, 1069.8918, 267.04892, 1069.8918, 250.99963)
@@ -840,6 +863,7 @@ end_cap_mode = 2
 start_button_path = NodePath("../DemoButton3")
 activation_time = 0.4
 inactive_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+display_z_index = 0
 
 [node name="DemoMovingWall4" parent="Level/Mechanisms" unique_id=466419786 instance=ExtResource("15_mechanism_wall")]
 position = Vector2(3437, -394)
@@ -864,7 +888,7 @@ detect_player_weapons = false
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton4/PressSensor" index="0"]
 position = Vector2(0, -14)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_152kg")
+shape = SubResource("RectangleShape2D_r4e17")
 
 [node name="MechanismWire4" parent="Level/Mechanisms" unique_id=1442750400 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(4437, -296, 4437, -269.7004, 3440.9995, -269.7004, 3440.9995, -303.0151)
@@ -875,6 +899,7 @@ end_cap_mode = 2
 start_button_path = NodePath("../DemoButton4")
 activation_time = 0.4
 inactive_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+display_z_index = 0
 
 [node name="DemoMovingWall5" parent="Level/Mechanisms" unique_id=345938204 instance=ExtResource("15_mechanism_wall")]
 position = Vector2(2502, -381)
@@ -901,7 +926,7 @@ position = Vector2(0, -6)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton5/PressSensor" index="0"]
 position = Vector2(0, -6)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_r4e17")
+shape = SubResource("RectangleShape2D_y57op")
 
 [node name="MechanismWire5" parent="Level/Mechanisms" unique_id=544980897 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(3128, -885, 3128, -729.99677, 2803.4827, -405.47946, 2498.9995, -405.47946)
@@ -912,6 +937,7 @@ end_cap_mode = 2
 start_button_path = NodePath("../DemoButton5")
 activation_time = 0.4
 inactive_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+display_z_index = 0
 
 [node name="DemoMovingWall6" parent="Level/Mechanisms" unique_id=1159029069 instance=ExtResource("15_mechanism_wall")]
 position = Vector2(1307, -106)
@@ -944,7 +970,7 @@ position = Vector2(0, -6)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton6/PressSensor" index="0"]
 position = Vector2(0, -6)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_y57op")
+shape = SubResource("RectangleShape2D_mlv25")
 
 [node name="MechanismWire6" parent="Level/Mechanisms" unique_id=1966892610 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(1461, -292, 1461, -191.995, 1337.9958, -191.995, 1337.9958, -113.993645)
@@ -955,6 +981,7 @@ end_cap_mode = 2
 start_button_path = NodePath("../DemoButton6")
 activation_time = 0.4
 inactive_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+display_z_index = 0
 
 [node name="DemoMovingWall7" parent="Level/Mechanisms" unique_id=947364331 instance=ExtResource("15_mechanism_wall")]
 position = Vector2(-128, -250)
@@ -992,7 +1019,7 @@ rotation = 1.5707964
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton7/PressSensor" index="0"]
 position = Vector2(9, 40.99997)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_mlv25")
+shape = SubResource("RectangleShape2D_a82wo")
 
 [node name="MechanismWire7" parent="Level/Mechanisms" unique_id=369191169 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(-532, -414, -188.99841, -414, -97.21152, -322.2131, -97.21152, -263.97253)
@@ -1003,6 +1030,7 @@ end_cap_mode = 2
 start_button_path = NodePath("../DemoButton7")
 activation_time = 0.4
 inactive_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+display_z_index = 0
 
 [node name="DemoMovingWall8" parent="Level/Mechanisms" unique_id=1187421204 instance=ExtResource("15_mechanism_wall")]
 position = Vector2(-291, -1070)
@@ -1030,7 +1058,7 @@ position = Vector2(-26, -10.5)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton8/PressSensor" index="0"]
 position = Vector2(-26, -10.5)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_a82wo")
+shape = SubResource("RectangleShape2D_gdvew")
 
 [node name="MechanismWire8" parent="Level/Mechanisms" unique_id=1793507952 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(-227, -644, -227, -746.07837, -290.50848, -809.58685, -290.50848, -1020.0006)
@@ -1041,6 +1069,7 @@ end_cap_mode = 2
 start_button_path = NodePath("../DemoButton8")
 activation_time = 0.4
 inactive_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+display_z_index = 0
 
 [node name="DemoMovingWall9" parent="Level/Mechanisms" unique_id=845429669 instance=ExtResource("15_mechanism_wall")]
 position = Vector2(84, -1196)
@@ -1078,7 +1107,7 @@ rotation = 1.5707964
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton9/PressSensor" index="0"]
 position = Vector2(116, -29)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_gdvew")
+shape = SubResource("RectangleShape2D_kjtvk")
 
 [node name="MechanismWire9" parent="Level/Mechanisms" unique_id=671822958 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(-139, -1003, -139, -1198.041, 52.066513, -1198.041)
@@ -1089,9 +1118,10 @@ end_cap_mode = 2
 start_button_path = NodePath("../DemoButton9")
 activation_time = 0.4
 inactive_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+display_z_index = 0
 
 [node name="DemoMovingWall10" parent="Level/Mechanisms" unique_id=2027598206 instance=ExtResource("15_mechanism_wall")]
-position = Vector2(3493, 76)
+position = Vector2(3601, 74)
 collision_mask = 0
 target_offset = Vector2(0, -200)
 move_time = 1.0
@@ -1103,7 +1133,7 @@ polygon = PackedVector2Array(-24, -155, 24, -156, 24, 72, -24, 72)
 position = Vector2(0, -42)
 
 [node name="MechanismWire10" parent="Level/Mechanisms" unique_id=1726920810 instance=ExtResource("15_tm6hj")]
-points = PackedVector2Array(3550, 157, 3550, 169, 3481.67, 169, 3481.67, 149.69984)
+points = PackedVector2Array(3750, 154, 3750, 178.08319, 3726.019, 202.06416, 3622.7964, 202.06416, 3601.0603, 180.32806, 3601.0603, 146.62883)
 default_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
 joint_mode = 2
 begin_cap_mode = 2
@@ -1111,9 +1141,10 @@ end_cap_mode = 2
 start_button_path = NodePath("../DemoButton10")
 activation_time = 0.4
 inactive_color = Color(0.12154969, 0.13364857, 0.14090562, 1)
+display_z_index = 0
 
 [node name="DemoButton10" parent="Level/Mechanisms" unique_id=635773942 instance=ExtResource("16_mechanism_button")]
-position = Vector2(3550, 141)
+position = Vector2(3750, 142)
 moving_wall_path = NodePath("../DemoMovingWall10")
 
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton10" index="0"]
@@ -1122,7 +1153,7 @@ position = Vector2(-0.765625, -5.3125)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton10/PressSensor" index="0"]
 position = Vector2(-0.765625, -5.3125)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_kjtvk")
+shape = SubResource("RectangleShape2D_xrs0c")
 
 [node name="GhostBlocks" type="StaticBody2D" parent="Level" unique_id=1943537721]
 collision_layer = 8
@@ -1132,10 +1163,6 @@ script = ExtResource("10_ghost_blocks_visual")
 [node name="GhostBlockCollision2" type="CollisionPolygon2D" parent="Level/GhostBlocks" unique_id=468144518]
 position = Vector2(620, 350)
 polygon = PackedVector2Array(1984, 321, 2203, 322, 2202, 423, 1984, 421)
-
-[node name="GhostBlockCollision3" type="CollisionPolygon2D" parent="Level/GhostBlocks" unique_id=2022857144]
-position = Vector2(1687, -188)
-polygon = PackedVector2Array(2026, 323, 2203, 322, 2203, 401, 2027, 403)
 
 [node name="GhostBlockCollision4" type="CollisionPolygon2D" parent="Level/GhostBlocks" unique_id=2081258524]
 position = Vector2(-2483, -973)
@@ -1178,6 +1205,25 @@ position = Vector2(-1349.0001, -649.00006)
 scale = Vector2(1.89523, 1.0000002)
 polygon = PackedVector2Array(2266.2156, 326.99997, 2354.8594, 325.99997, 2354.8594, 398.99994, 2267.2708, 398.99994)
 
+[node name="NPCs" type="Node2D" parent="Level" unique_id=1548200000]
+
+[node name="DungeonResident" parent="Level/NPCs" unique_id=1548200001 instance=ExtResource("51_dialogue_npc")]
+z_index = 1
+z_as_relative = false
+position = Vector2(316, -1575)
+player_path = NodePath("../../../Player")
+dialogue_box_path = NodePath("../../../CanvasLayer/DialogueBox")
+
+[node name="SurfaceWorldElder" parent="Level/NPCs" unique_id=1548200002 instance=ExtResource("51_dialogue_npc")]
+z_index = 1
+z_as_relative = false
+position = Vector2(714, -2309)
+npc_kind = 1
+player_path = NodePath("../../../Player")
+dialogue_box_path = NodePath("../../../CanvasLayer/DialogueBox")
+body_color = Color(0.42, 0.38, 0.5, 1)
+robe_color = Color(0.36, 0.3, 0.44, 1)
+
 [node name="Enemies" type="Node2D" parent="Level" unique_id=1351491580]
 z_index = 80
 z_as_relative = false
@@ -1208,7 +1254,7 @@ position = Vector2(252, 416)
 position = Vector2(3887, -372)
 
 [node name="EnemyNormal7" parent="Level/Enemies" unique_id=1573298062 instance=ExtResource("11_enemy")]
-position = Vector2(3686, 108)
+position = Vector2(3895, 112)
 
 [node name="EnemyGhost3" parent="Level/Enemies" unique_id=1986287580 instance=ExtResource("11_enemy")]
 position = Vector2(2448, -353)
@@ -1247,6 +1293,13 @@ edge_color = Color(0.04, 0.08, 0.18, 1)
 
 [node name="InvincibleGhost2" parent="Level/Enemies" unique_id=331752238 instance=ExtResource("11_invincible_ghost_enemy")]
 position = Vector2(1631, -346)
+
+[node name="EnemyGhost7" parent="Level/Enemies" unique_id=2026775672 instance=ExtResource("11_enemy")]
+position = Vector2(3241, 107)
+collision_mask = 9
+can_touch_ghost_blocks = true
+body_color = Color(0.42, 0.58, 1, 1)
+edge_color = Color(0.04, 0.08, 0.18, 1)
 
 [node name="Player" type="CharacterBody2D" parent="." unique_id=1842820891]
 z_index = 1

@@ -39,6 +39,10 @@ extends Area2D
 	set(value):
 		connected_room = value
 		queue_redraw()
+@export var connection_group := "":
+	set(value):
+		connection_group = value.strip_edges()
+		queue_redraw()
 @export var lookahead_distance: float = 96.0:
 	set(value):
 		lookahead_distance = value
@@ -161,6 +165,9 @@ func get_transition_mode() -> String:
 
 func is_connected_room() -> bool:
 	return connected_room
+
+func get_connection_group() -> String:
+	return connection_group
 
 func get_camera_profile() -> String:
 	return camera_profile
