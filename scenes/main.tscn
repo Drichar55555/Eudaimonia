@@ -277,7 +277,7 @@ _data = {
 }
 
 [sub_resource type="SystemFont" id="SystemFont_dialogue"]
-font_names = PackedStringArray("Arial Unicode MS", "PingFang SC", "Heiti SC", "Noto Sans CJK SC")
+font_names = PackedStringArray("Arial Unicode MS", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "WenQuanYi Micro Hei")
 subpixel_positioning = 0
 
 [node name="Main" type="Node2D" unique_id=1069334800]
@@ -565,6 +565,16 @@ save_manager_path = NodePath("../../../SaveManager")
 
 [node name="DemoSoulLamp3" parent="Level/SoulLamps" unique_id=888145603 instance=ExtResource("23_soul_lamp")]
 position = Vector2(2015, -320)
+flame_color = Color(0.64, 0.9, 1, 0.95)
+save_manager_path = NodePath("../../../SaveManager")
+
+[node name="DemoSoulLamp4" parent="Level/SoulLamps" unique_id=1465649895 instance=ExtResource("23_soul_lamp")]
+position = Vector2(215, -268)
+flame_color = Color(0.64, 0.9, 1, 0.95)
+save_manager_path = NodePath("../../../SaveManager")
+
+[node name="DemoSoulLamp5" parent="Level/SoulLamps" unique_id=1588762827 instance=ExtResource("23_soul_lamp")]
+position = Vector2(164, -1557)
 flame_color = Color(0.64, 0.9, 1, 0.95)
 save_manager_path = NodePath("../../../SaveManager")
 
@@ -1208,16 +1218,25 @@ polygon = PackedVector2Array(2266.2156, 326.99997, 2354.8594, 325.99997, 2354.85
 [node name="NPCs" type="Node2D" parent="Level" unique_id=1548200000]
 
 [node name="DungeonResident" parent="Level/NPCs" unique_id=1548200001 instance=ExtResource("51_dialogue_npc")]
-z_index = 1
+z_index = 80
 z_as_relative = false
 position = Vector2(316, -1575)
 player_path = NodePath("../../../Player")
 dialogue_box_path = NodePath("../../../CanvasLayer/DialogueBox")
+walk_left_offset = 400.0
+walk_right_offset = 400.0
+collision_responses = Array[Dictionary]([{
+"content": "啊"
+}, {
+"content": "诶呦"
+}, {
+"weight": 3.0
+}])
 
 [node name="SurfaceWorldElder" parent="Level/NPCs" unique_id=1548200002 instance=ExtResource("51_dialogue_npc")]
-z_index = 1
+z_index = 80
 z_as_relative = false
-position = Vector2(714, -2309)
+position = Vector2(-343, -2334)
 npc_kind = 1
 player_path = NodePath("../../../Player")
 dialogue_box_path = NodePath("../../../CanvasLayer/DialogueBox")
@@ -1475,6 +1494,7 @@ script = ExtResource("26_dialogue_box")
 speaker_label_path = NodePath("Panel/Speaker")
 body_label_path = NodePath("Panel/Body")
 continue_label_path = NodePath("Panel/Continue")
+ui_font = SubResource("SystemFont_dialogue")
 metadata/_edit_lock_ = true
 
 [node name="Panel" type="ColorRect" parent="CanvasLayer/DialogueBox" unique_id=1547800021]

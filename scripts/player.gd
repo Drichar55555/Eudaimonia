@@ -9,6 +9,7 @@ signal player_damaged(damage: int, cause: String)
 
 const TERRAIN_LAYER := 1 << 0
 const GHOST_BLOCK_LAYER := 1 << 3
+const DIALOGUE_NPC_LAYER := 1 << 4
 const MASK_STATE_COUNT := 3
 const PLAYER_DISPLAY_Z_INDEX := 3
 const MASK_THROW_BLOCKED_DIALOGUE: Array[String] = [
@@ -30,6 +31,15 @@ enum MaskState { NO_MASK, EUDA_MASK, GHOST_MASK }
 @export_range(2.0, 24.0, 1.0) var step_scan_increment := 4.0
 @export_range(4.0, 80.0, 1.0) var floor_probe_forward := 26.0
 @export_range(8.0, 140.0, 1.0) var floor_probe_depth := 72.0
+
+@export_group("NPC Collision")
+@export_range(0.05, 1.0, 0.01) var npc_collision_recoil_duration := 0.24
+@export_range(0.05, 1.5, 0.01) var npc_collision_cooldown := 0.5
+@export_range(0.0, 500.0, 5.0) var npc_collision_recoil_speed := 145.0
+@export_range(0.0, 3000.0, 10.0) var npc_collision_recoil_deceleration := 950.0
+@export_range(48.0, 120.0, 1.0) var npc_collision_passthrough_distance := 64.0
+@export_range(0.0, 2.0, 0.05) var fast_collision_animation_speed_ratio := 0.9
+@export_range(0.05, 1.0, 0.01) var npc_collision_animation_duration := 0.28
 
 @export_group("Test Mode")
 @export var test_mode_speed_multiplier := 3.0
@@ -145,6 +155,12 @@ var _is_on_stair := false
 var _stair_contact_animation_timer := 0.0
 var _horizontal_animation_input := 0.0
 var _run_visual_animation_should_play := true
+var _npc_collision_recoil_timer := 0.0
+var _npc_collision_cooldown_timer := 0.0
+var _npc_collision_animation_timer := 0.0
+var _npc_collision_recoil_direction := 0.0
+var _npc_collision_passthrough_body: PhysicsBody2D
+var _npc_collision_passthrough_deceleration := 0.0
 
 func _ready() -> void:
 	add_to_group("players")
@@ -213,11 +229,76 @@ func _physics_process(delta: float) -> void:
 	_handle_boomerang_throw()
 	_update_throw_point()
 
+	var horizontal_speed_before_move := velocity.x
 	move_and_slide()
 	_update_stair_contact_state()
 	_update_animation_name()
+	_handle_dialogue_npc_collisions(horizontal_speed_before_move)
 	_handle_pushable_collisions(delta, horizontal_input)
 	_handle_mechanism_wall_collisions()
+
+func _handle_dialogue_npc_collisions(horizontal_speed_before_move: float) -> void:
+	if _npc_collision_cooldown_timer > 0.0:
+		return
+	for index in get_slide_collision_count():
+		var collision := get_slide_collision(index)
+		var npc := collision.get_collider() as Node2D
+		if npc == null or not npc.is_in_group("dialogue_npcs"):
+			continue
+		handle_dialogue_npc_collision(npc, absf(horizontal_speed_before_move), collision.get_normal().x)
+		return
+
+func handle_dialogue_npc_collision(
+	npc: Node2D,
+	player_impact_speed: float = -1.0,
+	player_recoil_direction_override: float = 0.0
+) -> bool:
+	if npc == null or not is_instance_valid(npc) or _npc_collision_cooldown_timer > 0.0:
+		return false
+	if not npc.has_method("receive_player_collision"):
+		return false
+	var player_recoil_direction := signf(player_recoil_direction_override)
+	if is_zero_approx(player_recoil_direction):
+		player_recoil_direction = signf(global_position.x - npc.global_position.x)
+	if is_zero_approx(player_recoil_direction):
+		player_recoil_direction = -signf(velocity.x) if not is_zero_approx(velocity.x) else -facing_direction
+	var impact_speed := absf(velocity.x) if player_impact_speed < 0.0 else player_impact_speed
+	if not bool(npc.call("receive_player_collision", self, -player_recoil_direction, impact_speed)):
+		return false
+	# The NPC is pushed away, but the player follows through the contact rather
+	# than bouncing backward. A short pair-specific collision exception lets the
+	# two bodies cross without disabling terrain or other NPC collisions.
+	_npc_collision_recoil_direction = -player_recoil_direction
+	var passthrough_duration := maxf(npc_collision_recoil_duration, 0.05)
+	var minimum_passthrough_speed := 2.0 * maxf(npc_collision_passthrough_distance, 0.0) / passthrough_duration
+	var passthrough_speed := maxf(maxf(impact_speed, max_run_speed), maxf(npc_collision_recoil_speed, minimum_passthrough_speed))
+	_npc_collision_recoil_timer = passthrough_duration
+	_npc_collision_passthrough_deceleration = passthrough_speed / passthrough_duration
+	_npc_collision_cooldown_timer = maxf(maxf(npc_collision_cooldown, passthrough_duration), 0.0)
+	_start_npc_passthrough(npc)
+	velocity.x = -player_recoil_direction * passthrough_speed
+	var fast_threshold := max_run_speed * maxf(fast_collision_animation_speed_ratio, 0.0)
+	if impact_speed < fast_threshold:
+		_npc_collision_animation_timer = maxf(npc_collision_animation_duration, 0.0)
+	else:
+		_npc_collision_animation_timer = 0.0
+	_update_animation_name()
+	return true
+
+func _start_npc_passthrough(npc: Node2D) -> void:
+	_end_npc_passthrough()
+	var npc_body := npc as PhysicsBody2D
+	if npc_body == null:
+		return
+	_npc_collision_passthrough_body = npc_body
+	add_collision_exception_with(npc_body)
+	npc_body.add_collision_exception_with(self)
+
+func _end_npc_passthrough() -> void:
+	if _npc_collision_passthrough_body != null and is_instance_valid(_npc_collision_passthrough_body):
+		remove_collision_exception_with(_npc_collision_passthrough_body)
+		_npc_collision_passthrough_body.remove_collision_exception_with(self)
+	_npc_collision_passthrough_body = null
 
 func _update_timers(delta: float) -> void:
 	_coyote_timer = maxf(_coyote_timer - delta, 0.0)
@@ -229,6 +310,12 @@ func _update_timers(delta: float) -> void:
 	_ghost_block_context_timer = maxf(_ghost_block_context_timer - delta, 0.0)
 	_soul_heal_flash_timer = maxf(_soul_heal_flash_timer - delta, 0.0)
 	_stair_contact_animation_timer = maxf(_stair_contact_animation_timer - delta, 0.0)
+	_npc_collision_recoil_timer = maxf(_npc_collision_recoil_timer - delta, 0.0)
+	var npc_collision_cooldown_was_active := _npc_collision_cooldown_timer > 0.0
+	_npc_collision_cooldown_timer = maxf(_npc_collision_cooldown_timer - delta, 0.0)
+	if npc_collision_cooldown_was_active and _npc_collision_cooldown_timer <= 0.0:
+		_end_npc_passthrough()
+	_npc_collision_animation_timer = maxf(_npc_collision_animation_timer - delta, 0.0)
 	if _ground_speed_multiplier_timer <= 0.0:
 		_ground_speed_multiplier = 1.0
 
@@ -441,6 +528,10 @@ func apply_save_state(state: Dictionary) -> void:
 	_throw_cooldown_timer = 0.0
 	_mask_switch_timer = 0.0
 	_damage_invulnerability_timer = respawn_invulnerability_time
+	_npc_collision_recoil_timer = 0.0
+	_npc_collision_cooldown_timer = 0.0
+	_npc_collision_animation_timer = 0.0
+	_end_npc_passthrough()
 	_apply_mask_state_effects()
 	_update_animation_name()
 	_update_eye_glow_state()
@@ -614,7 +705,7 @@ func _apply_mask_state_effects() -> void:
 		_update_eye_glow_state()
 		return
 	collision_layer = TERRAIN_LAYER
-	collision_mask = TERRAIN_LAYER
+	collision_mask = TERRAIN_LAYER | DIALOGUE_NPC_LAYER
 	if can_stand_on_ghost_blocks():
 		collision_mask |= GHOST_BLOCK_LAYER
 	_update_ghost_block_visibility()
@@ -769,12 +860,22 @@ func _run_visual_scale_multiplier() -> float:
 func _apply_visual_scale(multiplier: float) -> void:
 	if _visual_sprite == null:
 		return
-	_visual_sprite.scale = _base_visual_scale * multiplier
+	var bump_strength := _npc_collision_visual_strength()
+	var bump_scale := Vector2(1.0 + bump_strength * 0.12, 1.0 - bump_strength * 0.14)
+	_visual_sprite.scale = _base_visual_scale * multiplier * bump_scale
 
 func _apply_visual_position(offset: Vector2) -> void:
 	if _visual_sprite == null:
 		return
-	_visual_sprite.position = _base_visual_position + offset
+	var bump_strength := _npc_collision_visual_strength()
+	_visual_sprite.position = _base_visual_position + offset + Vector2(_npc_collision_recoil_direction * 7.0, 4.0) * bump_strength
+	_visual_sprite.rotation = _npc_collision_recoil_direction * 0.08 * bump_strength
+
+func _npc_collision_visual_strength() -> float:
+	if _npc_collision_animation_timer <= 0.0 or npc_collision_animation_duration <= 0.0:
+		return 0.0
+	var progress := 1.0 - _npc_collision_animation_timer / npc_collision_animation_duration
+	return sin(clampf(progress, 0.0, 1.0) * PI)
 
 func _apply_visual_facing() -> void:
 	var should_mirror := _should_mirror_visuals()
@@ -821,6 +922,9 @@ func _restore_idle_eye_positions() -> void:
 		_right_eye_point.position = _idle_right_eye_position
 
 func _apply_horizontal_movement(horizontal_input: float, on_floor: bool, delta: float) -> void:
+	if _npc_collision_recoil_timer > 0.0:
+		velocity.x = move_toward(velocity.x, 0.0, _npc_collision_passthrough_deceleration * delta)
+		return
 	var speed_multiplier := _ground_speed_multiplier if on_floor else 1.0
 	var target_speed := horizontal_input * max_run_speed * speed_multiplier
 	var accel := ground_acceleration if on_floor else air_acceleration

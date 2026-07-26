@@ -6,6 +6,7 @@ signal choice_selected(index: int)
 @export var speaker_label_path: NodePath
 @export var body_label_path: NodePath
 @export var continue_label_path: NodePath
+@export var ui_font: Font
 
 var _speaker_label: Label
 var _body_label: Label
@@ -33,8 +34,21 @@ func _ready() -> void:
 	_speaker_label = get_node_or_null(speaker_label_path) as Label
 	_body_label = get_node_or_null(body_label_path) as Label
 	_continue_label = get_node_or_null(continue_label_path) as Label
+	_apply_ui_font()
 	visible = false
 	set_process(true)
+
+func _apply_ui_font() -> void:
+	if ui_font == null:
+		return
+	for label in [_speaker_label, _body_label, _continue_label]:
+		if label != null:
+			label.add_theme_font_override("font", ui_font)
+
+func get_ui_font() -> Font:
+	if ui_font != null:
+		return ui_font
+	return _body_label.get_theme_font("font") if _body_label != null else null
 
 func show_dialogue(speaker: String, lines: Array[String]) -> void:
 	_choice_mode = false
