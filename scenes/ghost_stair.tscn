@@ -1,0 +1,14 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ghost_stair.gd" id="1_ghost_stair"]
+
+[node name="GhostStair" type="Polygon2D"]
+z_index = 0
+z_as_relative = false
+color = Color(1, 1, 1, 0)
+polygon = PackedVector2Array(0, 0, 192, 0, 192, -96)
+script = ExtResource("1_ghost_stair")
+
+[node name="CollisionBody" type="StaticBody2D" parent="."]
+collision_layer = 8
+collision_mask = 0

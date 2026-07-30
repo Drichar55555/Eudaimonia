@@ -2,6 +2,7 @@
 extends EditorPlugin
 
 const STAIR_SCRIPT_PATH := "res://scripts/stair.gd"
+const GHOST_STAIR_SCRIPT_PATH := "res://scripts/ghost_stair.gd"
 const HANDLE_RADIUS := 7.0
 const HANDLE_HIT_RADIUS := 13.0
 const STAIR_PICK_RADIUS := 14.0
@@ -154,7 +155,7 @@ func _is_stair_node(object: Object) -> bool:
 	if not object is Node2D:
 		return false
 	var script := object.get_script()
-	return script != null and script.resource_path == STAIR_SCRIPT_PATH
+	return script != null and script.resource_path in [STAIR_SCRIPT_PATH, GHOST_STAIR_SCRIPT_PATH]
 
 func _stair_from_object(object: Object) -> Node2D:
 	if _is_stair_node(object):

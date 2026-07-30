@@ -1396,8 +1396,12 @@ func _handle_mechanism_wall_collisions() -> void:
 		return
 
 func _is_touching_mechanism_crush_area(collider: Node) -> bool:
-	if collider.has_method("is_body_in_mechanism_crush_area") and bool(collider.call("is_body_in_mechanism_crush_area", self)):
-		return true
+	# A mechanism that exposes the full crush check has already tested both the
+	# moving contact surface and an obstacle pinning the player in its travel
+	# direction. Trust its false result instead of falling back to contact-only
+	# checks, which would damage a player simply riding an upward platform.
+	if collider.has_method("is_body_in_mechanism_crush_area"):
+		return bool(collider.call("is_body_in_mechanism_crush_area", self))
 	if collider.has_method("is_body_touching_impact_surface"):
 		return bool(collider.call("is_body_touching_impact_surface", self))
 	if collider.has_method("is_body_touching_impact_bottom"):

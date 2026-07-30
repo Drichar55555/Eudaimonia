@@ -673,7 +673,7 @@ polygon = PackedVector2Array(2838, 671, 2890, 711, 2971, 707, 3008, 673)
 [node name="GroundCollision8" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=924228847]
 position = Vector2(-2221, -843)
 build_mode = 1
-polygon = PackedVector2Array(2838, 671, 2890, 711, 2971, 707, 3008, 673)
+polygon = PackedVector2Array(2838, 671, 2890, 711, 2917.8604, 709.624, 2971, 707, 3008, 673)
 
 [node name="GroundCollision9" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1436830489]
 position = Vector2(-2944, -934)
@@ -746,6 +746,31 @@ position = Vector2(427, -994)
 build_mode = 1
 polygon = PackedVector2Array(2688, 671, 2687, 744, 2857, 744, 2857, 986, 2919, 987, 2921, 745, 3655, 744, 3653, 672)
 
+[node name="GroundCollision23" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1302662283]
+position = Vector2(-3452, -2443)
+build_mode = 1
+polygon = PackedVector2Array(2702, 638, 2702, 688, 3054, 688, 3054, 639)
+
+[node name="GroundCollision24" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1916485042]
+position = Vector2(-2926, -2488)
+build_mode = 1
+polygon = PackedVector2Array(2702, 638, 2702, 688, 3332, 688, 3333, 643)
+
+[node name="GroundCollision25" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=801278417]
+position = Vector2(-2144, -2724)
+build_mode = 1
+polygon = PackedVector2Array(2702, 638, 2702, 688, 3054, 688, 3054, 639)
+
+[node name="GroundCollision26" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1521043255]
+position = Vector2(-2413, -2871)
+build_mode = 1
+polygon = PackedVector2Array(2702, 638, 2702, 688, 3054, 688, 3054, 639)
+
+[node name="GroundCollision27" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1632857873]
+position = Vector2(-2904, -3189)
+build_mode = 1
+polygon = PackedVector2Array(1969, 639, 1967, 690, 3054, 688, 3054, 639)
+
 [node name="Stairs" type="Node2D" parent="Level" unique_id=646068547]
 
 [node name="Stair1" parent="Level/Stairs" unique_id=1311123737 instance=ExtResource("52_stair")]
@@ -762,6 +787,22 @@ position = Vector2(3967, 143)
 scale = Vector2(1, 0.65625)
 polygon = PackedVector2Array(0, 0, 352, 0, 352, -448)
 triangle_size = Vector2(352, -448)
+display_z_index = 1
+
+[node name="Stair3" parent="Level/Stairs" unique_id=305792979 instance=ExtResource("52_stair")]
+z_index = 1
+position = Vector2(-61, -1553)
+scale = Vector2(1, 0.65625)
+polygon = PackedVector2Array(0, 0, -336, 0, -336, -384)
+triangle_size = Vector2(-336, -384)
+display_z_index = 1
+
+[node name="Stair4" parent="Level/Stairs" unique_id=630223483 instance=ExtResource("52_stair")]
+z_index = 1
+position = Vector2(223, -1835)
+scale = Vector2(1, 0.65625)
+polygon = PackedVector2Array(16, -16, 336, -16, 336, -384)
+triangle_size = Vector2(320, -368)
 display_z_index = 1
 
 [node name="RisingPlatforms" type="Node2D" parent="Level" unique_id=1276722021]
@@ -1214,6 +1255,11 @@ polygon = PackedVector2Array(1949, 336, 2152, 338, 2153, 375, 1952, 376)
 position = Vector2(-1349.0001, -649.00006)
 scale = Vector2(1.89523, 1.0000002)
 polygon = PackedVector2Array(2266.2156, 326.99997, 2354.8594, 325.99997, 2354.8594, 398.99994, 2267.2708, 398.99994)
+
+[node name="GhostBlockCollision13" type="CollisionPolygon2D" parent="Level/GhostBlocks" unique_id=926762732]
+position = Vector2(-4621.0005, -2734.0002)
+scale = Vector2(1.89523, 1.0000002)
+polygon = PackedVector2Array(2483.6035, 330.00024, 2626.594, 327.99988, 2626.0667, 392.00024, 2482.0208, 390.00024)
 
 [node name="NPCs" type="Node2D" parent="Level" unique_id=1548200000]
 
