@@ -10,7 +10,8 @@ const MIN_TRIANGLE_HEIGHT := 8.0
 	set(value):
 		triangle_size = _normalized_triangle_size(value)
 		if not _syncing_polygon:
-			_write_triangle(_points_from_size(triangle_size))
+			var start_point := polygon[0] if not polygon.is_empty() else Vector2.ZERO
+			_write_triangle(_points_from_size(triangle_size, start_point))
 		_rebuild_stairs()
 @export var snap_triangle_in_editor := true:
 	set(value):
@@ -78,8 +79,12 @@ func _edit_is_selected_on_click(point: Vector2, tolerance: float) -> bool:
 
 func get_triangle_points() -> PackedVector2Array:
 	if polygon.size() >= 3:
-		return PackedVector2Array([polygon[0], polygon[1], polygon[2]])
+		return _control_points_from_stored(PackedVector2Array([polygon[0], polygon[1], polygon[2]]))
 	return _points_from_size(triangle_size)
+
+func get_editor_triangle_points() -> PackedVector2Array:
+	var points := get_triangle_points()
+	return _stored_points_from_control(points)
 
 func get_stair_polygon() -> PackedVector2Array:
 	var triangle := get_triangle_points()
@@ -132,12 +137,21 @@ func set_triangle_corner_from_editor(corner_index: int, local_position: Vector2)
 	points[corner_index] = local_position
 	set_triangle_points_from_editor(points, corner_index)
 
+func set_editor_triangle_corner_from_editor(corner_index: int, local_position: Vector2) -> void:
+	var stored_points := get_editor_triangle_points()
+	if corner_index < 0 or corner_index >= stored_points.size():
+		return
+	stored_points[corner_index] = local_position
+	var control_points := _control_points_from_stored(stored_points, corner_index)
+	var control_index := 2 if _is_positive_stored_triangle(stored_points) and corner_index == 1 else corner_index
+	set_triangle_points_from_editor(control_points, control_index)
+
 func set_triangle_points_from_editor(points: PackedVector2Array, changed_index := -1) -> void:
 	_write_triangle(_normalized_triangle_points(points, changed_index))
 	_sync_from_polygon(true)
 
 func is_point_near_stair(local_point: Vector2, radius: float) -> bool:
-	var triangle_points := get_triangle_points()
+	var triangle_points := get_editor_triangle_points()
 	if Geometry2D.is_point_in_polygon(local_point, triangle_points):
 		return true
 	for index in range(triangle_points.size()):
@@ -150,13 +164,16 @@ func is_point_near_stair(local_point: Vector2, radius: float) -> bool:
 func _sync_from_polygon(force: bool) -> void:
 	var raw_points := polygon
 	if raw_points.size() < 3:
-		raw_points = _default_triangle()
-	var changed_index := _changed_triangle_point_index(raw_points)
-	var normalized_points := _normalized_triangle_points(raw_points, changed_index)
+		raw_points = _stored_points_from_control(_default_triangle())
+	var changed_stored_index := _changed_triangle_point_index(raw_points)
+	var control_points := _control_points_from_stored(raw_points, changed_stored_index)
+	var changed_control_index := 2 if _is_positive_stored_triangle(raw_points) and changed_stored_index == 1 else changed_stored_index
+	var normalized_points := _normalized_triangle_points(control_points, changed_control_index)
+	var normalized_stored_points := _stored_points_from_control(normalized_points)
 	var changed := force or not _packed_points_equal(raw_points, _last_triangle)
 	if not changed:
 		return
-	if not _packed_points_equal(raw_points, normalized_points):
+	if not _packed_points_equal(raw_points, normalized_stored_points):
 		_write_triangle(normalized_points)
 	else:
 		_last_triangle = PackedVector2Array(raw_points)
@@ -177,7 +194,8 @@ func _normalized_triangle_points(raw_points: PackedVector2Array, changed_index: 
 	if changed_index == 2:
 		width_source = points[2].x - start_point.x
 	elif changed_index == 0 and _last_triangle.size() >= 3:
-		width_source = _last_triangle[1].x - _last_triangle[0].x
+		var previous_control_points := _control_points_from_stored(_last_triangle)
+		width_source = previous_control_points[1].x - previous_control_points[0].x
 	var height_source := points[2].y - start_point.y
 	if changed_index == 1 and _last_triangle.size() >= 3:
 		height_source = _last_triangle[2].y - _last_triangle[0].y
@@ -190,11 +208,42 @@ func _normalized_triangle_points(raw_points: PackedVector2Array, changed_index: 
 	])
 
 func _write_triangle(points: PackedVector2Array) -> void:
+	var stored_points := _stored_points_from_control(points)
 	_syncing_polygon = true
-	polygon = points
-	_last_triangle = PackedVector2Array(points)
+	polygon = stored_points
+	_last_triangle = PackedVector2Array(stored_points)
 	_syncing_polygon = false
 	queue_redraw()
+
+func _stored_points_from_control(points: PackedVector2Array) -> PackedVector2Array:
+	if points.size() < 3:
+		return PackedVector2Array(points)
+	if points[2].y > points[0].y:
+		return PackedVector2Array([
+			points[0],
+			Vector2(points[0].x, points[2].y),
+			points[2],
+		])
+	return PackedVector2Array([points[0], points[1], points[2]])
+
+func _control_points_from_stored(points: PackedVector2Array, changed_index := -1) -> PackedVector2Array:
+	if points.size() < 3:
+		return PackedVector2Array(points)
+	if _is_positive_stored_triangle(points):
+		var end_y := points[1].y if changed_index == 1 else points[2].y
+		return PackedVector2Array([
+			points[0],
+			Vector2(points[2].x, points[0].y),
+			Vector2(points[2].x, end_y),
+		])
+	return PackedVector2Array([points[0], points[1], points[2]])
+
+func _is_positive_stored_triangle(points: PackedVector2Array) -> bool:
+	if points.size() < 3:
+		return false
+	var current_is_positive := points[2].y > points[0].y and absf(points[1].x - points[0].x) <= 0.01
+	var previous_was_positive := _last_triangle.size() >= 3 and _last_triangle[2].y > _last_triangle[0].y and absf(_last_triangle[1].x - _last_triangle[0].x) <= 0.01
+	return current_is_positive or previous_was_positive
 
 func _rebuild_stairs() -> void:
 	_apply_display_layer()
@@ -295,8 +344,12 @@ func _normalized_triangle_size(raw_size: Vector2) -> Vector2:
 		normalized.y = MIN_TRIANGLE_HEIGHT * _non_zero_sign(normalized.y, -1.0)
 	return normalized
 
-func _points_from_size(size: Vector2) -> PackedVector2Array:
-	return PackedVector2Array([Vector2.ZERO, Vector2(size.x, 0.0), size])
+func _points_from_size(size: Vector2, start_point := Vector2.ZERO) -> PackedVector2Array:
+	return PackedVector2Array([
+		start_point,
+		start_point + Vector2(size.x, 0.0),
+		start_point + size,
+	])
 
 func _default_triangle() -> PackedVector2Array:
 	return PackedVector2Array([Vector2.ZERO, Vector2(192.0, 0.0), Vector2(192.0, -96.0)])

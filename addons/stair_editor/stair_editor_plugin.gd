@@ -134,7 +134,7 @@ func _draw_stair_handles(viewport_control: Control) -> void:
 	var draw_stair := _stair if _is_editable_stair(_stair) else _hover_stair
 	if not _is_editable_stair(draw_stair):
 		return
-	var points: PackedVector2Array = draw_stair.call("get_triangle_points")
+	var points := _editor_triangle_points(draw_stair)
 	var transform := draw_stair.get_global_transform_with_canvas()
 	if points.size() >= 3:
 		var viewport_points := PackedVector2Array()
@@ -176,7 +176,7 @@ func _find_handle_on_stair(stair: Node2D, viewport_position: Vector2) -> int:
 	if not _is_editable_stair(stair):
 		return -1
 	var transform := stair.get_global_transform_with_canvas()
-	var points: PackedVector2Array = stair.call("get_triangle_points")
+	var points := _editor_triangle_points(stair)
 	for index in range(points.size()):
 		var point := transform * points[index]
 		if point.distance_to(viewport_position) <= HANDLE_HIT_RADIUS:
@@ -194,7 +194,7 @@ func _find_stair_at(viewport_position: Vector2) -> Node2D:
 		var local_position := stair.get_global_transform_with_canvas().affine_inverse() * viewport_position
 		if stair.has_method("is_point_near_stair") and not stair.call("is_point_near_stair", local_position, pick_radius):
 			continue
-		var points: PackedVector2Array = stair.call("get_triangle_points")
+		var points := _editor_triangle_points(stair)
 		if Geometry2D.is_point_in_polygon(local_position, points):
 			best_stair = stair
 			best_distance = 0.0
@@ -255,8 +255,17 @@ func _set_corner_from_viewport(index: int, viewport_position: Vector2, stair: No
 	if not _is_editable_stair(target_stair):
 		return
 	var local_position := target_stair.get_global_transform_with_canvas().affine_inverse() * viewport_position
-	if target_stair.has_method("set_triangle_corner_from_editor"):
+	if target_stair.has_method("set_editor_triangle_corner_from_editor"):
+		target_stair.call("set_editor_triangle_corner_from_editor", index, local_position)
+	elif target_stair.has_method("set_triangle_corner_from_editor"):
 		target_stair.call("set_triangle_corner_from_editor", index, local_position)
+
+func _editor_triangle_points(stair: Node2D) -> PackedVector2Array:
+	if stair != null and stair.has_method("get_editor_triangle_points"):
+		return stair.call("get_editor_triangle_points") as PackedVector2Array
+	if stair != null and stair.has_method("get_triangle_points"):
+		return stair.call("get_triangle_points") as PackedVector2Array
+	return PackedVector2Array()
 
 func _distance_to_segment(point: Vector2, start_point: Vector2, end_point: Vector2) -> float:
 	var segment := end_point - start_point

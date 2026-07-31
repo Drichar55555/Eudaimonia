@@ -107,11 +107,12 @@ func _draw_polygon_fill(points: PackedVector2Array, color_value: Color) -> void:
 	for index in range(0, indices.size(), 3):
 		if index + 2 >= indices.size():
 			break
-		draw_colored_polygon(PackedVector2Array([
-			points[indices[index]],
-			points[indices[index + 1]],
-			points[indices[index + 2]],
-		]), color_value)
+		var a := points[indices[index]]
+		var b := points[indices[index + 1]]
+		var c := points[indices[index + 2]]
+		if absf((b - a).cross(c - a)) < 0.01:
+			continue
+		draw_colored_polygon(PackedVector2Array([a, b, c]), color_value)
 
 func _draw_polygon_outline(points: PackedVector2Array, color_value: Color, width: float) -> void:
 	if width <= 0.0:

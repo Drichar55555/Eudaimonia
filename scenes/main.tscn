@@ -64,8 +64,10 @@
 [ext_resource type="PackedScene" path="res://scenes/dialogue_npc.tscn" id="51_dialogue_npc"]
 [ext_resource type="PackedScene" path="res://scenes/stair.tscn" id="52_stair"]
 [ext_resource type="PackedScene" path="res://scenes/rising_platform.tscn" id="53_rising_platform"]
+[ext_resource type="PackedScene" path="res://scenes/ghost_stair.tscn" id="54_ghost_stair"]
+[ext_resource type="PackedScene" path="res://scenes/paired_door.tscn" id="55_paired_door"]
 
-[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_od4ux"]
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_1epgm"]
 blend_mode = 1
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_room_start"]
@@ -104,12 +106,6 @@ size = Vector2(90, 150)
 [sub_resource type="CircleShape2D" id="CircleShape2D_save_point"]
 radius = 96.0
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_xhfw6"]
-size = Vector2(78, 28)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_1epgm"]
-size = Vector2(78, 28)
-
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_152kg"]
 size = Vector2(78, 28)
 
@@ -119,25 +115,31 @@ size = Vector2(78, 28)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_y57op"]
 size = Vector2(78, 28)
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_mlv25"]
+size = Vector2(78, 28)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_a82wo"]
+size = Vector2(78, 28)
+
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_fv21b"]
 size = Vector2(225, 88.00006)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_mlv25"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_gdvew"]
 size = Vector2(78, 28)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_tel4y"]
 size = Vector2(22.00003, 341)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_a82wo"]
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_kjtvk"]
 size = Vector2(42.00003, 361)
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_gdvew"]
-size = Vector2(78, 28)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_kjtvk"]
-size = Vector2(78, 28)
-
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_xrs0c"]
+size = Vector2(78, 28)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_xljpf"]
+size = Vector2(78, 28)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_j4bwh"]
 size = Vector2(78, 28)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_player"]
@@ -324,7 +326,7 @@ fog_color = Color(0.82, 0.86, 0.8, 0.11)
 process_mode = 3
 z_index = 1024
 z_as_relative = false
-material = SubResource("CanvasItemMaterial_od4ux")
+material = SubResource("CanvasItemMaterial_1epgm")
 script = ExtResource("39_background_light_rays")
 light_direction = Vector2(-0.64561, 0.7636673)
 source_handle_path = NodePath("../SunLightEditorHandles/SourceHandle")
@@ -622,6 +624,9 @@ position = Vector2(3264, 490)
 [node name="DemoKeyDoor2" parent="Level/Locks" unique_id=1682817543 instance=ExtResource("21_key_door")]
 position = Vector2(3315, 65)
 
+[node name="DemoKeyChest3" parent="Level/Locks" unique_id=620204624 instance=ExtResource("22_key_chest")]
+position = Vector2(-881, -2850)
+
 [node name="Terrain" type="StaticBody2D" parent="Level" unique_id=144938748]
 script = ExtResource("8_terrain_visual")
 
@@ -767,9 +772,15 @@ build_mode = 1
 polygon = PackedVector2Array(2702, 638, 2702, 688, 3054, 688, 3054, 639)
 
 [node name="GroundCollision27" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=1632857873]
-position = Vector2(-2904, -3189)
+position = Vector2(-2904, -3186.707)
+scale = Vector2(1.0000001, 0.9963234)
 build_mode = 1
 polygon = PackedVector2Array(1969, 639, 1967, 690, 3054, 688, 3054, 639)
+
+[node name="GroundCollision28" type="CollisionPolygon2D" parent="Level/Terrain" unique_id=2128180949]
+position = Vector2(-3637, -3535)
+build_mode = 1
+polygon = PackedVector2Array(2594, 712, 2594, 759, 3081, 762, 3081, 711)
 
 [node name="Stairs" type="Node2D" parent="Level" unique_id=646068547]
 
@@ -799,11 +810,28 @@ display_z_index = 1
 
 [node name="Stair4" parent="Level/Stairs" unique_id=630223483 instance=ExtResource("52_stair")]
 z_index = 1
-position = Vector2(223, -1835)
+position = Vector2(237, -1845)
 scale = Vector2(1, 0.65625)
-polygon = PackedVector2Array(16, -16, 336, -16, 336, -384)
+polygon = PackedVector2Array(0, 0, 320, 0, 320, -368)
 triangle_size = Vector2(320, -368)
 display_z_index = 1
+
+[node name="GhostStair1" parent="Level/Stairs" unique_id=1264994383 instance=ExtResource("54_ghost_stair")]
+z_index = 1
+position = Vector2(-556, -2871)
+polygon = PackedVector2Array(0, 48, 0, 320, 336, 320)
+triangle_size = Vector2(336, 272)
+display_z_index = 1
+
+[node name="PairedDoors" type="Node2D" parent="Level" unique_id=924836370]
+
+[node name="door1-a" parent="Level/PairedDoors" unique_id=469755748 instance=ExtResource("55_paired_door")]
+position = Vector2(-700, -2626)
+arrival_offset = Vector2(0, 30)
+
+[node name="door1-b" parent="Level/PairedDoors" unique_id=435585959 instance=ExtResource("55_paired_door")]
+position = Vector2(627, -3161)
+arrival_offset = Vector2(0, 30)
 
 [node name="RisingPlatforms" type="Node2D" parent="Level" unique_id=1276722021]
 
@@ -840,7 +868,7 @@ position = Vector2(-0.765625, -5.3125)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton/PressSensor" index="0"]
 position = Vector2(-0.765625, -5.3125)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_xhfw6")
+shape = SubResource("RectangleShape2D_152kg")
 
 [node name="DemoMovingWall2" parent="Level/Mechanisms" unique_id=229016664 instance=ExtResource("15_mechanism_wall")]
 position = Vector2(1358, 598)
@@ -863,7 +891,7 @@ position = Vector2(0, -7)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton2/PressSensor" index="0"]
 position = Vector2(0, -7)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_1epgm")
+shape = SubResource("RectangleShape2D_r4e17")
 
 [node name="MechanismWire2" parent="Level/Mechanisms" unique_id=374300171 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(1172, 707, 1172, 729.08105, 1361, 729.08105, 1361, 687.8412)
@@ -903,7 +931,7 @@ position = Vector2(2, -12.5)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton3/PressSensor" index="0"]
 position = Vector2(2, -12.5)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_152kg")
+shape = SubResource("RectangleShape2D_y57op")
 
 [node name="MechanismWire3" parent="Level/Mechanisms" unique_id=1473114172 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(1877, 174, 1906.0172, 174, 1906.0172, 267.04892, 1069.8918, 267.04892, 1069.8918, 250.99963)
@@ -939,7 +967,7 @@ detect_player_weapons = false
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton4/PressSensor" index="0"]
 position = Vector2(0, -14)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_r4e17")
+shape = SubResource("RectangleShape2D_mlv25")
 
 [node name="MechanismWire4" parent="Level/Mechanisms" unique_id=1442750400 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(4437, -296, 4437, -269.7004, 3440.9995, -269.7004, 3440.9995, -303.0151)
@@ -977,7 +1005,7 @@ position = Vector2(0, -6)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton5/PressSensor" index="0"]
 position = Vector2(0, -6)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_y57op")
+shape = SubResource("RectangleShape2D_a82wo")
 
 [node name="MechanismWire5" parent="Level/Mechanisms" unique_id=544980897 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(3128, -885, 3128, -729.99677, 2803.4827, -405.47946, 2498.9995, -405.47946)
@@ -1021,7 +1049,7 @@ position = Vector2(0, -6)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton6/PressSensor" index="0"]
 position = Vector2(0, -6)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_mlv25")
+shape = SubResource("RectangleShape2D_gdvew")
 
 [node name="MechanismWire6" parent="Level/Mechanisms" unique_id=1966892610 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(1461, -292, 1461, -191.995, 1337.9958, -191.995, 1337.9958, -113.993645)
@@ -1070,7 +1098,7 @@ rotation = 1.5707964
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton7/PressSensor" index="0"]
 position = Vector2(9, 40.99997)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_a82wo")
+shape = SubResource("RectangleShape2D_kjtvk")
 
 [node name="MechanismWire7" parent="Level/Mechanisms" unique_id=369191169 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(-532, -414, -188.99841, -414, -97.21152, -322.2131, -97.21152, -263.97253)
@@ -1109,7 +1137,7 @@ position = Vector2(-26, -10.5)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton8/PressSensor" index="0"]
 position = Vector2(-26, -10.5)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_gdvew")
+shape = SubResource("RectangleShape2D_xrs0c")
 
 [node name="MechanismWire8" parent="Level/Mechanisms" unique_id=1793507952 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(-227, -644, -227, -746.07837, -290.50848, -809.58685, -290.50848, -1020.0006)
@@ -1158,7 +1186,7 @@ rotation = 1.5707964
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton9/PressSensor" index="0"]
 position = Vector2(116, -29)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_kjtvk")
+shape = SubResource("RectangleShape2D_xljpf")
 
 [node name="MechanismWire9" parent="Level/Mechanisms" unique_id=671822958 instance=ExtResource("15_tm6hj")]
 points = PackedVector2Array(-139, -1003, -139, -1198.041, 52.066513, -1198.041)
@@ -1204,7 +1232,7 @@ position = Vector2(-0.765625, -5.3125)
 [node name="CollisionShape2D" parent="Level/Mechanisms/DemoButton10/PressSensor" index="0"]
 position = Vector2(-0.765625, -5.3125)
 rotation = 0.0
-shape = SubResource("RectangleShape2D_xrs0c")
+shape = SubResource("RectangleShape2D_j4bwh")
 
 [node name="GhostBlocks" type="StaticBody2D" parent="Level" unique_id=1943537721]
 collision_layer = 8
